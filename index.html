@@ -44,7 +44,91 @@
       --font-mono: "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
+<!-- ==================== 参谋部 KORU 实时盘口监听引擎 ==================== -->
+<script>
+(function() {
+    console.log(">>> [Radar] 启动 KORU 实时盘口监听引擎...");
+    const WEIGHTED_COST = 7.435; // 梯形战壕加权成本
+    const TP1_TARGET = 8.331;    // 第一止盈锚点
 
+    // 辅助元素查找器（优先按ID查找，兜底按文本上下文扫描）
+    function findPriceEl() {
+        return document.getElementById("koru-val") || 
+               Array.from(document.querySelectorAll("div, span, button")).find(el => el.textContent.includes("USDT") && /^[0-9.]+$/.test(el.textContent.replace("USDT","").trim()));
+    }
+
+    function findStatusBadge() {
+        return Array.from(document.querySelectorAll("span, div")).find(el => el.textContent.includes("大陆直连") || el.textContent.includes("实时盘口"));
+    }
+
+    function findDiffBadge() {
+        return Array.from(document.querySelectorAll("span, div")).find(el => el.textContent.includes("挂单距现价"));
+    }
+
+    async function fetchRealtimeKoru() {
+        const statusBadge = findStatusBadge();
+        try {
+            // 直连 OKX 公开行情 API
+            const res = await fetch("https://www.okx.com/api/v5/market/ticker?instId=KORU-USDT-SWAP", { cache: "no-store" });
+            const data = await res.json();
+            
+            if (data && data.code === "0" && data.data && data.data[0]) {
+                const latestPrice = parseFloat(data.data[0].last);
+                if (!isNaN(latestPrice) && latestPrice > 0) {
+                    renderPriceUpdate(latestPrice);
+                }
+            }
+        } catch (err) {
+            console.warn("[Radar] 实时盘口直连偶发波动，保持静态基准:", err.message);
+            if (statusBadge) {
+                statusBadge.innerHTML = "● 基准快照";
+                statusBadge.style.color = "#94a3b8";
+            }
+        }
+    }
+
+    function renderPriceUpdate(price) {
+        const priceStr = price.toFixed(3);
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+        // 1. 刷新大卡片价格展示
+        const priceEl = findPriceEl();
+        if (priceEl) {
+            priceEl.innerHTML = `${priceStr} <span style="font-size: 14px; color: #94a3b8;">USDT</span>`;
+            priceEl.style.transition = "color 0.3s";
+            priceEl.style.color = "#38ef7d";
+            setTimeout(() => { priceEl.style.color = ""; }, 500);
+        }
+
+        // 2. 刷新顶部基准核心按钮展示
+        const baseBtns = Array.from(document.querySelectorAll("button"));
+        const centerBtn = baseBtns.find(b => /^[0-9.]+$/.test(b.textContent.trim()) && Math.abs(parseFloat(b.textContent.trim()) - price) < 1.5);
+        if (centerBtn) centerBtn.textContent = priceStr;
+
+        // 3. 重精算战壕位差与止盈空间
+        const diff = (price - WEIGHTED_COST).toFixed(3);
+        const diffText = diff >= 0 ? `+${diff} (高出战壕)` : `${diff} (已切入战壕!)`;
+        const diffBadge = findDiffBadge();
+        if (diffBadge) {
+            diffBadge.innerHTML = `● 挂单距现价: <b>${diffText}</b>`;
+            diffBadge.style.color = diff < 0 ? "#10b981" : "#f59e0b";
+        }
+
+        // 4. 刷新状态指示灯与呼吸效果
+        const statusBadge = findStatusBadge();
+        if (statusBadge) {
+            statusBadge.innerHTML = `● 实时盘口 ${timeStr}`;
+            statusBadge.style.color = "#10b981";
+        }
+    }
+
+    // 页面就绪后立即执行，并开启 10 秒轮询
+    fetchRealtimeKoru();
+    setInterval(fetchRealtimeKoru, 10000);
+})();
+</script>
+<!-- ==================== 参谋部 KORU 实时盘口监听引擎 结束 ==================== -->
     body {
       background-color: var(--bg-dark);
       color: var(--text-main);
