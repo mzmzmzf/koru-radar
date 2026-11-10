@@ -35,4 +35,4 @@ jobs:
           git config --global user.name "MarketBot"
           git config --global user.email "bot@github.com"
           git add index.html
-         git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update market data" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update market data" && git push)
