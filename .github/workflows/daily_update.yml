@@ -1,0 +1,38 @@
+name: Daily Market Data Auto Update
+
+on:
+  schedule:
+    # 对应北京时间每周一至周五 15:35 自动触发 (首尔收盘后1小时，交割数据已完全落定)
+    # UTC 时间 07:35 = UTC+8 北京时间 15:35
+    - cron: '35 7 * * 1-5'
+  workflow_dispatch: # 允许您在网页上随时点击按钮“手动立即触发一次”
+
+permissions:
+  contents: write # 授予机器人自动修改并提交代码的写入权限
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 安装金融数据依赖
+        run: |
+          pip install yfinance
+
+      - name: 运行更新脚本
+        run: |
+          python update.py
+
+      - name: 提交更新到仓库
+        run: |
+          git config --global user.name "MarketBot"
+          git config --global user.email "bot@github.com"
+          git add index.html
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update market data [skip ci]" && git push)
