@@ -420,7 +420,7 @@
         <span style="color: var(--text-muted);">KORU 基准价:</span>
         <button class="stepper-btn" onclick="adjustBenchmarkPrice(-0.10)">-0.10</button>
         <button class="stepper-btn" onclick="adjustBenchmarkPrice(-0.05)">-0.05</button>
-        <input type="number" step="0.001" id="livePriceInput" class="price-input-box" value="7.580" onchange="onManualPriceChange(this.value)">
+        <input type="number" step="0.001" id="livePriceInput" class="price-input-box" value="7.155" onchange="onManualPriceChange(this.value)">
         <button class="stepper-btn" onclick="adjustBenchmarkPrice(+0.05)">+0.05</button>
         <button class="stepper-btn" onclick="adjustBenchmarkPrice(+0.10)">+0.10</button>
         <span style="color: var(--text-sub); font-size: 10px;">USDT</span>
@@ -473,7 +473,7 @@
           </div>
           <div style="text-align: right; font-family: var(--font-mono);">
             <span style="font-size: 10px; color: var(--text-sub);">第一止盈锚点</span>
-            <div style="font-size: 15px; font-weight: 800; color: var(--amber-warn);">8.331 USDT</div>
+            <div style="font-size: 15px; font-weight: 800; color: var(--amber-warn);">1,342.44 USDT</div>
           </div>
         </div>
       </div>
@@ -483,7 +483,7 @@
         <div class="card">
           <span style="font-size: 10px; color: var(--text-sub); display: block;">KORU 实时动态价</span>
           <div style="font-size: 20px; font-weight: 900; font-family: var(--font-mono); color: var(--text-main); margin: 4px 0;" id="cardKoruPrice">
-            7.580 <span style="font-size: 11px; font-weight: 400; color: var(--text-sub);">USDT</span>
+            7.155 <span style="font-size: 11px; font-weight: 400; color: var(--text-sub);">USDT</span>
           </div>
           <div style="font-size: 10px; color: var(--emerald-bull); font-family: var(--font-mono);">
             距第一止盈 8.331: <strong id="cardDistToTp">+9.9%</strong>
@@ -492,8 +492,7 @@
 
         <div class="card">
           <span style="font-size: 10px; color: var(--text-sub); display: block;">USDKRW 离岸汇率</span>
-          <div style="font-size: 20px; font-weight: 900; font-family: var(--font-mono); color: var(--emerald-bull); margin: 4px 0;">
-            1,337.10
+          <div style="font-size: 20px; font-weight: 900; font-family: var(--font-mono); color: var(--emerald-bull); margin: 4px 0;">1,342.44
           </div>
           <div style="font-size: 10px; color: var(--emerald-bull);">
             ▼ 破位升值 (红利区 &lt;1,340)
@@ -503,7 +502,7 @@
         <div class="card">
           <span style="font-size: 10px; color: var(--text-sub); display: block;">OKX 合约持仓量 (OI)</span>
           <div style="font-size: 20px; font-weight: 900; font-family: var(--font-mono); color: var(--neon-purple); margin: 4px 0;">
-            954.77 <span style="font-size: 11px; font-weight: 400; color: var(--text-sub);">万</span>
+            124.38 <span style="font-size: 11px; font-weight: 400; color: var(--text-sub);">万</span>
           </div>
           <div style="font-size: 10px; color: var(--text-muted);">
             做市商换手稳固 / 投机空头出清
@@ -570,7 +569,7 @@
         <div style="background: var(--surface-dark); padding: 12px; border-radius: 8px; border: 1px solid var(--card-border); margin-bottom: 12px;">
           <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 12px; margin-bottom: 6px;">
             <span style="color: var(--text-muted);">拖动模拟 KORU 目标价:</span>
-            <strong id="simTargetPriceDisplay" style="color: var(--accent-sky); font-size: 15px;">8.331 USDT</strong>
+            <strong id="simTargetPriceDisplay" style="color: var(--accent-sky); font-size: 15px;">7.155 USDT</strong>
           </div>
           <input type="range" min="7.50" max="11.00" step="0.05" value="8.331" class="range-slider" id="targetPriceSlider" oninput="onTargetSliderChange(this.value)">
           <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-sub); font-family: var(--font-mono); margin-top: 4px;">
@@ -758,7 +757,7 @@
         <div id="chartTooltipDetail" style="margin-top: 8px; padding: 8px 12px; background: var(--surface-dark); border-radius: 6px; font-family: var(--font-mono); font-size: 11px; display: flex; justify-content: space-between; color: var(--text-muted);">
           <span>日期: <strong id="tipDate" style="color: #fff;">11/10 (最新)</strong></span>
           <span>总市值: <strong id="tipMcap" style="color: var(--accent-sky);">3,983.82 万亿</strong></span>
-          <span>成交额: <strong id="tipVal" style="color: var(--emerald-bull);">15.02 万亿</strong></span>
+          <span>成交额: <strong id="tipVal" style="color: var(--emerald-bull);">124.38 万亿</strong></span>
         </div>
       </div>
 
@@ -786,7 +785,7 @@
       <div class="card" style="margin-bottom: 12px;">
         <div class="card-title" style="justify-content: space-between; margin-bottom: 8px;">
           <span>💱 USDKRW 美元兑韩元 离岸流动性总阀门</span>
-          <span class="badge badge-bull">1,337.10 破位</span>
+          <span class="badge badge-bull">1,342.44 破位</span>
         </div>
         <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
           汇率与 KORU 呈负相关关系；韩元加速升值彻底解除外资汇兑亏损，激活回流抢筹。
@@ -835,7 +834,7 @@
 
           <div style="padding: 10px; background: var(--surface-dark); border-radius: 8px; border-left: 3px solid var(--accent-sky);">
             <div style="display: flex; justify-content: space-between;">
-              <strong style="color: #fff;">25% 权重：美股现货主战场 (美元定价锚)</strong>
+              <strong style="color: #fff;">1,342.44% 权重：美股现货主战场 (美元定价锚)</strong>
               <span class="badge badge-sky">决定波段空间</span>
             </div>
             <p style="color: var(--text-muted); margin-top: 2px;">费城半导体 SOX、美光、英伟达强弱及 AMEX KORU 换手区间。决定“能涨到哪里”。</p>
@@ -1075,7 +1074,7 @@
     });
 
     // App State
-    let currentBenchmarkPrice = 7.580;
+    let currentBenchmarkPrice = 7.155;
     let customProxyUrl = localStorage.getItem('koru_proxy_url') || '';
     let isLiveSimulated = true;
 
@@ -1123,9 +1122,9 @@
     }
 
     function resetDefaultPrice() {
-      currentBenchmarkPrice = 7.580;
+      currentBenchmarkPrice = 7.155;
       onPriceUpdated();
-      triggerToast('已重置基准价为 7.580 USDT');
+      triggerToast('已重置基准价为 7.155 USDT');
     }
 
     function onPriceUpdated() {
