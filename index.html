@@ -22,7 +22,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; }
         body { background-color: var(--bg-base); color: var(--text-main); padding-bottom: 50px; }
 
-        /* 顶部司令部导航 */
         .header-bar {
             background-color: #080b12;
             border-bottom: 1px solid var(--border-color);
@@ -34,13 +33,12 @@
             top: 0;
             z-index: 100;
         }
-        .header-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; letter-spacing: 0.5px; }
+        .header-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; }
         .logo-icon { width: 24px; height: 24px; background: linear-gradient(135deg, #10b981, #06b6d4); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #000; }
         .header-status { font-size: 12px; display: flex; gap: 8px; align-items: center; }
         .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid var(--border-color); background: rgba(30, 41, 59, 0.6); color: var(--text-muted); }
         .badge.active { color: var(--neon-emerald); border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); }
 
-        /* 双轨战略切换开关 (Tab Bar) */
         .terminal-tabs {
             display: flex;
             background: #0f172a;
@@ -74,7 +72,6 @@
         .view-panel { display: none; padding: 12px 14px; max-width: 800px; margin: 0 auto; }
         .view-panel.active { display: block; }
 
-        /* 公共卡片排版 */
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
@@ -84,20 +81,17 @@
         }
         .card-title { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
 
-        /* KORU 视图特有样式 */
         .sub-nav { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 8px 0; color: var(--text-muted); border-bottom: 1px solid #1a2438; margin-bottom: 12px; }
         .btn-group { display: inline-flex; gap: 4px; }
-        .btn-sm { background: var(--bg-subtle); border: 1px solid var(--border-color); color: #cbd5e1; padding: 3px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+        .btn-sm { background: var(--bg-subtle); border: 1px solid var(--border-color); color: #cbd5e1; padding: 3px 6px; border-radius: 4px; font-size: 11px; }
         .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
         .metric-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; }
         .metric-name { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
         .metric-val { font-size: 20px; font-weight: 800; }
         .metric-desc { font-size: 11px; margin-top: 4px; }
 
-        /* BTC 阶梯计算器特有样式 */
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
-        .form-group.full { grid-column: span 2; }
         .form-label { font-size: 12px; color: var(--text-muted); font-weight: 600; display: flex; justify-content: space-between; }
         .form-input {
             background: #090d16;
@@ -125,7 +119,6 @@
         .tag-2 { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
         .tag-3 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
 
-        /* 计算结果展示卡片 */
         .eval-box {
             background: linear-gradient(180deg, #131c31, #0c1220);
             border: 1px solid #2d3f63;
@@ -150,7 +143,6 @@
             padding: 12px;
             font-size: 13px;
             font-weight: 800;
-            letter-spacing: 0.5px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -159,12 +151,21 @@
         }
         .btn-action:active { transform: scale(0.98); }
 
-        /* 战术守则列表 */
+        .btn-auto-layout {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid var(--neon-blue);
+            color: #93c5fd;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
         .rules-card { background: #0c1322; border-left: 3px solid var(--neon-cyan); padding: 12px; border-radius: 0 6px 6px 0; margin-top: 12px; font-size: 12px; line-height: 1.6; }
         .rule-item { margin-bottom: 6px; }
         .rule-item:last-child { margin-bottom: 0; }
 
-        /* Toast 提示浮窗 */
         #appToast {
             position: fixed;
             bottom: 20px;
@@ -184,25 +185,23 @@
 </head>
 <body>
 
-    <!-- 顶部核心导航栏 -->
     <header class="header-bar">
         <div class="header-logo">
             <div class="logo-icon">Q</div>
             <span>QUANT TERMINAL</span>
         </div>
         <div class="header-status">
-            <span class="badge">UTC+8</span>
-            <span class="badge active" id="terminalStatus">● 战备就绪</span>
+            <span class="badge" id="latencyBadge">-- ms</span>
+            <span class="badge active" id="terminalStatus">● 5G中继联调中</span>
         </div>
     </header>
 
-    <!-- 双轨战略切换开关 -->
     <nav class="terminal-tabs">
         <button class="tab-btn active" id="btnTabKoru" onclick="switchTab('koru')">🛰️ KORU 战略宏观雷达</button>
         <button class="tab-btn" id="btnTabBtc" onclick="switchTab('btc')">⚡ BTC 战术阶梯开单</button>
     </nav>
 
-    <!-- ==================== 视图 1：KORU 战略雷达 ==================== -->
+    <!-- 视图 1：KORU 战略雷达 -->
     <main class="view-panel active" id="view-koru">
         <div class="sub-nav">
             <div>
@@ -210,285 +209,12 @@
                 <span class="btn-group">
                     <button class="btn-sm">-0.10</button>
                     <button class="btn-sm">-0.05</button>
-                    <button class="btn-sm" style="color:var(--neon-emerald); font-weight:800;">7.155</button>
+                    <button class="btn-sm" id="koruCenterBtn" style="color:var(--neon-emerald); font-weight:800;">7.155</button>
                     <button class="btn-sm">+0.05</button>
                     <button class="btn-sm">+0.10</button>
                 </span>
             </div>
-            <div id="koruDiffText" style="color:var(--neon-emerald); font-weight:600;">● 挂单距现价: -0.280 (已切入战壕!)</div>
+            <div id="koruDiffText" style="color:var(--neon-emerald); font-weight:600;">● 挂单距现价: --</div>
         </div>
 
-        <!-- 战报焦点卡片 -->
         <div class="card" style="background: linear-gradient(180deg, #132238, #111a2d); border-color: #2b456e;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div>
-                    <span style="background:rgba(16,185,129,0.15); color:#34d399; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #10b981;">CHoCH 确立</span>
-                    <span style="font-size:13px; font-weight:800; margin-left:6px;">首尔母体收复 814.31 点 (+4.62%)</span>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-size:10px; color:var(--text-muted);">第一止盈锚点</div>
-                    <div style="font-size:14px; font-weight:800; color:var(--neon-amber);">8.331 USDT</div>
-                </div>
-            </div>
-            <p style="font-size:11px; color:var(--text-muted); margin-top:8px; line-height:1.4;">
-                USDKRW 跌穿 1,340 生死线，首尔单日市值回血 168.7 万亿韩元，半导体两强垄断 51.41% 指数权重虹吸拉升。
-            </p>
-        </div>
-
-        <!-- 四大核心量化指标矩阵 -->
-        <div class="metric-grid">
-            <div class="metric-card">
-                <div class="metric-name">KORU 实时动态价</div>
-                <div class="metric-val" id="koru-val" style="color:#fff;">7.155 <span style="font-size:13px; color:var(--text-muted);">USDT</span></div>
-                <div class="metric-desc" style="color:var(--neon-emerald);">距第一止盈 8.331: +16.4% 空间</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-name">USDKRW 离岸汇率</div>
-                <div class="metric-val" style="color:var(--neon-cyan);">1,335.89</div>
-                <div class="metric-desc" style="color:var(--neon-emerald);">▼ 破位升值 (红利区 &lt;1,340)</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-name">OKX 合约持仓量 (OI)</div>
-                <div class="metric-val" style="color:#60a5fa;">116.25 万</div>
-                <div class="metric-desc" style="color:var(--text-muted);">做市商换手稳固 / 投机空头出清</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-name">战备梯形盈亏比</div>
-                <div class="metric-val" style="color:var(--neon-amber);">3.14 : 1</div>
-                <div class="metric-desc" style="color:var(--text-muted);">加权 7.435 | SL 7.150 | TP 8.331</div>
-            </div>
-        </div>
-
-        <!-- 战术守则 -->
-        <div class="rules-card">
-            <div style="font-weight:800; color:#fff; margin-bottom:6px;">🎖️ 参谋部当前作战核心守则</div>
-            <div class="rule-item"><b>1. 恪守“三买一不买之防 FOMO”</b>：大阳线绝不追涨。梯形买单死守 7.419–7.450 区域，等待美股开盘流动性洗盘回踩触发。</div>
-            <div class="rule-item"><b>2. 战术保本推进守则</b>：接单后价格一旦反弹重回 7.60 USDT 以上，立即将 7.150 的止损线上推至 7.44 保本线。</div>
-            <div class="rule-item"><b>3. 杠杆 ETF 严禁长持死扛</b>：波段触碰 8.331 锁定 50% 利润；冲刺 9.80–10.00 全仓凯旋，拒绝承受日度再平衡的波动损耗。</div>
-        </div>
-    </main>
-
-    <!-- ==================== 视图 2：BTC 战术阶梯开单计算器 ==================== -->
-    <main class="view-panel" id="view-btc">
-        <!-- 账户与战术参数设定 -->
-        <div class="card">
-            <div class="card-title">
-                <span>🛡️ 战备账户与风险锁死</span>
-                <span class="badge" style="color:var(--neon-emerald); border-color:#10b981;">单一方向思维: 做多</span>
-            </div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="form-label">战备总本金 (USDT)</label>
-                    <input type="number" id="btcEquity" class="form-input" value="10000" oninput="calculateBtcLadder()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">
-                        <span>单笔风险限额</span>
-                        <span id="riskAmountLabel" style="color:var(--neon-amber);">$200.00</span>
-                    </label>
-                    <input type="number" id="btcRiskPct" class="form-input" value="2.0" step="0.1" oninput="calculateBtcLadder()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">结构止损位 (SL · 破位防线)</label>
-                    <input type="number" id="btcSlPrice" class="form-input" value="86400" oninput="calculateBtcLadder()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">第一目标位 (TP1 · 阻力带)</label>
-                    <input type="number" id="btcTpPrice" class="form-input" value="91500" oninput="calculateBtcLadder()">
-                </div>
-            </div>
-
-            <!-- 倒金字塔梯形埋伏档位 (2:3:5) -->
-            <div class="form-label" style="margin-bottom:6px;">倒金字塔战壕埋伏档位 (2 : 3 : 5 结构)</div>
-            <div class="tier-box">
-                <div class="tier-row">
-                    <span class="tier-tag tag-1">战壕 1 (20%)</span>
-                    <input type="number" id="tier1Price" class="form-input" value="88200" placeholder="15 EMA 回踩" oninput="calculateBtcLadder()">
-                    <span id="tier1Qty" style="font-size:12px; color:var(--text-muted); font-family:monospace; text-align:right;">-- BTC</span>
-                </div>
-                <div class="tier-row">
-                    <span class="tier-tag tag-2">战壕 2 (30%)</span>
-                    <input type="number" id="tier2Price" class="form-input" value="87500" placeholder="通道中轨" oninput="calculateBtcLadder()">
-                    <span id="tier2Qty" style="font-size:12px; color:var(--text-muted); font-family:monospace; text-align:right;">-- BTC</span>
-                </div>
-                <div class="tier-row">
-                    <span class="tier-tag tag-3">战壕 3 (50%)</span>
-                    <input type="number" id="tier3Price" class="form-input" value="86900" placeholder="极限密集支撑" oninput="calculateBtcLadder()">
-                    <span id="tier3Qty" style="font-size:12px; color:var(--text-muted); font-family:monospace; text-align:right;">-- BTC</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 精算核验面板 -->
-        <div class="eval-box">
-            <div class="eval-headline">
-                <div>
-                    <div style="font-size:11px; color:var(--text-muted);">预估加权建仓均价 (P̄)</div>
-                    <div style="font-size:22px; font-weight:800; color:var(--neon-cyan);" id="resAvgPrice">-- USDT</div>
-                </div>
-                <div id="rrBadgeContainer">
-                    <span class="rr-badge rr-pass" id="resRrBadge">R:R -- : 1</span>
-                </div>
-            </div>
-
-            <div class="stat-line">
-                <span>规划建议开仓总量</span>
-                <b id="resTotalQty">-- BTC (约 -- USDT 仓位)</b>
-            </div>
-            <div class="stat-line">
-                <span>吃满被打止损最大亏损</span>
-                <b id="resMaxLoss" style="color:var(--neon-red);">-$200.00 (严格锁死)</b>
-            </div>
-            <div class="stat-line">
-                <span>第一目标预期利润 (TP1)</span>
-                <b id="resProfit" style="color:var(--neon-emerald);">+$0.00</b>
-            </div>
-            <div class="stat-line" style="border-top:1px dashed rgba(255,255,255,0.08); padding-top:6px; margin-top:6px;">
-                <span style="color:#cbd5e1;">战术保本推进触发位 (+1R)</span>
-                <b id="resBreakeven" style="color:var(--neon-amber);">-- USDT</b>
-            </div>
-        </div>
-
-        <!-- 快捷出单与复制按钮 -->
-        <button class="btn-action" onclick="copyBtcOrderPlan()">
-            📋 一键复制交易所实战挂单清单
-        </button>
-
-        <div class="rules-card">
-            <div style="font-weight:800; color:#fff; margin-bottom:4px;">⚡ BTC 战术开单纪律指令</div>
-            <div class="rule-item"><b>1. 严禁无斜率开单</b>：均线走横走平即为震荡磨损期，坚决空仓观望；</div>
-            <div class="rule-item"><b>2. 机械化以损定仓</b>：绝不按杠杆倍数入场，无论行情如何波动，三档打满亏损额必须锁死在风险上限以内；</div>
-            <div class="rule-item"><b>3. 保本推进绝不犹豫</b>：价格一旦触及 +1R 推进线，立即把止损拉平至加权均价，将风险敞口瞬间归零！</div>
-        </div>
-    </main>
-
-    <div id="appToast">已成功复制完整实战挂单计划至剪贴板！</div>
-
-    <!-- ==================== 极简底层交互与防护引擎 ==================== -->
-    <script>
-        // 1. 双轨标签页切换
-        function switchTab(tab) {
-            const btnKoru = document.getElementById("btnTabKoru");
-            const btnBtc = document.getElementById("btnTabBtc");
-            const viewKoru = document.getElementById("view-koru");
-            const viewBtc = document.getElementById("view-btc");
-
-            if (tab === 'koru') {
-                btnKoru.classList.add("active");
-                btnBtc.classList.remove("active");
-                viewKoru.classList.add("active");
-                viewBtc.classList.remove("active");
-            } else {
-                btnBtc.classList.add("active");
-                btnKoru.classList.remove("active");
-                viewBtc.classList.add("active");
-                viewKoru.classList.remove("active");
-                calculateBtcLadder(); // 切到 BTC 时立即计算一次
-            }
-        }
-
-        // 2. BTC 阶梯开单量化精算引擎
-        function calculateBtcLadder() {
-            const equity = parseFloat(document.getElementById("btcEquity").value) || 0;
-            const riskPct = parseFloat(document.getElementById("btcRiskPct").value) || 0;
-            const sl = parseFloat(document.getElementById("btcSlPrice").value) || 0;
-            const tp = parseFloat(document.getElementById("btcTpPrice").value) || 0;
-
-            const p1 = parseFloat(document.getElementById("tier1Price").value) || 0;
-            const p2 = parseFloat(document.getElementById("tier2Price").value) || 0;
-            const p3 = parseFloat(document.getElementById("tier3Price").value) || 0;
-
-            const riskAmount = equity * (riskPct / 100);
-            document.getElementById("riskAmountLabel").textContent = `$${riskAmount.toFixed(2)}`;
-
-            // 倒金字塔 2:3:5 加权均价
-            const avgPrice = (p1 * 0.2) + (p2 * 0.3) + (p3 * 0.5);
-            document.getElementById("resAvgPrice").textContent = `${avgPrice.toFixed(1)} USDT`;
-
-            const deltaLoss = avgPrice - sl;
-            const rrBadge = document.getElementById("resRrBadge");
-
-            if (deltaLoss <= 0) {
-                rrBadge.textContent = "SL 设置错误 (需低于均价)";
-                rrBadge.className = "rr-badge rr-fail";
-                return;
-            }
-
-            // 绝对风险锁死计算开仓总量 (BTC)
-            const totalQty = riskAmount / deltaLoss;
-            const totalUsdt = totalQty * avgPrice;
-
-            const q1 = totalQty * 0.2;
-            const q2 = totalQty * 0.3;
-            const q3 = totalQty * 0.5;
-
-            document.getElementById("tier1Qty").textContent = `${q1.toFixed(3)} BTC`;
-            document.getElementById("tier2Qty").textContent = `${q2.toFixed(3)} BTC`;
-            document.getElementById("tier3Qty").textContent = `${q3.toFixed(3)} BTC`;
-
-            document.getElementById("resTotalQty").textContent = `${totalQty.toFixed(3)} BTC (约 $${totalUsdt.toFixed(0)} 规模)`;
-            document.getElementById("resMaxLoss").textContent = `-$${riskAmount.toFixed(2)} (严格锁死)`;
-
-            // 盈亏比计算 (R:R)
-            const deltaWin = tp - avgPrice;
-            const expProfit = totalQty * deltaWin;
-            document.getElementById("resProfit").textContent = `+$${expProfit.toFixed(2)}`;
-
-            const rr = (deltaWin / deltaLoss).toFixed(2);
-            if (rr >= 2.0) {
-                rrBadge.textContent = `盈亏比 ${rr} : 1 (EV > 0 准入)`;
-                rrBadge.className = "rr-badge rr-pass";
-            } else {
-                rrBadge.textContent = `盈亏比 ${rr} : 1 (低于 1:2 禁止开单)`;
-                rrBadge.className = "rr-badge rr-fail";
-            }
-
-            // 战术保本推进位 (+1R 利润点)
-            const breakevenPrice = avgPrice + deltaLoss;
-            document.getElementById("resBreakeven").textContent = `达到 ${breakevenPrice.toFixed(1)} USDT 时止损推至 ${avgPrice.toFixed(1)}`;
-        }
-
-        // 3. 一键复制挂单计划
-        function copyBtcOrderPlan() {
-            const avgP = document.getElementById("resAvgPrice").textContent;
-            const sl = document.getElementById("btcSlPrice").value;
-            const tp = document.getElementById("btcTpPrice").value;
-            const rr = document.getElementById("resRrBadge").textContent;
-
-            const p1 = document.getElementById("tier1Price").value;
-            const q1 = document.getElementById("tier1Qty").textContent;
-            const p2 = document.getElementById("tier2Price").value;
-            const q2 = document.getElementById("tier2Qty").textContent;
-            const p3 = document.getElementById("tier3Price").value;
-            const q3 = document.getElementById("tier3Qty").textContent;
-
-            const planText = `【BTC 战术阶梯挂单计划】\n` +
-                             `• 档位 1 (20%): 限价 ${p1} | 数量: ${q1}\n` +
-                             `• 档位 2 (30%): 限价 ${p2} | 数量: ${q2}\n` +
-                             `• 档位 3 (50%): 限价 ${p3} | 数量: ${q3}\n` +
-                             `• 加权预估成本: ${avgP}\n` +
-                             `• 结构止损 (SL): ${sl} USDT\n` +
-                             `• 第一止盈 (TP1): ${tp} USDT\n` +
-                             `• 准入评估: ${rr}`;
-
-            navigator.clipboard.writeText(planText).then(() => {
-                showToast("已成功复制实战挂单计划至剪贴板！");
-            }).catch(() => {
-                showToast("浏览器权限受限，请长按手动复制");
-            });
-        }
-
-        function showToast(msg) {
-            const toast = document.getElementById("appToast");
-            toast.textContent = msg;
-            toast.style.display = "block";
-            setTimeout(() => { toast.style.display = "none"; }, 2500);
-        }
-
-        // 页面初始化
-        window.addEventListener('DOMContentLoaded', () => {
-            calculateBtcLadder();
-        });
-    </script>
-</body>
-</html>
