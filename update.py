@@ -68,7 +68,7 @@ def fetch_and_update():
     # 精确匹配“USDKRW 离岸汇率”卡片内的独立数字
     content = re.sub(r'(USDKRW\s*离岸汇率[\s\S]*?<div[^>]*>)\s*[0-9,.]+', rf'\g<1>{latest_usdkrw:,.2f}', content)
     # 精确匹配“OKX 合约持仓量”卡片内的独立数字
-    content = re.sub(r'(OKX\s*合约持仓量[^\n<]*?[\s\S]*?<div[^>]*>)\s*[0-9.]+(\s*万)?', rf'\g<1>{latest_oi:.2f} 万', content)
+    content = re.sub(r'(OKX\s*合约持仓量[^\n<]*?[\s\S]*?<div[^>]*>)\s*[0-9.]+(\s*万)*', rf'\g<1>{latest_oi:.2f}', content)
     # 精确匹配“KORU 实时动态价”卡片内的独立数字
     content = re.sub(r'(KORU\s*实时动态价[\s\S]*?<div[^>]*>)\s*[0-9.]+(\s*USDT)?', rf'\g<1>{latest_koru:.3f} USDT', content)
     # 顶部基准价格动态同步
