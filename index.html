@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>跨市场量化作战终端 · 战略旗舰版</title>
+    <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
     <style>
         :root {
             --bg-base: #0b0f19;
@@ -151,9 +151,7 @@
             position: relative;
             transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .chart-viewport.enlarged {
-            height: 420px;
-        }
+        .chart-viewport.enlarged { height: 420px; }
 
         .tactical-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; margin-top: 8px; }
         .tactical-table th { background: #0d1527; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-weight: 600; }
@@ -254,7 +252,7 @@
             <button class="subtab-btn" onclick="switchKoruSubTab('mapping', this)">🎯 大盘逐档映射 (点位推演)</button>
             <button class="subtab-btn" onclick="switchKoruSubTab('chart', this)">📈 23日市值与成交量双轨图</button>
             <button class="subtab-btn" onclick="switchKoruSubTab('fx', this)">💱 汇率总阀与衍生品情绪</button>
-            <button class="subtab-btn" onclick="switchKoruSubTab('trench', this)">🛡️ 战备防区与持仓风控</button>
+            <button class="subtab-btn" onclick="switchKoruSubTab('trench', this)">🛡️ 持仓风控沙盒与战壕</button>
         </div>
 
         <div class="sub-nav">
@@ -297,18 +295,18 @@
                 </div>
                 <div class="metric-card">
                     <div class="metric-name">USDKRW 离岸汇率</div>
-                <div class="metric-val" style="color:var(--neon-cyan);">1,337.18</div>
+                    <div class="metric-val" style="color:var(--neon-cyan);">1,334.75</div>
                     <div class="metric-desc" style="color:var(--neon-emerald);">▼ 破位升值 (红利区 &lt;1,340)</div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-name">OKX 合约持仓量 (OI)</div>
-                <div class="metric-val" style="color:#60a5fa;">1221.48 万</div>
+                    <div class="metric-val" style="color:#60a5fa;">117.32 万</div>
                     <div class="metric-desc" style="color:var(--text-muted);">做市商换手稳固 / 投机空头出清</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-name">战备梯形盈亏比</div>
+                    <div class="metric-name">全仓战备盈亏比</div>
                     <div class="metric-val" id="overviewRrVal" style="color:var(--neon-amber);">3.14 : 1</div>
-                    <div class="metric-desc" id="overviewRrDesc" style="color:var(--text-muted);">加权 8.008 | BEP 8.024 | TP 8.331</div>
+                    <div class="metric-desc" id="overviewRrDesc" style="color:var(--text-muted);">综合 8.008 | BEP 8.024 | TP 8.331</div>
                 </div>
             </div>
 
@@ -322,7 +320,7 @@
 
             <div class="rules-card">
                 <div style="font-weight:800; color:#fff; margin-bottom:6px;">🎖️ 参谋部当前作战核心守则</div>
-                <div class="rule-item"><b>1. 恪守“三买一不买之防 FOMO”</b>：大阳线绝不追涨。梯形买单死守回踩防区，等待美股开盘流动性洗盘回踩触发。</div>
+                <div class="rule-item"><b>1. 恪守“三买一不买之防 FOMO”</b>：大阳线绝不追涨。加仓仅在 10/15 EMA 缩量回踩并出现反包阳线后执行。</div>
                 <div class="rule-item"><b>2. 战术保本推进守则</b>：接单后价格一旦覆盖 +1R 风险空间，立即将止损单上推至真实保本价（BEP）。</div>
                 <div class="rule-item"><b>3. 杠杆 ETF 严禁长持死扛</b>：波段触碰 8.331 锁定 50% 利润；冲刺 9.80–10.00 全仓凯旋，拒绝承受日度再平衡的波动损耗。</div>
             </div>
@@ -330,15 +328,12 @@
 
         <!-- 子模块 2: 大盘逐档映射 (含自适应量程滑块与快捷跳档) -->
         <div class="koru-subview" id="subview-mapping">
-            
-            <!-- 动态点位测算滑块卡片 -->
             <div class="card" style="background: linear-gradient(180deg, #132238, #0e1726); border: 1px solid #233b5d; margin-bottom: 12px;">
                 <div class="card-title" style="margin-bottom: 8px;">
                     <span>🎚️ KOSPI 200 动态点位推演测算器</span>
                     <span class="badge" style="color:var(--neon-cyan); border-color:#06b6d4;">3X 杠杆弹性联动</span>
                 </div>
 
-                <!-- 快捷档位跳动与模拟读数行 -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
                     <div style="display:flex; align-items:center; gap:4px;">
                         <span style="font-size:11px; color:var(--text-muted);">快捷档位:</span>
@@ -355,19 +350,16 @@
                     </div>
                 </div>
 
-                <!-- 自适应量程滑块 -->
                 <input type="range" id="kospiSimSlider" step="0.2" value="838.32" 
                        style="width:100%; accent-color:var(--neon-emerald); cursor:pointer;" 
                        oninput="onKospiSliderChange(this.value)">
 
-                <!-- 动态刻度尺标签 -->
                 <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-top:2px;">
                     <span id="sliderMinLabel">712.6 (-15%)</span>
                     <span id="sliderMidLabel" style="color:var(--neon-amber);">838.32 (基准)</span>
                     <span id="sliderMaxLabel">964.1 (+15%)</span>
                 </div>
 
-                <!-- 实时演算输出仪表盘 -->
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin: 12px 0 10px 0;">
                     <div style="background:#090f1d; border:1px solid #1a273f; border-radius:6px; padding:10px;">
                         <div style="font-size:11px; color:var(--text-muted);">母体模拟涨跌</div>
@@ -383,13 +375,11 @@
                     </div>
                 </div>
 
-                <!-- 战术行动判定条 -->
                 <div id="simTacticalAdvice" style="font-size:11px; padding:8px 10px; border-radius:4px; background:rgba(6,182,212,0.1); border:1px solid rgba(6,182,212,0.3); color:#67e8f9;">
                     💡 当前母体中枢平衡位，耐心持有浮盈底仓。
                 </div>
             </div>
 
-            <!-- 战略台阶基准映射表 -->
             <div class="card">
                 <div class="card-title">
                     <span>🎯 KOSPI 200 与 KORU (3X杠杆) 精准点位映射推演</span>
@@ -407,8 +397,7 @@
                     <tbody>
                         <tr><td>780.00</td><td style="color:var(--neon-red);">-4.2%</td><td>7.150 USDT</td><td><span class="badge" style="color:var(--neon-red); border-color:#ef4444;">系统止损防线</span></td></tr>
                         <tr><td>795.50</td><td style="color:var(--neon-amber);">-2.3%</td><td>7.435 USDT</td><td><span class="badge" style="color:var(--neon-cyan); border-color:#06b6d4;">梯形加权建仓线</span></td></tr>
-                        <tr class="row-highlight">
-                            <td>838.32</td><td style="color:var(--neon-emerald);">收复突破</td><td id="tableLiveKoru">8.347 USDT</td><td><span class="badge active">当前母体位置</span></td></tr>
+                        <tr class="row-highlight"><td>838.32</td><td style="color:var(--neon-emerald);">收复突破</td><td id="tableLiveKoru">8.347 USDT</td><td><span class="badge active">当前母体位置</span></td></tr>
                         <tr><td>850.00</td><td style="color:var(--neon-emerald);">+1.39%</td><td>8.850 USDT</td><td><span class="badge" style="color:var(--neon-amber); border-color:#f59e0b;">第二目标区 (TP2)</span></td></tr>
                         <tr><td>875.00</td><td style="color:var(--neon-emerald);">+4.38%</td><td>9.500 USDT</td><td><span class="badge">波段强阻力带</span></td></tr>
                         <tr><td>900.00</td><td style="color:var(--neon-emerald);">+7.36%</td><td>10.200 USDT</td><td><span class="badge" style="color:var(--neon-emerald); border-color:#10b981;">战略清仓凯旋</span></td></tr>
@@ -448,9 +437,9 @@
                             <polygon points="0,20 0,20 22,46 43,85 65,88 87,138 109,125 130,115 152,138 174,118 196,140 217,138 239,146 261,128 283,86 304,94 326,117 348,103 370,126 391,122 413,155 435,190 457,195 478,171 500,157 500,200 0,200" fill="url(#chartGrad)"/>
                             <polyline id="svgPolyline" points="0,20 22,46 43,85 65,88 87,138 109,125 130,115 152,138 174,118 196,140 217,138 239,146 261,128 283,86 304,94 326,117 348,103 370,126 391,122 413,155 435,190 457,195 478,171 500,157" fill="none" stroke="#10b981" stroke-width="2.5"/>
                             <circle cx="457" cy="195" r="4" fill="#ef4444"/>
-                        <text x="420" y="185" fill="#f87171" font-size="10">11/09 底 3815</text>
+                            <text x="420" y="185" fill="#f87171" font-size="10">11/09 底 3815</text>
                             <circle cx="500" cy="157" r="5" fill="#10b981"/>
-                        <text x="440" y="147" fill="#34d399" font-size="10" font-weight="bold">+105.0万亿</text>
+                            <text x="440" y="147" fill="#34d399" font-size="10" font-weight="bold">+105.0万亿</text>
                         </g>
 
                         <g id="chartBarGroup" style="display:none;"></g>
@@ -480,38 +469,89 @@
             </div>
         </div>
 
-        <!-- 子模块 5: 3 阶梯战役防区与持仓风控精算 (含真实 BEP 仪表盘) -->
+        <!-- 子模块 5: 双轨持仓风控沙盒与战备防区 (全新重构) -->
         <div class="koru-subview" id="subview-trench">
             <div class="card">
                 <div class="card-title" style="flex-wrap:wrap; gap:8px;">
-                    <span>🛡️ KORU 战术防区与持仓风控精算</span>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:11px; color:var(--text-muted);">实仓开仓均价:</span>
-                        <input type="number" id="customKoruCostInput" step="0.001" style="background:#090d16; border:1px solid var(--neon-amber); color:var(--neon-amber); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:800; width:95px; outline:none;" value="8.008" oninput="onKoruCostChanged(this.value)">
-                        <span style="font-size:11px; color:var(--neon-amber); font-weight:700;">USDT</span>
+                    <span>🛡️ 持仓风控沙盒 (底仓与战术加仓独立隔离核算)</span>
+                    <span class="badge active">物理隔离架构</span>
+                </div>
+
+                <!-- 分舱独立录入网格 (Core vs Satellite) -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+                    <!-- 战略底仓舱 (Core) -->
+                    <div style="background:#0e1728; border:1px solid #1e3a5f; border-top:3px solid var(--neon-cyan); border-radius:6px; padding:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:12px; font-weight:800; color:#fff;">🔵 战略底仓舱 (Core)</span>
+                            <span class="badge" style="color:var(--neon-cyan); border-color:#06b6d4;">基石 50%</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:6px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                                <span style="color:var(--text-muted);">买入均价:</span>
+                                <input type="number" id="coreEntryPrice" step="0.001" value="8.008" class="form-input" style="width:90px; padding:3px 6px; font-size:12px;" oninput="updatePositionSandbox()">
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                                <span style="color:var(--text-muted);">移动保本损:</span>
+                                <input type="number" id="coreSlPrice" step="0.001" value="8.024" class="form-input" style="width:90px; padding:3px 6px; font-size:12px;" oninput="updatePositionSandbox()">
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px dashed #1a273f; padding-top:4px;">
+                                <span style="color:var(--text-muted);">底仓浮盈状态:</span>
+                                <b id="coreProfitDisplay" style="color:var(--neon-emerald); font-family:monospace;">--</b>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 战术加仓舱 (Satellite 1) -->
+                    <div style="background:#0e1728; border:1px solid #3b2a1a; border-top:3px solid var(--neon-amber); border-radius:6px; padding:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:12px; font-weight:800; color:#fff;">🟠 战术加仓舱 (Batch 1)</span>
+                            <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:3px; cursor:pointer;">
+                                <input type="checkbox" id="satActiveCheck" onchange="updatePositionSandbox()" style="accent-color:var(--neon-amber);"> 激活
+                            </label>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:6px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                                <span style="color:var(--text-muted);">加仓均价:</span>
+                                <input type="number" id="satEntryPrice" step="0.001" value="8.250" class="form-input" style="width:90px; padding:3px 6px; font-size:12px;" oninput="updatePositionSandbox()">
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                                <span style="color:var(--text-muted);">专属止损 (SL):</span>
+                                <input type="number" id="satSlPrice" step="0.001" value="8.080" class="form-input" style="width:90px; padding:3px 6px; font-size:12px;" oninput="updatePositionSandbox()">
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px dashed #1a273f; padding-top:4px;">
+                                <span style="color:var(--text-muted);">加仓风险校验:</span>
+                                <span id="satRiskBadge" class="badge" style="font-size:10px; padding:1px 5px;">待激活</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 核心风控平衡仪表盘 -->
-                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin: 10px 0 14px 0;">
-                    <div style="background:#0d1527; border:1px solid var(--border-color); border-radius:6px; padding:10px;">
-                        <div style="font-size:11px; color:var(--text-muted);">开仓加权均价</div>
-                        <div style="font-size:16px; font-weight:800; color:var(--neon-cyan);" id="cardEntryVal">8.008 USDT</div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">实仓持仓底色</div>
+                <!-- 全仓合成指挥台 (Blended Master View) -->
+                <div style="background: linear-gradient(180deg, #131f36, #0c1424); border: 1px solid #283d63; border-radius:6px; padding:12px; margin-bottom:12px;">
+                    <div style="font-size:12px; font-weight:800; color:#fff; margin-bottom:8px; display:flex; justify-content:space-between;">
+                        <span>🟢 全仓合成指挥台 (Blended Position)</span>
+                        <span id="blendedWeightLabel" style="font-size:11px; color:var(--neon-cyan);">底仓 50% 纯单运行</span>
                     </div>
-                    <div style="background:#0d1527; border:1px solid var(--border-color); border-radius:6px; padding:10px;">
-                        <div style="font-size:11px; color:var(--text-muted);">真实零损保本价 (BEP)</div>
-                        <div style="font-size:16px; font-weight:800; color:var(--neon-amber);" id="cardBepVal">8.024 USDT</div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">含 0.2% 手续费与滑点</div>
-                    </div>
-                    <div style="background:#0d1527; border:1px solid var(--border-color); border-radius:6px; padding:10px;">
-                        <div style="font-size:11px; color:var(--text-muted);">+1R 保本推进线</div>
-                        <div style="font-size:16px; font-weight:800; color:var(--neon-emerald);" id="cardTrailingTrigger">8.866 USDT</div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">触及将止损拉平至 BEP</div>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+                        <div style="background:#080d17; border:1px solid #1a273c; border-radius:4px; padding:8px;">
+                            <div style="font-size:10px; color:var(--text-muted);">全仓合成均价</div>
+                            <div style="font-size:15px; font-weight:800; color:var(--neon-cyan);" id="cardEntryVal">8.008 USDT</div>
+                            <div style="font-size:9px; color:var(--text-muted); margin-top:1px;">综合持仓成本</div>
+                        </div>
+                        <div style="background:#080d17; border:1px solid #1a273c; border-radius:4px; padding:8px;">
+                            <div style="font-size:10px; color:var(--text-muted);">全仓真实保本 (BEP)</div>
+                            <div style="font-size:15px; font-weight:800; color:var(--neon-amber);" id="cardBepVal">8.024 USDT</div>
+                            <div style="font-size:9px; color:var(--text-muted); margin-top:1px;">含 0.2% 摩擦成本</div>
+                        </div>
+                        <div style="background:#080d17; border:1px solid #1a273c; border-radius:4px; padding:8px;">
+                            <div style="font-size:10px; color:var(--text-muted);">+1R 保本推进线</div>
+                            <div style="font-size:15px; font-weight:800; color:var(--neon-emerald);" id="cardTrailingTrigger">8.866 USDT</div>
+                            <div style="font-size:9px; color:var(--text-muted); margin-top:1px;">触及推平全仓止损</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 3 阶梯战术防区卡片 (2:3:5 结构) -->
+                <!-- 战备防区卡片 (2:3:5 结构) -->
                 <table class="tactical-table">
                     <thead>
                         <tr>
@@ -675,14 +715,127 @@
         const DOMESTIC_FALLBACK_KLINES_URL = "https://min-api.cryptocompare.com/data/v2/histohour?fsym=BTC&tsym=USD&limit=60";
         const BASE_KOSPI_ANCHOR = 838.32; // 11/11 权威收盘基准锚点
 
-        let customKoruCost = parseFloat(localStorage.getItem("quant_koru_cost")) || 8.008;
+        // 双轨沙盒数据结构
+        let sandboxData = {
+            coreEntry: 8.008,
+            coreSl: 8.024,
+            satActive: false,
+            satEntry: 8.250,
+            satSl: 8.080
+        };
+
+        let customKoruCost = 8.008; // 合成综合均价
         let currentBtcLivePrice = parseFloat(localStorage.getItem("quant_btc")) || 73800.0;
         let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 8.347;
         let currentSide = 'SHORT';
         let activeStrategy = null;
         let isChartZoomed = false;
 
-        // 1. 自适应量程与快捷档位初始化
+        // 1. 初始化并加载本地沙盒
+        function loadPositionSandbox() {
+            const saved = localStorage.getItem("quant_koru_sandbox");
+            if (saved) {
+                try {
+                    sandboxData = Object.assign(sandboxData, JSON.parse(saved));
+                } catch(e) {}
+            }
+            document.getElementById("coreEntryPrice").value = sandboxData.coreEntry.toFixed(3);
+            document.getElementById("coreSlPrice").value = sandboxData.coreSl.toFixed(3);
+            document.getElementById("satActiveCheck").checked = sandboxData.satActive;
+            document.getElementById("satEntryPrice").value = sandboxData.satEntry.toFixed(3);
+            document.getElementById("satSlPrice").value = sandboxData.satSl.toFixed(3);
+
+            updatePositionSandbox();
+        }
+
+        // 2. 双轨沙盒核心计算与渲染
+        function updatePositionSandbox() {
+            const coreP = parseFloat(document.getElementById("coreEntryPrice").value) || 8.008;
+            const coreSl = parseFloat(document.getElementById("coreSlPrice").value) || 8.024;
+            const isSatActive = document.getElementById("satActiveCheck").checked;
+            const satP = parseFloat(document.getElementById("satEntryPrice").value) || 8.250;
+            const satSl = parseFloat(document.getElementById("satSlPrice").value) || 8.080;
+
+            sandboxData = {
+                coreEntry: coreP,
+                coreSl: coreSl,
+                satActive: isSatActive,
+                satEntry: satP,
+                satSl: satSl
+            };
+            localStorage.setItem("quant_koru_sandbox", JSON.stringify(sandboxData));
+
+            const kp = lastValidKoru;
+
+            // 渲染底仓浮盈
+            const coreGain = (((kp - coreP) / coreP) * 100).toFixed(2);
+            const coreDisplay = document.getElementById("coreProfitDisplay");
+            coreDisplay.textContent = `${coreGain >= 0 ? '+' : ''}${coreGain}%`;
+            coreDisplay.style.color = coreGain >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
+
+            // 渲染加仓风险校验 (加仓最大潜在亏损 vs 底仓浮盈安全垫)
+            const satBadge = document.getElementById("satRiskBadge");
+            if (isSatActive) {
+                const coreProfitPerUnit = Math.max(0, kp - coreP);
+                const coreTotalCushion = coreProfitPerUnit * 0.5; // 50% 底仓权重
+                const satRiskPerUnit = Math.max(0, satP - satSl);
+                const satTotalRisk = satRiskPerUnit * 0.3; // 30% 加仓权重
+
+                if (coreTotalCushion <= 0) {
+                    satBadge.textContent = "⚠️ 底仓无浮盈垫 (高危)";
+                    satBadge.style.color = "var(--neon-red)";
+                    satBadge.style.borderColor = "var(--neon-red)";
+                } else {
+                    const riskRatio = ((satTotalRisk / coreTotalCushion) * 100).toFixed(1);
+                    if (riskRatio <= 30.0) {
+                        satBadge.textContent = `🟢 安全 (占用浮盈 ${riskRatio}%)`;
+                        satBadge.style.color = "var(--neon-emerald)";
+                        satBadge.style.borderColor = "var(--neon-emerald)";
+                    } else {
+                        satBadge.textContent = `⚠️ 超标 (占用浮盈 ${riskRatio}% > 30%)`;
+                        satBadge.style.color = "var(--neon-amber)";
+                        satBadge.style.borderColor = "var(--neon-amber)";
+                    }
+                }
+            } else {
+                satBadge.textContent = "待激活";
+                satBadge.style.color = "var(--text-muted)";
+                satBadge.style.borderColor = "var(--border-color)";
+            }
+
+            // 计算全仓合成中枢 (Blended View)
+            let blendedCost = coreP;
+            let totalWeightText = "底仓 50% 纯单运行";
+
+            if (isSatActive) {
+                // 50% 底仓 + 30% 加仓 = 80% 总权重
+                blendedCost = (coreP * 0.5 + satP * 0.3) / 0.8;
+                totalWeightText = "底仓 50% + 加仓 30% (80% 仓位)";
+            }
+
+            customKoruCost = blendedCost;
+            document.getElementById("blendedWeightLabel").textContent = totalWeightText;
+
+            // 全仓 BEP (+0.2% 摩擦系数) 与 +1R 推进线
+            const bep = blendedCost * 1.002;
+            const deltaLoss = blendedCost - 7.150;
+            const trailingTrigger = blendedCost + Math.max(0, deltaLoss);
+
+            document.getElementById("cardEntryVal").textContent = `${blendedCost.toFixed(3)} USDT`;
+            document.getElementById("cardBepVal").textContent = `${bep.toFixed(3)} USDT`;
+            document.getElementById("cardTrailingTrigger").textContent = `${trailingTrigger.toFixed(3)} USDT`;
+
+            // 同步总览盈亏比与距现价差值
+            updateOverviewCostMetrics();
+            renderKoruUI(kp);
+            updateTrenchTable();
+
+            // 联动滑块推演收益率
+            const slider = document.getElementById("kospiSimSlider");
+            if (slider) onKospiSliderChange(slider.value);
+        }
+
+        // 3. 自适应量程与快捷档位
         function initKospiSliderRange(basePoint) {
             const slider = document.getElementById("kospiSimSlider");
             if (!slider) return;
@@ -707,7 +860,6 @@
             onKospiSliderChange(base);
         }
 
-        // 2. 快捷跳档函数
         function jumpKospiOffset(offsetPct, btnEl) {
             const slider = document.getElementById("kospiSimSlider");
             const base = BASE_KOSPI_ANCHOR || 838.32;
@@ -720,12 +872,10 @@
             if (btnEl) btnEl.classList.add("active");
         }
 
-        // 3. 滑块变动响应与 3 倍杠杆弹性推演
         function onKospiSliderChange(val) {
             const simK = parseFloat(val);
             const base = BASE_KOSPI_ANCHOR || 838.32;
 
-            // 拖动时自动同步基准按钮状态
             document.querySelectorAll(".kospi-preset-btn").forEach(btn => btn.classList.remove("active"));
             if (Math.abs(simK - base) < 0.2) {
                 const baseBtn = document.getElementById("btnPresetBase");
@@ -733,7 +883,7 @@
             }
 
             const deltaIndexPct = (simK - base) / base;
-            const deltaKoruPct = deltaIndexPct * 3.0; // 3X 杠杆系数
+            const deltaKoruPct = deltaIndexPct * 3.0; // 3X 杠杆
 
             const baseKoru = lastValidKoru || 8.347;
             const simP = baseKoru * (1 + deltaKoruPct);
@@ -753,7 +903,6 @@
             roiEl.textContent = `${simRoi >= 0 ? '+' : ''}${simRoi.toFixed(2)}%`;
             roiEl.style.color = simRoi >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
 
-            // 战术行动裁决
             const adviceEl = document.getElementById("simTacticalAdvice");
             if (simK <= 780.0) {
                 adviceEl.style.background = "rgba(239,68,68,0.15)";
@@ -783,36 +932,13 @@
             }
         }
 
-        // 4. 自定义成本变动响应引擎 (含 BEP 与 +1R 计算)
-        function onKoruCostChanged(val) {
-            const cost = parseFloat(val);
-            if (!isNaN(cost) && cost > 0) {
-                customKoruCost = cost;
-                localStorage.setItem("quant_koru_cost", cost);
-                updateTrenchTable();
-                updateOverviewCostMetrics();
-                renderKoruUI(lastValidKoru);
-                const slider = document.getElementById("kospiSimSlider");
-                if (slider) onKospiSliderChange(slider.value);
-            }
-        }
-
+        // 4. 总览与战壕状态渲染
         function updateOverviewCostMetrics() {
             const sl = 7.150;
             const tp = 8.331;
             const deltaLoss = customKoruCost - sl;
             const deltaWin = tp - customKoruCost;
-
             const bep = customKoruCost * 1.002;
-            const trailingTrigger = customKoruCost + Math.max(0, deltaLoss);
-
-            const cardEntry = document.getElementById("cardEntryVal");
-            const cardBep = document.getElementById("cardBepVal");
-            const cardTrigger = document.getElementById("cardTrailingTrigger");
-
-            if (cardEntry) cardEntry.textContent = `${customKoruCost.toFixed(3)} USDT`;
-            if (cardBep) cardBep.textContent = `${bep.toFixed(3)} USDT`;
-            if (cardTrigger) cardTrigger.textContent = `${trailingTrigger.toFixed(3)} USDT`;
 
             const rrValEl = document.getElementById("overviewRrVal");
             const rrDescEl = document.getElementById("overviewRrDesc");
@@ -820,7 +946,7 @@
                 if (deltaLoss > 0 && deltaWin > 0) {
                     const rr = (deltaWin / deltaLoss).toFixed(2);
                     rrValEl.textContent = `${rr} : 1`;
-                    rrDescEl.textContent = `成本 ${customKoruCost.toFixed(3)} | BEP ${bep.toFixed(3)} | TP ${tp}`;
+                    rrDescEl.textContent = `综合 ${customKoruCost.toFixed(3)} | BEP ${bep.toFixed(3)} | TP ${tp}`;
                 } else if (deltaWin <= 0) {
                     rrValEl.textContent = `🎯 已超第一目标`;
                     rrDescEl.textContent = `当前成本已进入大幅兑现利润区`;
@@ -928,7 +1054,7 @@
             barGroup.innerHTML = html;
         }
 
-        // 6. 导航与布局
+        // 6. 导航交互
         function switchMainTab(tab) {
             const btnKoru = document.getElementById("btnTabKoru");
             const btnBtc = document.getElementById("btnTabBtc");
@@ -1118,9 +1244,9 @@
             if (tableLive) tableLive.textContent = `${kp.toFixed(3)} USDT`;
             
             const diff = (kp - customKoruCost).toFixed(3);
-            const diffText = diff >= 0 ? `+${diff} (高出战壕)` : `${diff} (已切入战壕!)`;
+            const diffText = diff >= 0 ? `+${diff} (高出防区)` : `${diff} (已切入防区!)`;
             const diffBadge = document.getElementById("koruDiffText");
-            diffBadge.textContent = `● 挂单距现价: ${diffText}`;
+            diffBadge.textContent = `● 现价距全仓综合成本: ${diffText}`;
             diffBadge.style.color = diff < 0 ? "#10b981" : "#f59e0b";
 
             if (kp >= 8.331) {
@@ -1241,7 +1367,7 @@
                         lastValidKoru = data.koru;
                         localStorage.setItem("quant_koru", data.koru);
                         renderKoruUI(data.koru);
-                        updateTrenchTable();
+                        updatePositionSandbox();
                     }
 
                     if (data.strategy) {
@@ -1273,7 +1399,7 @@
                         document.getElementById("terminalStatus").textContent = `● 5G国内直连 ${timeStr}`;
 
                         renderKoruUI(lastValidKoru);
-                        updateTrenchTable();
+                        updatePositionSandbox();
 
                         if (kData?.Data?.Data) {
                             const closes = kData.Data.Data.map(x => x.close);
@@ -1288,11 +1414,7 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById("customKoruCostInput").value = customKoruCost.toFixed(3);
-            updateOverviewCostMetrics();
-            updateTrenchTable();
-            renderKoruUI(lastValidKoru);
-
+            loadPositionSandbox();
             initKospiSliderRange(BASE_KOSPI_ANCHOR);
 
             setBtcTradeSide('SHORT');
