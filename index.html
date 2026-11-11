@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>跨市场量化作战终端 · 战略裁决旗舰版</title>
+    <title>跨市场量化作战终端 · 交互增强旗舰版</title>
     <style>
         :root {
             --bg-base: #0b0f19;
@@ -116,7 +116,8 @@
 
         .sub-nav { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 8px 0; color: var(--text-muted); border-bottom: 1px solid #1a2438; margin-bottom: 12px; }
         .btn-group { display: inline-flex; gap: 4px; }
-        .btn-sm { background: var(--bg-subtle); border: 1px solid var(--border-color); color: #cbd5e1; padding: 3px 6px; border-radius: 4px; font-size: 11px; }
+        .btn-sm { background: var(--bg-subtle); border: 1px solid var(--border-color); color: #cbd5e1; padding: 3px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+        .btn-sm.active { background: rgba(16, 185, 129, 0.2); border-color: var(--neon-emerald); color: #fff; }
 
         .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
         .metric-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; }
@@ -140,13 +141,27 @@
         .rule-item { margin-bottom: 6px; }
         .rule-item:last-child { margin-bottom: 0; }
 
+        /* 图表工作区视窗容器 */
+        .chart-viewport {
+            width: 100%;
+            height: 220px;
+            background: #0a0f1d;
+            border-radius: 6px;
+            border: 1px solid #1a253c;
+            padding: 10px;
+            position: relative;
+            transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .chart-viewport.enlarged {
+            height: 420px;
+        }
+
         .tactical-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; margin-top: 8px; }
         .tactical-table th { background: #0d1527; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-weight: 600; }
         .tactical-table td { padding: 8px 10px; border-bottom: 1px solid #1a253c; font-family: monospace; }
         .tactical-table tr:hover { background: rgba(255, 255, 255, 0.02); }
         .row-highlight { background: rgba(16, 185, 129, 0.08); font-weight: 700; }
 
-        /* 参谋部即时战略裁决 HUD 战术看板 */
         .hud-ruling-card {
             background: linear-gradient(135deg, #131d33, #0b1220);
             border: 1px solid #2d416b;
@@ -155,12 +170,7 @@
             padding: 12px 14px;
             margin-bottom: 12px;
         }
-        .hud-ruling-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
+        .hud-ruling-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
         .hud-ruling-title { font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
         .hud-ruling-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
 
@@ -236,7 +246,9 @@
         <button class="tab-btn" id="btnTabBtc" onclick="switchMainTab('btc')">⚡ BTC 战术阶梯开单</button>
     </nav>
 
-    <!-- 模块 1：KORU 战略宏观雷达 -->
+    <!-- ========================================================================= -->
+    <!-- 模块 1：KORU 战略宏观雷达                                                 -->
+    <!-- ========================================================================= -->
     <main class="view-panel active" id="view-koru">
         <div class="koru-subtabs">
             <button class="subtab-btn active" onclick="switchKoruSubTab('overview', this)">📊 核心总览</button>
@@ -252,12 +264,12 @@
                 <span class="btn-group">
                     <button class="btn-sm">-0.10</button>
                     <button class="btn-sm">-0.05</button>
-                    <button class="btn-sm" id="koruCenterBtn" style="color:var(--neon-emerald); font-weight:800;">8.367</button>
+                    <button class="btn-sm" id="koruCenterBtn" style="color:var(--neon-emerald); font-weight:800;">8.347</button>
                     <button class="btn-sm">+0.05</button>
                     <button class="btn-sm">+0.10</button>
                 </span>
             </div>
-            <div id="koruDiffText" style="color:var(--neon-emerald); font-weight:600;">● 挂单距现价: +0.932 (高出战壕)</div>
+            <div id="koruDiffText" style="color:var(--neon-emerald); font-weight:600;">● 挂单距现价: --</div>
         </div>
 
         <!-- 子模块 1: 核心总览 -->
@@ -281,7 +293,7 @@
             <div class="metric-grid">
                 <div class="metric-card">
                     <div class="metric-name">KORU 实时动态价</div>
-                    <div class="metric-val" id="koru-val" style="color:#fff;">8.367 <span style="font-size:13px; color:var(--text-muted);">USDT</span></div>
+                    <div class="metric-val" id="koru-val" style="color:#fff;">8.347 <span style="font-size:13px; color:var(--text-muted);">USDT</span></div>
                     <div class="metric-desc" id="koruGainText" style="color:var(--neon-amber);">🎯 触及第一止盈目标位 (锁定50%)</div>
                 </div>
                 <div class="metric-card">
@@ -296,8 +308,8 @@
                 </div>
                 <div class="metric-card">
                     <div class="metric-name">战备梯形盈亏比</div>
-                    <div class="metric-val" style="color:var(--neon-amber);">3.14 : 1</div>
-                    <div class="metric-desc" style="color:var(--text-muted);">加权 7.435 | SL 7.150 | TP 8.331</div>
+                    <div class="metric-val" id="overviewRrVal" style="color:var(--neon-amber);">3.14 : 1</div>
+                    <div class="metric-desc" id="overviewRrDesc" style="color:var(--text-muted);">加权 7.435 | SL 7.150 | TP 8.331</div>
                 </div>
             </div>
 
@@ -336,7 +348,7 @@
                     <tbody>
                         <tr><td>780.00</td><td style="color:var(--neon-red);">-4.2%</td><td>7.150 USDT</td><td><span class="badge" style="color:var(--neon-red); border-color:#ef4444;">系统止损防线</span></td></tr>
                         <tr><td>795.50</td><td style="color:var(--neon-amber);">-2.3%</td><td>7.435 USDT</td><td><span class="badge" style="color:var(--neon-cyan); border-color:#06b6d4;">梯形加权建仓线</span></td></tr>
-                        <tr class="row-highlight"><td>838.32</td><td style="color:var(--neon-emerald);">收复突破</td><td id="tableLiveKoru">8.367 USDT</td><td><span class="badge active">当前母体位置</span></td></tr>
+                        <tr class="row-highlight"><td>838.32</td><td style="color:var(--neon-emerald);">收复突破</td><td id="tableLiveKoru">8.347 USDT</td><td><span class="badge active">当前母体位置</span></td></tr>
                         <tr><td>850.00</td><td style="color:var(--neon-emerald);">+1.39%</td><td>8.850 USDT</td><td><span class="badge" style="color:var(--neon-amber); border-color:#f59e0b;">第二目标区 (TP2)</span></td></tr>
                         <tr><td>875.00</td><td style="color:var(--neon-emerald);">+4.38%</td><td>9.500 USDT</td><td><span class="badge">波段强阻力带</span></td></tr>
                         <tr><td>900.00</td><td style="color:var(--neon-emerald);">+7.36%</td><td>10.200 USDT</td><td><span class="badge" style="color:var(--neon-emerald); border-color:#10b981;">战略清仓凯旋</span></td></tr>
@@ -345,14 +357,24 @@
             </div>
         </div>
 
-        <!-- 子模块 3: 24日走势图 -->
+        <!-- 子模块 3: 24日走势图 (支持放大 & 折线/柱状图切换) -->
         <div class="koru-subview" id="subview-chart">
             <div class="card">
-                <div class="card-title">
-                    <span>📈 KOSPI 200 整体市值变动走势 (10/08 - 11/11)</span>
-                    <span style="font-family:monospace; color:var(--neon-cyan); font-weight:800;">最新: 4,088.85 万亿韩元</span>
+                <div class="card-title" style="flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <span>📈 KOSPI 200 整体市值变动走势 (10/08 - 11/11)</span>
+                        <span style="font-family:monospace; color:var(--neon-cyan); font-weight:800; margin-left:6px;">最新: 4,088.85 万亿韩元</span>
+                    </div>
+                    <!-- 交互控制面板：形态切换与视窗放大 -->
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button class="btn-sm active" id="btnChartLine" onclick="switchChartType('line')">📈 折线</button>
+                        <button class="btn-sm" id="btnChartBar" onclick="switchChartType('bar')">📊 柱状</button>
+                        <button class="btn-sm" id="btnChartZoom" onclick="toggleChartZoom()" style="border-color:var(--neon-cyan); color:#67e8f9;">🔍 放大图表</button>
+                    </div>
                 </div>
-                <div style="width:100%; height:220px; background:#0a0f1d; border-radius:6px; border:1px solid #1a253c; padding:10px; position:relative;">
+
+                <!-- 视窗容器 -->
+                <div class="chart-viewport" id="chartViewport">
                     <svg viewBox="0 0 500 200" style="width:100%; height:100%; overflow:visible;">
                         <defs>
                             <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
@@ -360,15 +382,23 @@
                                 <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
+                        <!-- 网格基准线 -->
                         <line x1="0" y1="40" x2="500" y2="40" stroke="#1e293b" stroke-dasharray="3,3"/>
                         <line x1="0" y1="100" x2="500" y2="100" stroke="#1e293b" stroke-dasharray="3,3"/>
                         <line x1="0" y1="160" x2="500" y2="160" stroke="#1e293b" stroke-dasharray="3,3"/>
-                        <polygon points="0,20 0,20 22,46 43,85 65,88 87,138 109,125 130,115 152,138 174,118 196,140 217,138 239,146 261,128 283,86 304,94 326,117 348,103 370,126 391,122 413,155 435,190 457,195 478,171 500,157 500,200 0,200" fill="url(#chartGrad)"/>
-                        <polyline points="0,20 22,46 43,85 65,88 87,138 109,125 130,115 152,138 174,118 196,140 217,138 239,146 261,128 283,86 304,94 326,117 348,103 370,126 391,122 413,155 435,190 457,195 478,171 500,157" fill="none" stroke="#10b981" stroke-width="2.5"/>
-                        <circle cx="457" cy="195" r="4" fill="#ef4444"/>
-                        <text x="420" y="185" fill="#f87171" font-size="10">11/09 底 3815</text>
-                        <circle cx="500" cy="157" r="5" fill="#10b981"/>
-                        <text x="440" y="147" fill="#34d399" font-size="10" font-weight="bold">+105.0万亿</text>
+                        
+                        <!-- 折线模式分组 (与 update.py 正则 100% 靶向匹配) -->
+                        <g id="chartLineGroup">
+                            <polygon points="0,20 0,20 22,46 43,85 65,88 87,138 109,125 130,115 152,138 174,118 196,140 217,138 239,146 261,128 283,86 304,94 326,117 348,103 370,126 391,122 413,155 435,190 457,195 478,171 500,157 500,200 0,200" fill="url(#chartGrad)"/>
+                            <polyline id="svgPolyline" points="0,20 22,46 43,85 65,88 87,138 109,125 130,115 152,138 174,118 196,140 217,138 239,146 261,128 283,86 304,94 326,117 348,103 370,126 391,122 413,155 435,190 457,195 478,171 500,157" fill="none" stroke="#10b981" stroke-width="2.5"/>
+                            <circle cx="457" cy="195" r="4" fill="#ef4444"/>
+                            <text x="420" y="185" fill="#f87171" font-size="10">11/09 底 3815</text>
+                            <circle cx="500" cy="157" r="5" fill="#10b981"/>
+                            <text x="440" y="147" fill="#34d399" font-size="10" font-weight="bold">+105.0万亿</text>
+                        </g>
+
+                        <!-- 柱状图模式分组 (由 JS 读取实时折线坐标动态映射生成) -->
+                        <g id="chartBarGroup" style="display:none;"></g>
                     </svg>
                 </div>
             </div>
@@ -395,36 +425,32 @@
             </div>
         </div>
 
-        <!-- 子模块 5: 10档梯形战壕 -->
+        <!-- 子模块 5: 10档梯形战壕 (支持自定义持仓成本与动态记忆) -->
         <div class="koru-subview" id="subview-trench">
             <div class="card">
-                <div class="card-title">
+                <div class="card-title" style="flex-wrap:wrap; gap:8px;">
                     <span>🛡️ KORU 10 档梯形战壕与盈亏比精算表</span>
-                    <span style="color:var(--neon-amber); font-weight:800;">加权成本: 7.435 USDT</span>
+                    <!-- 自定义成本交互控件 -->
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:11px; color:var(--text-muted);">自定义持仓成本:</span>
+                        <input type="number" id="customKoruCostInput" step="0.001" style="background:#090d16; border:1px solid var(--neon-amber); color:var(--neon-amber); padding:3px 8px; border-radius:4px; font-size:12px; font-weight:800; width:90px; outline:none;" value="7.435" oninput="onKoruCostChanged(this.value)">
+                        <span style="font-size:11px; color:var(--neon-amber); font-weight:700;">USDT</span>
+                    </div>
                 </div>
                 <table class="tactical-table">
-                    <thead><tr><th>战壕档位</th><th>挂单买价</th><th>分配比例</th><th>状态</th></tr></thead>
-                    <tbody>
-                        <tr><td>战壕 01</td><td>7.600 USDT</td><td>5%</td><td style="color:var(--neon-emerald);">已脱离 (浮盈)</td></tr>
-                        <tr><td>战壕 02</td><td>7.550 USDT</td><td>5%</td><td style="color:var(--neon-emerald);">已脱离 (浮盈)</td></tr>
-                        <tr><td>战壕 03</td><td>7.500 USDT</td><td>10%</td><td style="color:var(--neon-emerald);">已脱离 (浮盈)</td></tr>
-                        <tr><td>战壕 04</td><td>7.450 USDT</td><td>10%</td><td style="color:var(--neon-emerald);">已脱离 (浮盈)</td></tr>
-                        <tr class="row-highlight"><td>战壕 05</td><td>7.435 USDT</td><td>15%</td><td style="color:var(--neon-cyan);">加权持仓成本</td></tr>
-                        <tr><td>战壕 06</td><td>7.400 USDT</td><td>15%</td><td>战备待命</td></tr>
-                        <tr><td>战壕 07</td><td>7.350 USDT</td><td>10%</td><td>战备待命</td></tr>
-                        <tr><td>战壕 08</td><td>7.300 USDT</td><td>10%</td><td>战备待命</td></tr>
-                        <tr><td>战壕 09</td><td>7.250 USDT</td><td>10%</td><td>战备待命</td></tr>
-                        <tr><td>战壕 10</td><td>7.200 USDT</td><td>10%</td><td>战备待命</td></tr>
+                    <thead><tr><th>战壕档位</th><th>挂单买价</th><th>分配比例</th><th>当前实战状态</th></tr></thead>
+                    <tbody id="trenchTableBody">
+                        <!-- 动态联动渲染 -->
                     </tbody>
                 </table>
             </div>
         </div>
     </main>
 
-    <!-- 模块 2：BTC 战术阶梯开单 (策略驱动 HUD) -->
+    <!-- ========================================================================= -->
+    <!-- 模块 2：BTC 战术阶梯开单 (策略驱动 HUD)                                   -->
+    <!-- ========================================================================= -->
     <main class="view-panel" id="view-btc">
-        
-        <!-- 参谋部即时战略裁决 HUD 战术看板 -->
         <div class="hud-ruling-card" id="hudCard">
             <div class="hud-ruling-header">
                 <div class="hud-ruling-title">
@@ -542,13 +568,199 @@
         const PRIMARY_RELAY_URL = "https://quant-relay.zhefeng0513.workers.dev";
         const DOMESTIC_FALLBACK_BTC_URL = "https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD";
         const DOMESTIC_FALLBACK_KLINES_URL = "https://min-api.cryptocompare.com/data/v2/histohour?fsym=BTC&tsym=USD&limit=60";
-        const WEIGHTED_KORU_COST = 7.435;
 
+        // 持久化变量读取 (开仓成本、BTC价格、KORU价格)
+        let customKoruCost = parseFloat(localStorage.getItem("quant_koru_cost")) || 7.435;
         let currentBtcLivePrice = parseFloat(localStorage.getItem("quant_btc")) || 73800.0;
-        let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 8.367;
-        let currentSide = 'SHORT'; // 偏空初始化
+        let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 8.347;
+        let currentSide = 'SHORT';
         let activeStrategy = null;
+        let isChartZoomed = false;
 
+        // 1. 战壕档位静态基准
+        const TRENCH_PRESETS = [
+            { name: "战壕 01", price: 7.600, ratio: "5%" },
+            { name: "战壕 02", price: 7.550, ratio: "5%" },
+            { name: "战壕 03", price: 7.500, ratio: "10%" },
+            { name: "战壕 04", price: 7.450, ratio: "10%" },
+            { name: "战壕 06", price: 7.400, ratio: "15%" },
+            { name: "战壕 07", price: 7.350, ratio: "10%" },
+            { name: "战壕 08", price: 7.300, ratio: "10%" },
+            { name: "战壕 09", price: 7.250, ratio: "10%" },
+            { name: "战壕 10", price: 7.200, ratio: "10%" }
+        ];
+
+        // 2. 自定义成本变动响应引擎
+        function onKoruCostChanged(val) {
+            const cost = parseFloat(val);
+            if (!isNaN(cost) && cost > 0) {
+                customKoruCost = cost;
+                localStorage.setItem("quant_koru_cost", cost);
+                updateTrenchTable();
+                updateOverviewCostMetrics();
+                renderKoruUI(lastValidKoru);
+            }
+        }
+
+        // 3. 动态渲染 10 档战壕表格
+        function updateTrenchTable() {
+            const tbody = document.getElementById("trenchTableBody");
+            if (!tbody) return;
+
+            let html = "";
+            let costInserted = false;
+            const kp = lastValidKoru;
+
+            // 组合并按挂单价从高到低排列
+            const rows = [...TRENCH_PRESETS];
+            rows.sort((a, b) => b.price - a.price);
+
+            for (let i = 0; i < rows.length; i++) {
+                const r = rows[i];
+                // 在合适的位置插入自定义成本高亮行
+                if (!costInserted && customKoruCost >= r.price) {
+                    html += renderCostRowHtml(kp);
+                    costInserted = true;
+                }
+
+                const isTriggered = kp > r.price;
+                const gainPct = (((kp - r.price) / r.price) * 100).toFixed(1);
+                const statusHtml = isTriggered
+                    ? `<span style="color:var(--neon-emerald); font-weight:700;">已脱离 (浮盈 +${gainPct}%)</span>`
+                    : `<span style="color:var(--text-muted);">战备待命</span>`;
+
+                html += `<tr>
+                    <td>${r.name}</td>
+                    <td>${r.price.toFixed(3)} USDT</td>
+                    <td>${r.ratio}</td>
+                    <td>${statusHtml}</td>
+                </tr>`;
+            }
+
+            if (!costInserted) {
+                html += renderCostRowHtml(kp);
+            }
+
+            tbody.innerHTML = html;
+        }
+
+        function renderCostRowHtml(kp) {
+            const diff = kp - customKoruCost;
+            const gainPct = (((kp - customKoruCost) / customKoruCost) * 100).toFixed(1);
+            const statusText = diff >= 0
+                ? `<span style="color:var(--neon-cyan); font-weight:800;">当前持仓基准线 (浮盈 +${gainPct}%)</span>`
+                : `<span style="color:var(--neon-amber); font-weight:800;">当前持仓基准线 (浮亏 ${gainPct}%)</span>`;
+
+            return `<tr class="row-highlight" style="border-left:3px solid var(--neon-amber);">
+                <td style="color:var(--neon-amber); font-weight:800;">⭐ 自定义加权成本</td>
+                <td style="color:var(--neon-amber); font-weight:800;">${customKoruCost.toFixed(3)} USDT</td>
+                <td style="color:var(--neon-amber);">当前实仓</td>
+                <td>${statusText}</td>
+            </tr>`;
+        }
+
+        // 4. 更新核心总览卡片中的盈亏比
+        function updateOverviewCostMetrics() {
+            const tp = 8.331;
+            const sl = 7.150;
+            const deltaWin = tp - customKoruCost;
+            const deltaLoss = customKoruCost - sl;
+
+            const rrValEl = document.getElementById("overviewRrVal");
+            const rrDescEl = document.getElementById("overviewRrDesc");
+
+            if (deltaLoss > 0 && deltaWin > 0) {
+                const rr = (deltaWin / deltaLoss).toFixed(2);
+                rrValEl.textContent = `${rr} : 1`;
+                rrDescEl.textContent = `加权 ${customKoruCost.toFixed(3)} | SL 7.150 | TP 8.331`;
+            } else {
+                rrValEl.textContent = `已越界`;
+                rrDescEl.textContent = `成本高于止盈或低于止损`;
+            }
+        }
+
+        // 5. 走势图形态切换与全景放大
+        function switchChartType(type) {
+            const btnLine = document.getElementById("btnChartLine");
+            const btnBar = document.getElementById("btnChartBar");
+            const lineGrp = document.getElementById("chartLineGroup");
+            const barGrp = document.getElementById("chartBarGroup");
+
+            if (type === 'line') {
+                btnLine.classList.add("active");
+                btnBar.classList.remove("active");
+                lineGrp.style.display = "block";
+                barGrp.style.display = "none";
+            } else {
+                btnBar.classList.add("active");
+                btnLine.classList.remove("active");
+                lineGrp.style.display = "none";
+                barGrp.style.display = "block";
+                renderSvgBars();
+            }
+        }
+
+        function toggleChartZoom() {
+            const viewport = document.getElementById("chartViewport");
+            const btn = document.getElementById("btnChartZoom");
+            isChartZoomed = !isChartZoomed;
+            if (isChartZoomed) {
+                viewport.classList.add("enlarged");
+                btn.textContent = "🔍 还原视图";
+                btn.style.color = "var(--neon-amber)";
+                btn.style.borderColor = "var(--neon-amber)";
+            } else {
+                viewport.classList.remove("enlarged");
+                btn.textContent = "🔍 放大图表";
+                btn.style.color = "#67e8f9";
+                btn.style.borderColor = "var(--neon-cyan)";
+            }
+        }
+
+        // 6. 读取实时折线生成对应柱状图
+        function renderSvgBars() {
+            const poly = document.getElementById("svgPolyline");
+            const barGroup = document.getElementById("chartBarGroup");
+            if (!poly || !barGroup) return;
+
+            const pointsStr = poly.getAttribute("points").trim();
+            const pairs = pointsStr.split(/\s+/).map(p => p.split(',').map(Number));
+            const n = pairs.length;
+            if (n === 0) return;
+
+            const slotW = 500 / n;
+            const barW = Math.max(6, slotW * 0.65);
+            let html = "";
+
+            let maxY = -1, bottomIdx = -1;
+            pairs.forEach((p, idx) => {
+                if (p[1] > maxY) { maxY = p[1]; bottomIdx = idx; }
+            });
+
+            pairs.forEach((p, idx) => {
+                const x = idx * slotW + (slotW - barW) / 2;
+                const y = p[1];
+                const h = Math.max(12, 200 - y);
+                const drawY = 200 - h;
+
+                let color = "#0284c7";
+                if (idx === bottomIdx) color = "#ef4444";
+                else if (idx >= n - 2) color = "#10b981";
+
+                html += `<rect x="${x.toFixed(1)}" y="${drawY.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${color}" opacity="0.85"></rect>`;
+
+                if (idx === bottomIdx) {
+                    html += `<text x="${(x + barW/2).toFixed(1)}" y="${(drawY - 6).toFixed(1)}" fill="#f87171" font-size="9" text-anchor="middle">11/09底</text>`;
+                }
+                if (idx === n - 1) {
+                    html += `<text x="${(x + barW/2 - 6).toFixed(1)}" y="${(drawY - 6).toFixed(1)}" fill="#34d399" font-size="9" font-weight="bold" text-anchor="middle">+105万亿</text>`;
+                }
+            });
+
+            barGroup.innerHTML = html;
+        }
+
+        // 7. 一级/二级导航切换
         function switchMainTab(tab) {
             const btnKoru = document.getElementById("btnTabKoru");
             const btnBtc = document.getElementById("btnTabBtc");
@@ -577,6 +789,7 @@
             if (targetView) targetView.classList.add("active");
         }
 
+        // 8. BTC 战术策略开单逻辑
         function setBtcTradeSide(side) {
             currentSide = side;
             const btnL = document.getElementById("btnSideLong");
@@ -603,23 +816,17 @@
             calculateBtcLadder();
         }
 
-        // 核心亮点：策略动态吸附排阵 (依据均线量化点位)
         function autoLayoutByStrategy() {
             if (!activeStrategy) {
                 showToast("正在同步 1H 均线战备数据，请稍候 1 秒...");
                 return;
             }
-
-            // 震荡磨损过滤：均线走平缠绕，严格禁止开单
             if (activeStrategy.bias === 'NEUTRAL') {
-                showToast("⚠️ EMA 均线走平缠绕！根据铁律：无斜率强制静默，严禁在磨损期开单！");
+                showToast("⚠️ EMA 均线走平缠绕！根据律令：无斜率强制静默，严禁在磨损期开单！");
                 return;
             }
 
-            // 自动同步方向
             setBtcTradeSide(activeStrategy.bias);
-
-            // 填入策略真实战壕点位
             document.getElementById("tier1Price").value = activeStrategy.tier1;
             document.getElementById("tier2Price").value = activeStrategy.tier2;
             document.getElementById("tier3Price").value = activeStrategy.tier3;
@@ -676,13 +883,9 @@
             const totalQty = riskAmount / deltaLoss;
             const totalUsdt = totalQty * avgPrice;
 
-            const q1 = totalQty * 0.2;
-            const q2 = totalQty * 0.3;
-            const q3 = totalQty * 0.5;
-
-            document.getElementById("tier1Qty").textContent = `${q1.toFixed(3)} BTC`;
-            document.getElementById("tier2Qty").textContent = `${q2.toFixed(3)} BTC`;
-            document.getElementById("tier3Qty").textContent = `${q3.toFixed(3)} BTC`;
+            document.getElementById("tier1Qty").textContent = `${(totalQty * 0.2).toFixed(3)} BTC`;
+            document.getElementById("tier2Qty").textContent = `${(totalQty * 0.3).toFixed(3)} BTC`;
+            document.getElementById("tier3Qty").textContent = `${(totalQty * 0.5).toFixed(3)} BTC`;
 
             document.getElementById("resTotalQty").textContent = `${totalQty.toFixed(3)} BTC (约 $${totalUsdt.toFixed(0)} 规模)`;
             document.getElementById("resMaxLoss").textContent = `-$${riskAmount.toFixed(2)} (严格锁死)`;
@@ -746,7 +949,8 @@
             const tableLive = document.getElementById("tableLiveKoru");
             if (tableLive) tableLive.textContent = `${kp.toFixed(3)} USDT`;
             
-            const diff = (kp - WEIGHTED_KORU_COST).toFixed(3);
+            // 基于自定义成本计算差值
+            const diff = (kp - customKoruCost).toFixed(3);
             const diffText = diff >= 0 ? `+${diff} (高出战壕)` : `${diff} (已切入战壕!)`;
             const diffBadge = document.getElementById("koruDiffText");
             diffBadge.textContent = `● 挂单距现价: ${diffText}`;
@@ -762,7 +966,6 @@
             }
         }
 
-        // 渲染 HUD 裁决看板
         function renderStrategyHUD(strat) {
             activeStrategy = strat;
             const badge = document.getElementById("hudBadge");
@@ -792,7 +995,6 @@
             desc.textContent = strat.desc;
         }
 
-        // 本地均线算法 (国内免翻备用)
         function calcLocalStrategy(closes, currentP) {
             if (!closes || closes.length < 50) return null;
             const last50 = closes.slice(-50);
@@ -825,7 +1027,7 @@
                 tp = Math.round(currentP * 0.958);
             } else {
                 bias = "LONG";
-                title = "🟢 顺势偏多 · 剔除做空选项";
+                title = "🟢 顺势偏多 · 剔除做多选项";
                 desc = `10 EMA (${ema10.toFixed(1)}) 金叉 15 EMA (${ema15.toFixed(1)})，运行于 50 MA 之上。缩量回踩分批做多。`;
                 t1 = Math.round(Math.min(ema10, currentP * 0.994));
                 t2 = Math.round(Math.min(ema15, currentP * 0.985));
@@ -847,7 +1049,6 @@
             const startT = performance.now();
             let isRelaySuccess = false;
 
-            // 通道 A：Cloudflare Worker 全功能极速中继
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 1800);
@@ -873,6 +1074,7 @@
                         lastValidKoru = data.koru;
                         localStorage.setItem("quant_koru", data.koru);
                         renderKoruUI(data.koru);
+                        updateTrenchTable();
                     }
 
                     if (data.strategy) {
@@ -881,7 +1083,6 @@
                 }
             } catch (err) {}
 
-            // 通道 B：国内 5G 免翻直连通道 (当中继域名受阻时无缝接管)
             if (!isRelaySuccess) {
                 try {
                     const fallbackStart = performance.now();
@@ -905,6 +1106,7 @@
                         document.getElementById("terminalStatus").textContent = `● 5G国内直连 ${timeStr}`;
 
                         renderKoruUI(lastValidKoru);
+                        updateTrenchTable();
 
                         if (kData?.Data?.Data) {
                             const closes = kData.Data.Data.map(x => x.close);
@@ -919,8 +1121,12 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
+            // 初始化自定义成本输入框
+            document.getElementById("customKoruCostInput").value = customKoruCost.toFixed(3);
+            updateOverviewCostMetrics();
+            updateTrenchTable();
             renderKoruUI(lastValidKoru);
-            // 默认初始化偏空战壕排阵
+
             setBtcTradeSide('SHORT');
             calculateBtcLadder();
             fetchLiveMarketData();
