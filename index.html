@@ -326,7 +326,7 @@
             </div>
         </div>
 
-        <!-- 子模块 2: 大盘逐档映射 (混合双轨制全面升级) -->
+        <!-- 子模块 2: 大盘逐档映射 (支持一键复制券商作战挂单清单) -->
         <div class="koru-subview" id="subview-mapping">
             <!-- 动态推演滑块卡片 -->
             <div class="card" style="background: linear-gradient(180deg, #132238, #0e1726); border: 1px solid #233b5d; margin-bottom: 12px;">
@@ -414,6 +414,11 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- 复制券商挂单计划主按钮 -->
+                <button class="btn-action" id="btnCopyKoruPlan" style="margin-top:12px; background: linear-gradient(135deg, #0284c7, #0369a1);" onclick="copyKoruOrderPlan()">
+                    📋 一键复制当前模式券商全套实战挂单计划 (GTC有效)
+                </button>
             </div>
         </div>
 
@@ -750,12 +755,12 @@
         // 混合双轨战备矩阵配置
         let mappingMode = 'ANCHOR'; // 'ANCHOR' (日线定桩) 或 'LIVE' (现价弹性)
         const STRATEGIC_TRENCHES = [
-            { point: 780.00, tag: "系统止损防线", tagClass: "color:var(--neon-red); border-color:#ef4444;", staticPrice: 7.150, desc: "跌破机械清仓" },
-            { point: 795.50, tag: "梯形加权建仓线", tagClass: "color:var(--neon-cyan); border-color:#06b6d4;", staticPrice: 7.435, desc: "深度黄金回踩" },
-            { point: 838.32, tag: "收复突破基准", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 8.347, isBase: true, desc: "当前日线中枢" },
-            { point: 850.00, tag: "第二目标区 (TP2)", tagClass: "color:var(--neon-amber); border-color:#f59e0b;", staticPrice: 8.850, desc: "分批减持兑现" },
-            { point: 875.00, tag: "波段强阻力带", tagClass: "color:#cbd5e1; border-color:#475569;", staticPrice: 9.500, desc: "大阴大阳剧烈分歧" },
-            { point: 900.00, tag: "战略清仓凯旋", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 10.200, desc: "全军班师规避磨损" }
+            { point: 780.00, tag: "系统止损防线", tagClass: "color:var(--neon-red); border-color:#ef4444;", staticPrice: 7.150, type: "SL", orderType: "STOP (条件止损单)", desc: "跌破机械全仓清仓" },
+            { point: 795.50, tag: "梯形加权建仓线", tagClass: "color:var(--neon-cyan); border-color:#06b6d4;", staticPrice: 7.435, type: "BUY", orderType: "LIMIT (限价买单)", desc: "深度黄金回踩埋伏 (30%)" },
+            { point: 838.32, tag: "收复突破基准", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 8.347, isBase: true, type: "BASE", orderType: "BENCHMARK", desc: "当前日线基准中枢" },
+            { point: 850.00, tag: "第二目标区 (TP2)", tagClass: "color:var(--neon-amber); border-color:#f59e0b;", staticPrice: 8.850, type: "TP", orderType: "LIMIT (限价卖单)", desc: "分批减持兑现 50%" },
+            { point: 875.00, tag: "波段强阻力带", tagClass: "color:#cbd5e1; border-color:#475569;", staticPrice: 9.500, type: "TP", orderType: "LIMIT (限价卖单)", desc: "分批减持兑现 25%" },
+            { point: 900.00, tag: "战略清仓凯旋", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 10.200, type: "TP", orderType: "LIMIT (限价卖单)", desc: "全军班师全仓出清" }
         ];
 
         let sandboxData = {
@@ -781,6 +786,7 @@
             const badge = document.getElementById("mappingModeBadge");
             const tip = document.getElementById("mappingModeTip");
             const th = document.getElementById("thMappingTarget");
+            const copyBtn = document.getElementById("btnCopyKoruPlan");
 
             if (mode === 'ANCHOR') {
                 btnAnchor.classList.add("active");
@@ -789,6 +795,7 @@
                 badge.className = "badge active";
                 tip.innerHTML = "💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (838.32点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。";
                 th.textContent = "KORU 定桩目标 (用于挂单)";
+                if (copyBtn) copyBtn.textContent = "📋 一键复制【日线定桩】券商全套实战挂单计划 (GTC有效)";
             } else {
                 btnLive.classList.add("active");
                 btnAnchor.classList.remove("active");
@@ -798,6 +805,7 @@
                 badge.style.borderColor = "#06b6d4";
                 tip.innerHTML = `⚡ <b>现价弹性模式</b>：以盘口实时 KORU 价格 (${lastValidKoru.toFixed(3)}) 毫秒级推演各点位的瞬时弹性价。`;
                 th.textContent = "KORU 实时弹性预估";
+                if (copyBtn) copyBtn.textContent = "📋 一键复制【现价弹性】券商实战挂单计划 (GTC有效)";
             }
             renderMappingTable();
         }
@@ -848,7 +856,10 @@
                     <tr ${isCurrentHighlight}>
                         <td style="font-weight:700;">${item.point.toFixed(2)}</td>
                         <td style="color:${changeColor};">${item.isBase ? '基准原点' : deltaIndexStr}</td>
-                        <td style="font-weight:800; color:var(--neon-amber);">${targetPrice.toFixed(3)} USDT</td>
+                        <td style="font-weight:800; color:var(--neon-amber); white-space:nowrap;">
+                            ${targetPrice.toFixed(3)} USDT
+                            <button class="btn-sm" title="一键复制该单项限价" onclick="copySingleTrenchOrder('${item.tag}', ${targetPrice.toFixed(3)}, ${item.point.toFixed(2)})" style="padding:1px 5px; font-size:10px; margin-left:4px; border-color:#2a4365;">📋</button>
+                        </td>
                         <td>${statusHtml}</td>
                         <td><span class="badge" style="${item.tagClass}">${item.tag}</span></td>
                     </tr>
@@ -858,7 +869,68 @@
             tbody.innerHTML = html;
         }
 
-        // 2. 动态 SVG 折线图与多维指标映射引擎
+        // 2. 复制券商实战挂单计划核心引擎
+        function copyKoruOrderPlan() {
+            const baseK = BASE_KOSPI_ANCHOR || 838.32;
+            const liveK = lastValidKoru || 8.347;
+            const bep = customKoruCost * 1.002;
+            const modeName = mappingMode === 'ANCHOR' ? '🏛️ 日线基准定桩 (挂单死锚点)' : '⚡ 现价弹性推演 (盘中动量弹性)';
+
+            let slSection = [];
+            let buySection = [];
+            let tpSection = [];
+
+            STRATEGIC_TRENCHES.forEach(item => {
+                const deltaIndexPct = (item.point - baseK) / baseK;
+                let price = item.staticPrice;
+                if (mappingMode === 'LIVE') {
+                    price = liveK * (1 + deltaIndexPct * 3.0);
+                }
+                const pStr = price.toFixed(3);
+
+                if (item.type === 'SL') {
+                    slSection.push(`• 🛡️ 结构止损单 (SL): 触发/限价 ${pStr} USDT (对应母体 ${item.point.toFixed(2)} 点) | 操作: ${item.desc}`);
+                } else if (item.type === 'BUY') {
+                    buySection.push(`• 📥 梯形加仓单 (Buy Limit): 限价 ${pStr} USDT (对应母体 ${item.point.toFixed(2)} 点) | 操作: ${item.desc}`);
+                } else if (item.type === 'TP') {
+                    tpSection.push(`• 🎯 阶梯止盈单 (${item.tag}): 限价 ${pStr} USDT (对应母体 ${item.point.toFixed(2)} 点) | 操作: ${item.desc}`);
+                }
+            });
+
+            const planText = `【KORU 券商战略作战挂单计划 · GTC有效】\n` +
+                             `• 测算模式: ${modeName}\n` +
+                             `• 母体基准点: ${baseK.toFixed(2)} 点 | KORU 实时现价: ${liveK.toFixed(3)} USDT\n` +
+                             `• 战略底仓成本: ${customKoruCost.toFixed(3)} USDT | 真实保本线 (BEP): ${bep.toFixed(3)} USDT\n` +
+                             `========================================\n` +
+                             `【1. 极限防御止损区】\n` +
+                             slSection.join('\n') + `\n\n` +
+                             `【2. 战术回踩伏击区】\n` +
+                             buySection.join('\n') + `\n\n` +
+                             `【3. 目标阶梯兑现区】\n` +
+                             tpSection.join('\n') + `\n` +
+                             `========================================\n` +
+                             `🎖️ 参谋部执行律令:\n` +
+                             `1. 券商订单有效期统一选择 GTC (Good-Til-Cancelled，撤单前有效)；\n` +
+                             `2. 现价覆盖 +1R 风险空间后，硬性将止损上移至保本线 ${bep.toFixed(3)} USDT；\n` +
+                             `3. 大阳线绝不追涨，耐性等待缩量回踩战壕。`;
+
+            navigator.clipboard.writeText(planText).then(() => {
+                showToast(`已成功复制【${mappingMode === 'ANCHOR' ? '定桩' : '弹性'}】券商实战挂单计划！`);
+            }).catch(() => {
+                showToast("浏览器权限受限，请长按手动复制");
+            });
+        }
+
+        function copySingleTrenchOrder(tag, price, kospiPoint) {
+            const text = `KORU 限价挂单: ${price} USDT (对应 KOSPI ${kospiPoint} 点 · ${tag})`;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`已复制: ${text}`);
+            }).catch(() => {
+                showToast("复制受限，请手动输入");
+            });
+        }
+
+        // 3. 动态 SVG 折线图与多维指标映射引擎
         function renderDynamicKospiChart(historyList) {
             if (!historyList || historyList.length === 0) return;
             currentKospiHistory = historyList;
@@ -992,7 +1064,7 @@
             barGroup.innerHTML = html;
         }
 
-        // 3. 双轨沙盒数据管理
+        // 4. 双轨沙盒数据管理
         function loadPositionSandbox() {
             const saved = localStorage.getItem("quant_koru_sandbox");
             if (saved) {
@@ -1089,7 +1161,7 @@
             if (slider) onKospiSliderChange(slider.value);
         }
 
-        // 4. 自适应滑块与快捷跳档
+        // 5. 自适应滑块与快捷跳档
         function initKospiSliderRange(basePoint) {
             const slider = document.getElementById("kospiSimSlider");
             if (!slider) return;
@@ -1186,7 +1258,7 @@
             }
         }
 
-        // 5. 总览与战壕状态渲染
+        // 6. 总览与战壕状态渲染
         function updateOverviewCostMetrics() {
             const sl = 7.150;
             const tp = 8.331;
@@ -1293,7 +1365,7 @@
             if (targetView) targetView.classList.add("active");
         }
 
-        // 6. BTC 战术策略开单
+        // 7. BTC 战术阶梯开单
         function setBtcTradeSide(side) {
             currentSide = side;
             const btnL = document.getElementById("btnSideLong");
@@ -1545,7 +1617,7 @@
             };
         }
 
-        // 7. 双通道轮询引擎
+        // 8. 双通道轮询引擎
         async function fetchLiveMarketData() {
             const startT = performance.now();
             let isRelaySuccess = false;
