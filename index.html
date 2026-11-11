@@ -249,7 +249,7 @@
     <main class="view-panel active" id="view-koru">
         <div class="koru-subtabs">
             <button class="subtab-btn active" onclick="switchKoruSubTab('overview', this)">📊 核心总览</button>
-            <button class="subtab-btn" onclick="switchKoruSubTab('mapping', this)">🎯 大盘逐档映射 (点位推演)</button>
+            <button class="subtab-btn" onclick="switchKoruSubTab('mapping', this)">🎯 逐档映射 (混合双轨)</button>
             <button class="subtab-btn" onclick="switchKoruSubTab('chart', this)">📈 市值走势图 (自动核算)</button>
             <button class="subtab-btn" onclick="switchKoruSubTab('fx', this)">💱 汇率总阀与衍生品情绪</button>
             <button class="subtab-btn" onclick="switchKoruSubTab('trench', this)">🛡️ 持仓风控沙盒与战壕</button>
@@ -312,10 +312,10 @@
 
             <div class="action-banner">
                 <div>
-                    <div style="font-size:12px; font-weight:700; color:#fff;">📌 新增模块就绪：KORU 与首尔大盘逐档精算映射</div>
-                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">想知道 KORU 冲到 8.5、9.0、10 块钱时大盘必须反弹到多少点？已内置全档位推演器。</div>
+                    <div style="font-size:12px; font-weight:700; color:#fff;">📌 混合双轨制已上线：定桩战壕挂单 + 现价实时测距</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">支持日线定桩与盘中弹性秒级切换，实时监控现价逼近各关键战壕的距离。</div>
                 </div>
-                <button class="btn-jump" onclick="switchKoruSubTab('mapping', document.querySelectorAll('.subtab-btn')[1])">进入大盘逐档推演 →</button>
+                <button class="btn-jump" onclick="switchKoruSubTab('mapping', document.querySelectorAll('.subtab-btn')[1])">进入双轨映射推演 →</button>
             </div>
 
             <div class="rules-card">
@@ -326,8 +326,9 @@
             </div>
         </div>
 
-        <!-- 子模块 2: 大盘逐档映射 (含自适应量程滑块与快捷跳档) -->
+        <!-- 子模块 2: 大盘逐档映射 (混合双轨制全面升级) -->
         <div class="koru-subview" id="subview-mapping">
+            <!-- 动态推演滑块卡片 -->
             <div class="card" style="background: linear-gradient(180deg, #132238, #0e1726); border: 1px solid #233b5d; margin-bottom: 12px;">
                 <div class="card-title" style="margin-bottom: 8px;">
                     <span>🎚️ KOSPI 200 动态点位推演测算器</span>
@@ -380,29 +381,39 @@
                 </div>
             </div>
 
+            <!-- 混合双轨映射矩阵卡片 -->
             <div class="card">
-                <div class="card-title">
-                    <span>🎯 KOSPI 200 与 KORU (3X杠杆) 精准点位映射推演</span>
-                    <span class="badge active">实时联动</span>
+                <div class="card-title" style="flex-wrap:wrap; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span>🎯 KOSPI 200 与 KORU 逐档映射矩阵</span>
+                        <span class="badge active" id="mappingModeBadge">🏛️ 日线基准定桩</span>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn-sm active" id="btnModeAnchor" onclick="switchMappingMode('ANCHOR')">🏛️ 战备挂单定桩</button>
+                        <button class="btn-sm" id="btnModeLive" onclick="switchMappingMode('LIVE')">⚡ 现价弹性推演</button>
+                    </div>
                 </div>
-                <table class="tactical-table">
-                    <thead>
-                        <tr>
-                            <th>KOSPI点位</th>
-                            <th>母体涨跌</th>
-                            <th>KORU 映射预估</th>
-                            <th>战略作战指令</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>780.00</td><td style="color:var(--neon-red);">-4.2%</td><td>7.150 USDT</td><td><span class="badge" style="color:var(--neon-red); border-color:#ef4444;">系统止损防线</span></td></tr>
-                        <tr><td>795.50</td><td style="color:var(--neon-amber);">-2.3%</td><td>7.435 USDT</td><td><span class="badge" style="color:var(--neon-cyan); border-color:#06b6d4;">梯形加权建仓线</span></td></tr>
-                        <tr class="row-highlight"><td>838.32</td><td style="color:var(--neon-emerald);">收复突破</td><td id="tableLiveKoru">8.347 USDT</td><td><span class="badge active">当前母体位置</span></td></tr>
-                        <tr><td>850.00</td><td style="color:var(--neon-emerald);">+1.39%</td><td>8.850 USDT</td><td><span class="badge" style="color:var(--neon-amber); border-color:#f59e0b;">第二目标区 (TP2)</span></td></tr>
-                        <tr><td>875.00</td><td style="color:var(--neon-emerald);">+4.38%</td><td>9.500 USDT</td><td><span class="badge">波段强阻力带</span></td></tr>
-                        <tr><td>900.00</td><td style="color:var(--neon-emerald);">+7.36%</td><td>10.200 USDT</td><td><span class="badge" style="color:var(--neon-emerald); border-color:#10b981;">战略清仓凯旋</span></td></tr>
-                    </tbody>
-                </table>
+
+                <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px; line-height:1.5;" id="mappingModeTip">
+                    💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (838.32点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="tactical-table" id="tacticalMappingTable">
+                        <thead>
+                            <tr>
+                                <th>KOSPI点位</th>
+                                <th>母体涨跌</th>
+                                <th id="thMappingTarget">KORU 定桩目标 (用于挂单)</th>
+                                <th>距现价测距 / 战备状态</th>
+                                <th>战略作战指令</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mappingTableBody">
+                            <!-- 由 renderMappingTable() 毫秒级动态渲染 -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -705,7 +716,7 @@
         const PRIMARY_RELAY_URL = "https://quant-relay.zhefeng0513.workers.dev";
         const DOMESTIC_FALLBACK_BTC_URL = "https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD";
         const DOMESTIC_FALLBACK_KLINES_URL = "https://min-api.cryptocompare.com/data/v2/histohour?fsym=BTC&tsym=USD&limit=60";
-        const BASE_KOSPI_ANCHOR = 838.32;
+        let BASE_KOSPI_ANCHOR = 838.32; // 默认基准收盘点
 
         // 默认基准市值历史数据 (10/08 - 11/11，兜底防404)
         const DEFAULT_KOSPI_HISTORY = [
@@ -729,12 +740,23 @@
             { date: "11/06", cap: 4000.2, point: 823.0 },
             { date: "11/07", cap: 4008.0, point: 824.5 },
             { date: "11/08", cap: 3950.4, point: 811.2 },
-            { date: "11/09", cap: 3815.0, point: 782.4 }, // 底
+            { date: "11/09", cap: 3815.0, point: 782.4 },
             { date: "11/10", cap: 3830.2, point: 785.6 },
-            { date: "11/11", cap: 4088.85, point: 838.32 } // 最新收复突破 (+105万亿)
+            { date: "11/11", cap: 4088.85, point: 838.32 }
         ];
 
         let currentKospiHistory = DEFAULT_KOSPI_HISTORY;
+
+        // 混合双轨战备矩阵配置
+        let mappingMode = 'ANCHOR'; // 'ANCHOR' (日线定桩) 或 'LIVE' (现价弹性)
+        const STRATEGIC_TRENCHES = [
+            { point: 780.00, tag: "系统止损防线", tagClass: "color:var(--neon-red); border-color:#ef4444;", staticPrice: 7.150, desc: "跌破机械清仓" },
+            { point: 795.50, tag: "梯形加权建仓线", tagClass: "color:var(--neon-cyan); border-color:#06b6d4;", staticPrice: 7.435, desc: "深度黄金回踩" },
+            { point: 838.32, tag: "收复突破基准", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 8.347, isBase: true, desc: "当前日线中枢" },
+            { point: 850.00, tag: "第二目标区 (TP2)", tagClass: "color:var(--neon-amber); border-color:#f59e0b;", staticPrice: 8.850, desc: "分批减持兑现" },
+            { point: 875.00, tag: "波段强阻力带", tagClass: "color:#cbd5e1; border-color:#475569;", staticPrice: 9.500, desc: "大阴大阳剧烈分歧" },
+            { point: 900.00, tag: "战略清仓凯旋", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 10.200, desc: "全军班师规避磨损" }
+        ];
 
         let sandboxData = {
             coreEntry: 8.008,
@@ -751,7 +773,92 @@
         let activeStrategy = null;
         let isChartZoomed = false;
 
-        // 1. 动态 SVG 折线图与多维指标映射引擎
+        // 1. 混合双轨映射矩阵渲染函数
+        function switchMappingMode(mode) {
+            mappingMode = mode;
+            const btnAnchor = document.getElementById("btnModeAnchor");
+            const btnLive = document.getElementById("btnModeLive");
+            const badge = document.getElementById("mappingModeBadge");
+            const tip = document.getElementById("mappingModeTip");
+            const th = document.getElementById("thMappingTarget");
+
+            if (mode === 'ANCHOR') {
+                btnAnchor.classList.add("active");
+                btnLive.classList.remove("active");
+                badge.textContent = "🏛️ 日线基准定桩";
+                badge.className = "badge active";
+                tip.innerHTML = "💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (838.32点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。";
+                th.textContent = "KORU 定桩目标 (用于挂单)";
+            } else {
+                btnLive.classList.add("active");
+                btnAnchor.classList.remove("active");
+                badge.textContent = "⚡ 现价弹性推演";
+                badge.className = "badge";
+                badge.style.color = "var(--neon-cyan)";
+                badge.style.borderColor = "#06b6d4";
+                tip.innerHTML = `⚡ <b>现价弹性模式</b>：以盘口实时 KORU 价格 (${lastValidKoru.toFixed(3)}) 毫秒级推演各点位的瞬时弹性价。`;
+                th.textContent = "KORU 实时弹性预估";
+            }
+            renderMappingTable();
+        }
+
+        function renderMappingTable() {
+            const tbody = document.getElementById("mappingTableBody");
+            if (!tbody) return;
+
+            const baseK = BASE_KOSPI_ANCHOR || 838.32;
+            const liveKoru = lastValidKoru || 8.347;
+
+            let html = "";
+            STRATEGIC_TRENCHES.forEach(item => {
+                const deltaIndexPct = (item.point - baseK) / baseK;
+                const deltaIndexStr = `${deltaIndexPct >= 0 ? '+' : ''}${(deltaIndexPct * 100).toFixed(2)}%`;
+
+                let targetPrice = item.staticPrice;
+                if (mappingMode === 'LIVE') {
+                    targetPrice = liveKoru * (1 + deltaIndexPct * 3.0);
+                }
+
+                const diff = targetPrice - liveKoru;
+                const diffPct = ((targetPrice - liveKoru) / liveKoru) * 100;
+                let statusHtml = "";
+
+                if (item.isBase) {
+                    const aboveBasePct = (((liveKoru - targetPrice) / targetPrice) * 100).toFixed(1);
+                    statusHtml = `<span style="color:var(--neon-emerald); font-weight:700;">● 现价 ${liveKoru.toFixed(3)} (高出基准 +${aboveBasePct}%)</span>`;
+                } else if (diff > 0) {
+                    if (diff <= 0.05) {
+                        statusHtml = `<span style="color:var(--neon-amber); font-weight:700;">🎯 正在逼近 (仅差 ${diff.toFixed(3)} / +${diffPct.toFixed(1)}%)</span>`;
+                    } else {
+                        statusHtml = `<span style="color:var(--text-muted);">距此还差 +${diff.toFixed(3)} (+${diffPct.toFixed(1)}%)</span>`;
+                    }
+                } else {
+                    const reachedPct = Math.abs(diffPct).toFixed(1);
+                    if (item.point < baseK) {
+                        statusHtml = `<span style="color:var(--neon-emerald);">🛡️ 运行于防区上方 (+${reachedPct}%)</span>`;
+                    } else {
+                        statusHtml = `<span style="color:var(--neon-emerald); font-weight:700;">✅ 已突破达成 (+${reachedPct}%)</span>`;
+                    }
+                }
+
+                const isCurrentHighlight = item.isBase ? "class='row-highlight'" : "";
+                const changeColor = deltaIndexPct > 0 ? "var(--neon-emerald)" : (deltaIndexPct < 0 ? "var(--neon-red)" : "var(--neon-amber)");
+
+                html += `
+                    <tr ${isCurrentHighlight}>
+                        <td style="font-weight:700;">${item.point.toFixed(2)}</td>
+                        <td style="color:${changeColor};">${item.isBase ? '基准原点' : deltaIndexStr}</td>
+                        <td style="font-weight:800; color:var(--neon-amber);">${targetPrice.toFixed(3)} USDT</td>
+                        <td>${statusHtml}</td>
+                        <td><span class="badge" style="${item.tagClass}">${item.tag}</span></td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // 2. 动态 SVG 折线图与多维指标映射引擎
         function renderDynamicKospiChart(historyList) {
             if (!historyList || historyList.length === 0) return;
             currentKospiHistory = historyList;
@@ -789,7 +896,6 @@
 
             const pointsStr = polylinePoints.join(" ");
 
-            // 更新折线与渐变面积
             const polyline = document.getElementById("svgPolyline");
             if (polyline) polyline.setAttribute("points", pointsStr);
 
@@ -798,7 +904,6 @@
                 areaPolygon.setAttribute("points", `0,${svgH} ${pointsStr} ${svgW},${svgH}`);
             }
 
-            // 动态挂载极值标记与最新回血标注
             const markerGroup = document.getElementById("chartMarkers");
             const latest = historyList[n - 1];
             const prev = historyList[n - 2] || latest;
@@ -814,40 +919,38 @@
                 `;
             }
 
-            // 更新顶部标题元数据
             const titleMeta = document.getElementById("chartTitleMeta");
-            if (titleMeta) {
-                titleMeta.textContent = `最新: ${latest.cap.toFixed(2)} 万亿韩元`;
-            }
+            if (titleMeta) titleMeta.textContent = `最新: ${latest.cap.toFixed(2)} 万亿韩元`;
             const titleMain = document.getElementById("chartTitleMain");
-            if (titleMain) {
-                titleMain.textContent = `📈 KOSPI 200 整体市值变动走势 (${historyList[0].date} - ${latest.date})`;
-            }
+            if (titleMain) titleMain.textContent = `📈 KOSPI 200 整体市值变动走势 (${historyList[0].date} - ${latest.date})`;
 
-            // 同步柱状图
             const barGroup = document.getElementById("chartBarGroup");
             if (barGroup && barGroup.style.display !== "none") {
                 renderSvgBars();
             }
         }
 
-        // 2. 加载外部 JSON 数据 (无缝支持 GitHub Actions 自动更新产物)
         async function fetchKospiHistoryData() {
             try {
                 const res = await fetch("data/kospi_history.json", { cache: "no-store" });
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data) && data.length > 0) {
+                        const latest = data[data.length - 1];
+                        if (latest && latest.point) {
+                            BASE_KOSPI_ANCHOR = latest.point;
+                            initKospiSliderRange(BASE_KOSPI_ANCHOR);
+                        }
                         renderDynamicKospiChart(data);
+                        renderMappingTable();
                         return;
                     }
                 }
             } catch (e) {}
-            // 文件尚未存在或网络异常时，使用内建基准历史兜底
             renderDynamicKospiChart(DEFAULT_KOSPI_HISTORY);
+            renderMappingTable();
         }
 
-        // 3. 柱状图动态投影 (直接基于 currentKospiHistory 数据集)
         function renderSvgBars() {
             const barGroup = document.getElementById("chartBarGroup");
             if (!barGroup || !currentKospiHistory || currentKospiHistory.length === 0) return;
@@ -889,7 +992,7 @@
             barGroup.innerHTML = html;
         }
 
-        // 4. 双轨沙盒数据管理
+        // 3. 双轨沙盒数据管理
         function loadPositionSandbox() {
             const saved = localStorage.getItem("quant_koru_sandbox");
             if (saved) {
@@ -980,12 +1083,13 @@
             updateOverviewCostMetrics();
             renderKoruUI(kp);
             updateTrenchTable();
+            renderMappingTable();
 
             const slider = document.getElementById("kospiSimSlider");
             if (slider) onKospiSliderChange(slider.value);
         }
 
-        // 5. 自适应滑块与快捷跳档
+        // 4. 自适应滑块与快捷跳档
         function initKospiSliderRange(basePoint) {
             const slider = document.getElementById("kospiSimSlider");
             if (!slider) return;
@@ -1082,7 +1186,7 @@
             }
         }
 
-        // 6. 总览与战壕状态渲染
+        // 5. 总览与战壕状态渲染
         function updateOverviewCostMetrics() {
             const sl = 7.150;
             const tp = 8.331;
@@ -1124,7 +1228,6 @@
             updateStatus("statusT3", t3);
         }
 
-        // 7. 图表视图切换与视窗放大
         function switchChartType(type) {
             const btnLine = document.getElementById("btnChartLine");
             const btnBar = document.getElementById("btnChartBar");
@@ -1162,7 +1265,6 @@
             }
         }
 
-        // 8. 导航交互
         function switchMainTab(tab) {
             const btnKoru = document.getElementById("btnTabKoru");
             const btnBtc = document.getElementById("btnTabBtc");
@@ -1191,7 +1293,7 @@
             if (targetView) targetView.classList.add("active");
         }
 
-        // 9. BTC 战术策略开单
+        // 6. BTC 战术策略开单
         function setBtcTradeSide(side) {
             currentSide = side;
             const btnL = document.getElementById("btnSideLong");
@@ -1348,8 +1450,6 @@
         function renderKoruUI(kp) {
             document.getElementById("koru-val").innerHTML = `${kp.toFixed(3)} <span style="font-size:13px; color:var(--text-muted);">USDT</span>`;
             document.getElementById("koruCenterBtn").textContent = kp.toFixed(3);
-            const tableLive = document.getElementById("tableLiveKoru");
-            if (tableLive) tableLive.textContent = `${kp.toFixed(3)} USDT`;
             
             const diff = (kp - customKoruCost).toFixed(3);
             const diffText = diff >= 0 ? `+${diff} (高出防区)` : `${diff} (已切入防区!)`;
@@ -1445,7 +1545,7 @@
             };
         }
 
-        // 10. 双通道轮询引擎
+        // 7. 双通道轮询引擎
         async function fetchLiveMarketData() {
             const startT = performance.now();
             let isRelaySuccess = false;
