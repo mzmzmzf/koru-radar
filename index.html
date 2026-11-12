@@ -69,7 +69,7 @@
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
         }
 
-        .view-panel { display: none; padding: 12px 14px; max-width: 900px; margin: 0 auto; }
+        .view-panel { display: none; padding: 12px 14px; max-width: 960px; margin: 0 auto; }
         .view-panel.active { display: block; }
 
         .koru-subtabs {
@@ -95,6 +95,7 @@
             display: flex;
             align-items: center;
             gap: 4px;
+            flex-shrink: 0;
         }
         .subtab-btn.active {
             background: rgba(16, 185, 129, 0.15);
@@ -116,7 +117,7 @@
 
         .sub-nav { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 8px 0; color: var(--text-muted); border-bottom: 1px solid #1a2438; margin-bottom: 12px; }
         .btn-group { display: inline-flex; gap: 4px; }
-        .btn-sm { background: var(--bg-subtle); border: 1px solid var(--border-color); color: #cbd5e1; padding: 3px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+        .btn-sm { background: var(--bg-subtle); border: 1px solid var(--border-color); color: #cbd5e1; padding: 3px 7px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
         .btn-sm.active { background: rgba(16, 185, 129, 0.2); border-color: var(--neon-emerald); color: #fff; font-weight: 700; }
 
         .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
@@ -157,6 +158,18 @@
             transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .chart-viewport.enlarged { height: 440px; }
+
+        .tv-chart-shell {
+            width: 100%;
+            height: 540px;
+            background: #0a0f1d;
+            border-radius: 6px;
+            border: 1px solid #1a253c;
+            overflow: hidden;
+            position: relative;
+            transition: height 0.25s ease;
+        }
+        .tv-chart-shell.expanded { height: 720px; }
 
         .chart-inspect-banner {
             background: rgba(15, 23, 42, 0.85);
@@ -264,7 +277,7 @@
     </nav>
 
     <!-- ========================================================================= -->
-    <!-- 模块 1：KORU 战略宏观雷达 (顶部战略总览已接入双频实时联动)                 -->
+    <!-- 模块 1：KORU 战略宏观雷达 (含 6 个独立子标签页)                           -->
     <!-- ========================================================================= -->
     <main class="view-panel active" id="view-koru">
         <div class="koru-subtabs">
@@ -273,6 +286,7 @@
             <button class="subtab-btn" data-subtab="chart" onclick="switchKoruSubTab('chart', this)">📈 市值走势图 (自动核算)</button>
             <button class="subtab-btn" data-subtab="fx" onclick="switchKoruSubTab('fx', this)">💱 汇率总阀与衍生品情绪</button>
             <button class="subtab-btn" data-subtab="trench" onclick="switchKoruSubTab('trench', this)">🛡️ 持仓风控沙盒与战壕</button>
+            <button class="subtab-btn" data-subtab="tvchart" onclick="switchKoruSubTab('tvchart', this)">📺 实时K线 (TV)</button>
         </div>
 
         <div class="sub-nav">
@@ -291,7 +305,6 @@
 
         <!-- 子模块 1: 核心总览 -->
         <div class="koru-subview active" id="subview-overview">
-            <!-- 动态战略定调总览卡（日线收盘 JSON + 3.5s 盘口 + 60s 汇率 + 沙盒目标四维实时联动） -->
             <div class="card" id="strategicBannerCard" style="background: linear-gradient(180deg, #132238, #111a2d); border-color: #2b456e; cursor:pointer;" onclick="switchKoruSubTabById('chart')">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div>
@@ -690,6 +703,41 @@
                 </table>
             </div>
         </div>
+
+        <!-- 子模块 6: TradingView 原生实时交互看盘舱 (10/15 EMA + 50 MA + RSI + MACD) -->
+        <div class="koru-subview" id="subview-tvchart">
+            <div class="card" style="padding: 12px;">
+                <div class="card-title" style="flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span style="color:#fff;">📺 TradingView 实时结构看盘</span>
+                        <div class="btn-group">
+                            <button type="button" class="btn-sm active" id="btnTvSymKoru" onclick="switchTvSymbol('OKX:KORUUSDT.P', this)">🛰️ KORU 永续</button>
+                            <button type="button" class="btn-sm" id="btnTvSymBtc" onclick="switchTvSymbol('OKX:BTCUSDT.P', this)">⚡ BTC 永续</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <div class="btn-group">
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('15', this)">15m</button>
+                            <button type="button" class="btn-sm tv-tf-btn active" onclick="switchTvInterval('60', this)">1H</button>
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('240', this)">4H</button>
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('D', this)">1D</button>
+                        </div>
+                        <button type="button" class="btn-sm" id="btnTvTheme" onclick="toggleTvTheme()" style="border-color:var(--neon-amber); color:#fbbf24;">☀️ 亮色盘面</button>
+                        <button type="button" class="btn-sm" id="btnTvExpand" onclick="toggleTvExpand()" style="border-color:var(--neon-cyan); color:#67e8f9;">🔍 增高画布</button>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted); margin-bottom:8px; flex-wrap:wrap; gap:4px;">
+                    <span>已自动加载: <b style="color:#60a5fa;">10 EMA</b> · <b style="color:#34d399;">15 EMA</b> · <b style="color:#f87171;">50 MA (红线)</b> · <b style="color:#cbd5e1;">RSI + MACD</b> (UTC+8)</span>
+                    <span style="color:var(--neon-cyan);">左侧工具栏支持画通道/斐波那契并本地保存</span>
+                </div>
+
+                <div class="tv-chart-shell" id="tvChartShell">
+                    <div id="tvWidgetContainer" style="width:100%; height:100%;"></div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- ========================================================================= -->
@@ -808,6 +856,9 @@
 
     <div id="appToast">已成功复制完整实战挂单计划至剪贴板！</div>
 
+    <!-- TradingView 官方免费嵌入式图表库 -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+
     <!-- ========================================================================= -->
     <!-- 逻辑引擎                                                                  -->
     <!-- ========================================================================= -->
@@ -886,7 +937,89 @@
         let isChartZoomed = false;
         let isBtcAutoSync = true;
 
-        // 0. 顶部战略总览卡片双频实时联动引擎（日线收盘 JSON + 3.5s 盘口 + 60s 汇率 + 沙盒目标）
+        // TradingView 状态管理（第 6 子标签页）
+        let tvInitialized = false;
+        let tvSymbol = "OKX:KORUUSDT.P";
+        let tvInterval = "60";
+        let tvTheme = "dark";
+        let isTvExpanded = false;
+
+        function renderTradingViewChart() {
+            const container = document.getElementById("tvWidgetContainer");
+            if (!container) return;
+            if (typeof TradingView === "undefined") {
+                container.innerHTML = `<div style="padding:24px; text-align:center; color:#94a3b8; font-size:12px;">⚠️ TradingView 脚本加载受限（请检查网络或代理设置后刷新页面）</div>`;
+                return;
+            }
+            container.innerHTML = "";
+            tvInitialized = true;
+
+            new TradingView.widget({
+                autosize: true,
+                symbol: tvSymbol,
+                interval: tvInterval,
+                timezone: "Asia/Shanghai",
+                theme: tvTheme,
+                style: "1",
+                locale: "zh_CN",
+                toolbar_bg: tvTheme === "dark" ? "#0b0f19" : "#f8fafc",
+                enable_publishing: false,
+                hide_side_toolbar: false,
+                allow_symbol_change: true,
+                save_image: false,
+                studies: [
+                    { id: "MAExp@tv-basicstudies", inputs: { length: 10 } },
+                    { id: "MAExp@tv-basicstudies", inputs: { length: 15 } },
+                    { id: "MASimple@tv-basicstudies", inputs: { length: 50 } },
+                    "RSI@tv-basicstudies",
+                    "MACD@tv-basicstudies"
+                ],
+                studies_overrides: {
+                    "moving average.plot.color": "#ef4444",
+                    "moving average.plot.linewidth": 2
+                },
+                container_id: "tvWidgetContainer"
+            });
+        }
+
+        function switchTvSymbol(sym, btnEl) {
+            tvSymbol = sym;
+            document.getElementById("btnTvSymKoru").classList.remove("active");
+            document.getElementById("btnTvSymBtc").classList.remove("active");
+            if (btnEl) btnEl.classList.add("active");
+            renderTradingViewChart();
+        }
+
+        function switchTvInterval(tf, btnEl) {
+            tvInterval = tf;
+            document.querySelectorAll(".tv-tf-btn").forEach(b => b.classList.remove("active"));
+            if (btnEl) btnEl.classList.add("active");
+            renderTradingViewChart();
+        }
+
+        function toggleTvTheme() {
+            tvTheme = tvTheme === "dark" ? "light" : "dark";
+            const btn = document.getElementById("btnTvTheme");
+            if (btn) {
+                btn.textContent = tvTheme === "dark" ? "☀️ 亮色盘面" : "🌙 暗夜盘面";
+            }
+            renderTradingViewChart();
+        }
+
+        function toggleTvExpand() {
+            const shell = document.getElementById("tvChartShell");
+            const btn = document.getElementById("btnTvExpand");
+            isTvExpanded = !isTvExpanded;
+            if (isTvExpanded) {
+                shell.classList.add("expanded");
+                if (btn) btn.textContent = "🔍 还原高度";
+            } else {
+                shell.classList.remove("expanded");
+                if (btn) btn.textContent = "🔍 增高画布";
+            }
+        }
+
+        // 0. 顶部战略总览卡片双频实时联动引擎
         function updateStrategicBanner() {
             const badgeEl = document.getElementById("bannerRegimeBadge");
             const headlineEl = document.getElementById("bannerHeadlineText");
@@ -906,7 +1039,6 @@
             const prevCap = parseFloat(prev.cap) || closeCap;
             const capDelta = closeCap - prevCap;
 
-            // 基于最近收盘基准反推 3x 杠杆盘中隐含母体点位
             const anchorKoru = 8.347 * (1 + 3.0 * ((closePt - 838.32) / 838.32));
             const liveKoru = lastValidKoru || anchorKoru;
             const intradayImpliedPct = anchorKoru > 0 ? ((liveKoru - anchorKoru) / anchorKoru) / 3.0 : 0;
@@ -919,7 +1051,6 @@
             const dailySign = dailyPtPct >= 0 ? "+" : "";
             headlineEl.textContent = `首尔母体 ${latest.date} 收盘 ${closePt.toFixed(2)} 点 (${dailySign}${dailyPtPct.toFixed(2)}%) · 盘中映射 ${impliedPt.toFixed(2)} 点`;
 
-            // 动态定性状态徽章
             if (liveKoru < stopSl || latestUsdKrw >= 1340.0) {
                 badgeEl.textContent = "⚠️ 结构承压警戒";
                 badgeEl.style.color = "#f87171";
@@ -1712,6 +1843,11 @@
             if (btnEl) btnEl.classList.add("active");
             const targetView = document.getElementById(`subview-${subId}`);
             if (targetView) targetView.classList.add("active");
+
+            // 切换到 TradingView 子标签页时按需初始化，避免隐藏容器尺寸塌陷
+            if (subId === 'tvchart' && !tvInitialized) {
+                setTimeout(renderTradingViewChart, 30);
+            }
         }
 
         function switchKoruSubTabById(subId) {
