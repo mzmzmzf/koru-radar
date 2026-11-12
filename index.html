@@ -159,7 +159,6 @@
         }
         .chart-viewport.enlarged { height: 440px; }
 
-        /* TradingView 首页看盘舱 + 网页全屏铺满样式 */
         .tv-chart-shell {
             width: 100%;
             height: 460px;
@@ -169,9 +168,7 @@
             overflow: hidden;
             position: relative;
         }
-        .tv-chart-shell.collapsed {
-            display: none;
-        }
+        .tv-chart-shell.collapsed { display: none; }
         .tv-fullscreen-card {
             position: fixed !important;
             inset: 0 !important;
@@ -190,6 +187,26 @@
             flex: 1 !important;
             height: auto !important;
             display: block !important;
+        }
+
+        .lw-hud-overlay {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            z-index: 10;
+            pointer-events: none;
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            background: rgba(10, 15, 29, 0.78);
+            padding: 5px 8px;
+            border-radius: 5px;
+            border: 1px solid rgba(36, 51, 77, 0.8);
+            backdrop-filter: blur(2px);
+        }
+        .lw-hud-overlay.light-hud {
+            background: rgba(255, 255, 255, 0.88);
+            border-color: rgba(203, 213, 225, 0.95);
         }
 
         .chart-inspect-banner {
@@ -323,7 +340,7 @@
             <div id="koruDiffText" style="color:var(--neon-emerald); font-weight:600;">● 挂单距现价: --</div>
         </div>
 
-        <!-- 子模块 1: 核心总览（首页直接集成实时行情图 + 10/15 EMA 黄色 + 50 MA 红色） -->
+        <!-- 子模块 1: 核心总览 -->
         <div class="koru-subview active" id="subview-overview">
             <div class="card" id="strategicBannerCard" style="background: linear-gradient(180deg, #132238, #111a2d); border-color: #2b456e; cursor:pointer;" onclick="switchKoruSubTabById('chart')">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
@@ -379,14 +396,17 @@
                 </div>
             </div>
 
-            <!-- 首页内置 TradingView 实时交互看盘舱（10/15 EMA 黄色 · 50 MA 红色 · 支持 100vw×100vh 网页全屏） -->
+            <!-- 首页双擎看盘舱：【破阵3.3 + SMC 视觉引擎】与【TV原版画线】一键切换 + 网页全屏 -->
             <div class="card" id="tvChartCard" style="padding: 12px;">
                 <div class="card-title" style="flex-wrap:wrap; gap:8px; margin-bottom:8px;">
                     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                        <span style="color:#fff;">📺 实时盘口结构图</span>
                         <div class="btn-group">
-                            <button type="button" class="btn-sm active" id="btnTvSymKoru" onclick="switchTvSymbol('OKX:KORUUSDT.P', this)">🛰️ KORU 永续</button>
-                            <button type="button" class="btn-sm" id="btnTvSymBtc" onclick="switchTvSymbol('OKX:BTCUSDT.P', this)">⚡ BTC 永续</button>
+                            <button type="button" class="btn-sm active" id="btnEngineStrat" onclick="switchChartEngine('STRAT', this)">⚔️ 破阵3.3 + SMC</button>
+                            <button type="button" class="btn-sm" id="btnEngineTv" onclick="switchChartEngine('TV', this)">📺 TV原版画线</button>
+                        </div>
+                        <div class="btn-group">
+                            <button type="button" class="btn-sm active" id="btnTvSymKoru" onclick="switchTvSymbol('OKX:KORUUSDT.P', this)">🛰️ KORU</button>
+                            <button type="button" class="btn-sm" id="btnTvSymBtc" onclick="switchTvSymbol('OKX:BTCUSDT.P', this)">⚡ BTC</button>
                         </div>
                     </div>
 
@@ -404,12 +424,25 @@
                 </div>
 
                 <div id="tvSubHintBar" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted); margin-bottom:8px; flex-wrap:wrap; gap:4px;">
-                    <span>均线锁定: <b style="color:#facc15;">10/15 EMA (黄线)</b> · <b style="color:#f87171;">50 MA (红线)</b> · <b style="color:#cbd5e1;">RSI + MACD</b> (UTC+8)</span>
-                    <span style="color:var(--neon-cyan);">点击右上角「⛶ 网页全屏」可 100% 铺满整个窗口画线</span>
+                    <span>均线三色锁定: <b style="color:#facc15;">EMA10(黄)</b> · <b style="color:#38bdf8;">EMA15(蓝)</b> · <b style="color:#f87171;">MA50(红)</b> · 破阵3.3信号 + SMC结构 (UTC+8)</span>
+                    <span id="stratLatestSignalBadge" style="color:var(--neon-cyan); font-weight:700;">正在扫描破阵3.3信号...</span>
                 </div>
 
                 <div class="tv-chart-shell" id="tvChartShell">
-                    <div id="tvWidgetContainer" style="width:100%; height:100%;"></div>
+                    <div id="lwChartWrapper" style="width:100%; height:100%; position:relative;">
+                        <div class="lw-hud-overlay" id="lwHudOverlay">
+                            <div id="lwOhlcLine" style="color:#e2e8f0; font-weight:700;">KORUUSDT.P · 1H · 正在同步 OKX K线...</div>
+                            <div id="lwMaLine">
+                                <span style="color:#facc15;">EMA10: --</span> &nbsp;
+                                <span style="color:#38bdf8;">EMA15: --</span> &nbsp;
+                                <span style="color:#f87171;">MA50: --</span>
+                            </div>
+                            <div id="lwSmcLine" style="color:#94a3b8;">SMC结构: 扫描中 | 沙盒线已投影</div>
+                        </div>
+                        <div id="lwChartContainer" style="width:100%; height:100%;"></div>
+                    </div>
+
+                    <div id="tvWidgetContainer" style="width:100%; height:100%; display:none;"></div>
                 </div>
             </div>
 
@@ -875,12 +908,9 @@
 
     <div id="appToast">已成功复制完整实战挂单计划至剪贴板！</div>
 
-    <!-- TradingView 官方免费嵌入式图表库 -->
+    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 
-    <!-- ========================================================================= -->
-    <!-- 逻辑引擎                                                                  -->
-    <!-- ========================================================================= -->
     <script>
         const PRIMARY_RELAY_URL = "https://quant-relay.zhefeng0513.workers.dev";
         const OKX_BTC_TICKER_URL = "https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP";
@@ -893,7 +923,6 @@
         const DOMESTIC_FALLBACK_KLINES_URL = "https://min-api.cryptocompare.com/data/v2/histohour?fsym=BTC&tsym=USD&limit=60";
         let BASE_KOSPI_ANCHOR = 832.50;
 
-        // 统一单倍成分股总市值基准底座（含 11/12 最新校准点）
         const DEFAULT_KOSPI_HISTORY = [
             { date: "10/08", cap: 2090.25, point: 865.20 },
             { date: "10/10", cap: 2070.10, point: 855.10 },
@@ -956,12 +985,390 @@
         let isChartZoomed = false;
         let isBtcAutoSync = true;
 
-        // TradingView 首页实时看盘状态管理（10/15 EMA 黄色 · 50 MA 红色 · 100vw×100vh 网页全屏）
+        // 双擎看盘状态管理：【破阵3.3 + SMC 视觉引擎】 vs 【TV原版画线】
+        let chartEngineMode = "STRAT";
         let tvSymbol = "OKX:KORUUSDT.P";
         let tvInterval = "60";
         let tvTheme = "dark";
         let isTvFullscreen = false;
         let isTvCollapsed = false;
+
+        let lwChart = null;
+        let lwCandleSeries = null;
+        let lwEma10Series = null;
+        let lwEma15Series = null;
+        let lwMa50Series = null;
+        let lwVolSeries = null;
+        let lwPriceLines = [];
+        let lwLastDataCache = [];
+
+        function formatBeijingTime(unixSec, includeDate = true) {
+            const d = new Date(unixSec * 1000);
+            const parts = new Intl.DateTimeFormat("zh-CN", {
+                timeZone: "Asia/Shanghai",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false
+            }).formatToParts(d);
+            const getP = (t) => (parts.find(x => x.type === t) || {}).value || "00";
+            return includeDate ? `${getP("month")}/${getP("day")} ${getP("hour")}:${getP("minute")}` : `${getP("hour")}:${getP("minute")}`;
+        }
+
+        function initLightweightChart() {
+            const container = document.getElementById("lwChartContainer");
+            if (!container || typeof LightweightCharts === "undefined") return;
+            container.innerHTML = "";
+
+            const isDark = tvTheme === "dark";
+            lwChart = LightweightCharts.createChart(container, {
+                width: container.clientWidth || 600,
+                height: container.clientHeight || 460,
+                layout: {
+                    background: { type: "solid", color: isDark ? "#0a0f1d" : "#ffffff" },
+                    textColor: isDark ? "#94a3b8" : "#334155",
+                    fontSize: 11
+                },
+                grid: {
+                    vertLines: { color: isDark ? "rgba(30, 41, 59, 0.55)" : "rgba(226, 232, 240, 0.8)" },
+                    horzLines: { color: isDark ? "rgba(30, 41, 59, 0.55)" : "rgba(226, 232, 240, 0.8)" }
+                },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                rightPriceScale: {
+                    borderColor: isDark ? "#1e293b" : "#cbd5e1",
+                    scaleMargins: { top: 0.12, bottom: 0.2 }
+                },
+                timeScale: {
+                    borderColor: isDark ? "#1e293b" : "#cbd5e1",
+                    timeVisible: true,
+                    secondsVisible: false,
+                    tickMarkFormatter: (time) => formatBeijingTime(time, tvInterval === "D")
+                },
+                localization: {
+                    timeFormatter: (time) => formatBeijingTime(time, true)
+                }
+            });
+
+            lwCandleSeries = lwChart.addCandlestickSeries({
+                upColor: "#10b981",
+                downColor: "#ef4444",
+                borderUpColor: "#10b981",
+                borderDownColor: "#ef4444",
+                wickUpColor: "#10b981",
+                wickDownColor: "#ef4444"
+            });
+
+            lwEma10Series = lwChart.addLineSeries({
+                color: "#facc15",
+                lineWidth: 2,
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: "EMA10"
+            });
+
+            lwEma15Series = lwChart.addLineSeries({
+                color: "#38bdf8",
+                lineWidth: 2,
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: "EMA15"
+            });
+
+            lwMa50Series = lwChart.addLineSeries({
+                color: "#ef4444",
+                lineWidth: 3,
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: "MA50"
+            });
+
+            lwVolSeries = lwChart.addHistogramSeries({
+                priceFormat: { type: "volume" },
+                priceScaleId: ""
+            });
+            lwVolSeries.priceScale().applyOptions({
+                scaleMargins: { top: 0.83, bottom: 0 }
+            });
+
+            lwChart.subscribeCrosshairMove((param) => {
+                if (!param || !param.time || !lwLastDataCache.length) return;
+                const found = lwLastDataCache.find(x => x.time === param.time);
+                if (found) updateLwHudText(found);
+            });
+
+            if (typeof ResizeObserver !== "undefined") {
+                const ro = new ResizeObserver(() => {
+                    if (lwChart && container.clientWidth > 0 && container.clientHeight > 0) {
+                        lwChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+                    }
+                });
+                ro.observe(container);
+            }
+        }
+
+        function updateLwHudText(bar) {
+            const ohlcEl = document.getElementById("lwOhlcLine");
+            const maEl = document.getElementById("lwMaLine");
+            if (!ohlcEl || !maEl || !bar) return;
+
+            const isKoru = tvSymbol.includes("KORU");
+            const dec = isKoru ? 3 : 1;
+            const symName = isKoru ? "KORU-USDT-SWAP" : "BTC-USDT-SWAP";
+            const tfLabel = { "15": "15m", "60": "1H", "240": "4H", "D": "1D" }[tvInterval] || "1H";
+            const chg = bar.open > 0 ? (((bar.close - bar.open) / bar.open) * 100).toFixed(2) : "0.00";
+            const chgColor = bar.close >= bar.open ? "#10b981" : "#ef4444";
+
+            ohlcEl.style.color = tvTheme === "light" ? "#0f172a" : "#e2e8f0";
+            ohlcEl.innerHTML = `${symName} · ${tfLabel} · 开:${bar.open.toFixed(dec)} 高:${bar.high.toFixed(dec)} 低:${bar.low.toFixed(dec)} 收:<span style="color:${chgColor}">${bar.close.toFixed(dec)} (${chg >= 0 ? '+' : ''}${chg}%)</span>`;
+            maEl.innerHTML = `<span style="color:#facc15; font-weight:700;">EMA10: ${bar.ema10 ? bar.ema10.toFixed(dec) : '--'}</span> &nbsp; ` +
+                             `<span style="color:#38bdf8; font-weight:700;">EMA15: ${bar.ema15 ? bar.ema15.toFixed(dec) : '--'}</span> &nbsp; ` +
+                             `<span style="color:#ef4444; font-weight:800;">MA50: ${bar.ma50 ? bar.ma50.toFixed(dec) : '--'}</span>`;
+        }
+
+        function clearLwPriceLines() {
+            if (!lwCandleSeries) return;
+            lwPriceLines.forEach(line => {
+                try { lwCandleSeries.removePriceLine(line); } catch (e) {}
+            });
+            lwPriceLines = [];
+        }
+
+        function computeBreakout33AndSmc(candles) {
+            const n = candles.length;
+            const k10 = 2 / 11;
+            const k15 = 2 / 16;
+            const volMult = 1.5;
+            const lookback = 5;
+
+            const enriched = [];
+            let e10 = candles[0].close;
+            let e15 = candles[0].close;
+
+            for (let i = 0; i < n; i++) {
+                const c = candles[i];
+                if (i > 0) {
+                    e10 = c.close * k10 + e10 * (1 - k10);
+                    e15 = c.close * k15 + e15 * (1 - k15);
+                }
+                let ma50 = null;
+                if (i >= 49) {
+                    let s = 0;
+                    for (let j = i - 49; j <= i; j++) s += candles[j].close;
+                    ma50 = s / 50;
+                }
+                let volMa = null;
+                if (i >= 19) {
+                    let vs = 0;
+                    for (let j = i - 19; j <= i; j++) vs += candles[j].vol;
+                    volMa = vs / 20;
+                }
+                enriched.push({ ...c, ema10: e10, ema15: e15, ma50, volMa });
+            }
+
+            const markers = [];
+            let latestSignalText = "暂无新突破信号 · 均线跟踪中";
+            let latestSignalColor = "var(--neon-cyan)";
+            const isKoru = tvSymbol.includes("KORU");
+            const dec = isKoru ? 3 : 1;
+
+            for (let i = 50; i < n; i++) {
+                const cur = enriched[i];
+                const prev = enriched[i - 1];
+                if (!cur.ma50 || !prev.ma50 || !cur.volMa) continue;
+
+                let highestPrev5 = -Infinity;
+                let lowestPrev5 = Infinity;
+                for (let k = i - lookback; k < i; k++) {
+                    if (enriched[k].high > highestPrev5) highestPrev5 = enriched[k].high;
+                    if (enriched[k].low < lowestPrev5) lowestPrev5 = enriched[k].low;
+                }
+
+                const crossOver10_15 = prev.ema10 <= prev.ema15 && cur.ema10 > cur.ema15;
+                const crossUnder10_15 = prev.ema10 >= prev.ema15 && cur.ema10 < cur.ema15;
+                const crossOver10_50 = prev.ema10 <= prev.ma50 && cur.ema10 > cur.ma50;
+                const crossUnder10_50 = prev.ema10 >= prev.ma50 && cur.ema10 < cur.ma50;
+
+                const greenSignal = (prev.ema10 < prev.ma50 && prev.ema15 < prev.ma50) && crossOver10_15 && cur.vol > cur.volMa;
+                const finalBlueSignal = crossOver10_50 && cur.close > cur.ma50 && cur.vol > cur.volMa * volMult && cur.close > highestPrev5;
+
+                const redSignal = (prev.ema10 > prev.ma50 && prev.ema15 > prev.ma50) && crossUnder10_15 && cur.vol > cur.volMa;
+                const finalPurpleSignal = crossUnder10_50 && cur.close < cur.ma50 && cur.vol > cur.volMa * volMult && cur.close < lowestPrev5;
+
+                if (greenSignal) {
+                    markers.push({ time: cur.time, position: "belowBar", color: "#10b981", shape: "arrowUp", text: "▲多集结" });
+                    latestSignalText = `🟢 龙抬头-多头集结 (${formatBeijingTime(cur.time, false)})`;
+                    latestSignalColor = "#34d399";
+                }
+                if (finalBlueSignal) {
+                    markers.push({ time: cur.time, position: "belowBar", color: "#3b82f6", shape: "arrowUp", text: `多:${cur.ma50.toFixed(dec)}` });
+                    latestSignalText = `🔵 蓝箭破阵-多头起飞 @ ${cur.ma50.toFixed(dec)}`;
+                    latestSignalColor = "#60a5fa";
+                }
+                if (redSignal) {
+                    markers.push({ time: cur.time, position: "aboveBar", color: "#ef4444", shape: "arrowDown", text: "▼空集结" });
+                    latestSignalText = `🔴 鸣金兵败-空头集结 (${formatBeijingTime(cur.time, false)})`;
+                    latestSignalColor = "#f87171";
+                }
+                if (finalPurpleSignal) {
+                    markers.push({ time: cur.time, position: "aboveBar", color: "#a855f7", shape: "arrowDown", text: `空:${cur.ma50.toFixed(dec)}` });
+                    latestSignalText = `🟣 紫箭坠阵-空头开仓 @ ${cur.ma50.toFixed(dec)}`;
+                    latestSignalColor = "#c084fc";
+                }
+            }
+
+            const swingHighs = [];
+            const swingLows = [];
+            for (let i = 5; i < n - 5; i++) {
+                let isH = true, isL = true;
+                for (let j = i - 5; j <= i + 5; j++) {
+                    if (j === i) continue;
+                    if (enriched[j].high >= enriched[i].high) isH = false;
+                    if (enriched[j].low <= enriched[i].low) isL = false;
+                }
+                if (isH) swingHighs.push({ idx: i, time: enriched[i].time, price: enriched[i].high });
+                if (isL) swingLows.push({ idx: i, time: enriched[i].time, price: enriched[i].low });
+            }
+
+            const lastSH = swingHighs[swingHighs.length - 1];
+            const lastSL = swingLows[swingLows.length - 1];
+            const lastBar = enriched[n - 1];
+            let smcState = "震荡区间整固";
+
+            if (lastSH && lastBar.close > lastSH.price) {
+                smcState = `CHoCH/BOS 向上突破 (${lastSH.price.toFixed(dec)})`;
+                markers.push({ time: lastBar.time, position: "aboveBar", color: "#06b6d4", shape: "circle", text: "BOS↑" });
+            } else if (lastSL && lastBar.close < lastSL.price) {
+                smcState = `CHoCH/BOS 向下破位 (${lastSL.price.toFixed(dec)})`;
+                markers.push({ time: lastBar.time, position: "belowBar", color: "#f59e0b", shape: "circle", text: "BOS↓" });
+            } else if (lastSH && lastSL) {
+                smcState = `SMC箱体: 强底 ${lastSL.price.toFixed(dec)} ~ 弱顶 ${lastSH.price.toFixed(dec)}`;
+            }
+
+            markers.sort((a, b) => a.time - b.time);
+            return { enriched, markers, latestSignalText, latestSignalColor, smcState, lastSH, lastSL };
+        }
+
+        async function fetchAndRenderStrategyChart(preserveViewport = false) {
+            if (chartEngineMode !== "STRAT") return;
+            if (!lwChart) initLightweightChart();
+            if (!lwChart) return;
+
+            const isKoru = tvSymbol.includes("KORU");
+            const instId = isKoru ? "KORU-USDT-SWAP" : "BTC-USDT-SWAP";
+            const barMap = { "15": "15m", "60": "1H", "240": "4H", "D": "1Dutc" };
+            const bar = barMap[tvInterval] || "1H";
+
+            try {
+                const res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=240`, { cache: "no-store" });
+                const json = await res.json();
+                if (json?.code !== "0" || !Array.isArray(json.data) || json.data.length < 55) return;
+
+                const rawReversed = json.data.slice().reverse();
+                const seenTimes = new Set();
+                const candles = [];
+                rawReversed.forEach(row => {
+                    const t = Math.floor(parseInt(row[0], 10) / 1000);
+                    if (!seenTimes.has(t)) {
+                        seenTimes.add(t);
+                        candles.push({
+                            time: t,
+                            open: parseFloat(row[1]),
+                            high: parseFloat(row[2]),
+                            low: parseFloat(row[3]),
+                            close: parseFloat(row[4]),
+                            vol: parseFloat(row[5]) || 0
+                        });
+                    }
+                });
+
+                const { enriched, markers, latestSignalText, latestSignalColor, smcState, lastSH, lastSL } = computeBreakout33AndSmc(candles);
+                lwLastDataCache = enriched;
+
+                let savedRange = null;
+                if (preserveViewport) {
+                    try { savedRange = lwChart.timeScale().getVisibleLogicalRange(); } catch (e) {}
+                }
+
+                lwCandleSeries.setData(enriched.map(x => ({
+                    time: x.time, open: x.open, high: x.high, low: x.low, close: x.close
+                })));
+
+                lwEma10Series.setData(enriched.map(x => ({ time: x.time, value: x.ema10 })));
+                lwEma15Series.setData(enriched.map(x => ({ time: x.time, value: x.ema15 })));
+                lwMa50Series.setData(enriched.filter(x => x.ma50 !== null).map(x => ({ time: x.time, value: x.ma50 })));
+
+                lwVolSeries.setData(enriched.map(x => ({
+                    time: x.time,
+                    value: x.vol,
+                    color: x.close >= x.open ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)"
+                })));
+
+                lwCandleSeries.setMarkers(markers);
+
+                clearLwPriceLines();
+                if (lastSH) {
+                    lwPriceLines.push(lwCandleSeries.createPriceLine({
+                        price: lastSH.price,
+                        color: "rgba(239, 68, 68, 0.65)",
+                        lineWidth: 1,
+                        lineStyle: LightweightCharts.LineStyle.Dashed,
+                        axisLabelVisible: true,
+                        title: "SMC 供给顶"
+                    }));
+                }
+                if (lastSL) {
+                    lwPriceLines.push(lwCandleSeries.createPriceLine({
+                        price: lastSL.price,
+                        color: "rgba(16, 185, 129, 0.65)",
+                        lineWidth: 1,
+                        lineStyle: LightweightCharts.LineStyle.Dashed,
+                        axisLabelVisible: true,
+                        title: "SMC 需求底"
+                    }));
+                }
+
+                if (isKoru) {
+                    const bep = customKoruCost * 1.002;
+                    const activeSl = sandboxData.liveSl || 7.800;
+                    lwPriceLines.push(lwCandleSeries.createPriceLine({
+                        price: bep,
+                        color: "#f59e0b",
+                        lineWidth: 1,
+                        lineStyle: LightweightCharts.LineStyle.Dotted,
+                        axisLabelVisible: true,
+                        title: "沙盒BEP"
+                    }));
+                    lwPriceLines.push(lwCandleSeries.createPriceLine({
+                        price: activeSl,
+                        color: "#f43f5e",
+                        lineWidth: 1,
+                        lineStyle: LightweightCharts.LineStyle.Dotted,
+                        axisLabelVisible: true,
+                        title: "防线SL"
+                    }));
+                }
+
+                if (savedRange) {
+                    lwChart.timeScale().setVisibleLogicalRange(savedRange);
+                } else if (!preserveViewport) {
+                    lwChart.timeScale().fitContent();
+                }
+
+                const latestBar = enriched[enriched.length - 1];
+                updateLwHudText(latestBar);
+
+                const sigBadge = document.getElementById("stratLatestSignalBadge");
+                if (sigBadge) {
+                    sigBadge.textContent = latestSignalText;
+                    sigBadge.style.color = latestSignalColor;
+                }
+                const smcLine = document.getElementById("lwSmcLine");
+                if (smcLine) {
+                    smcLine.textContent = `${smcState}${isKoru ? " | 已叠加沙盒 BEP/SL 线" : ""}`;
+                }
+            } catch (e) {}
+        }
 
         function renderTradingViewChart() {
             const container = document.getElementById("tvWidgetContainer");
@@ -1002,28 +1409,66 @@
             });
         }
 
+        function switchChartEngine(mode, btnEl) {
+            chartEngineMode = mode;
+            document.getElementById("btnEngineStrat").classList.remove("active");
+            document.getElementById("btnEngineTv").classList.remove("active");
+            if (btnEl) btnEl.classList.add("active");
+
+            const lwWrap = document.getElementById("lwChartWrapper");
+            const tvWrap = document.getElementById("tvWidgetContainer");
+
+            if (mode === "STRAT") {
+                lwWrap.style.display = "block";
+                tvWrap.style.display = "none";
+                fetchAndRenderStrategyChart(false);
+            } else {
+                lwWrap.style.display = "none";
+                tvWrap.style.display = "block";
+                renderTradingViewChart();
+            }
+        }
+
         function switchTvSymbol(sym, btnEl) {
             tvSymbol = sym;
             document.getElementById("btnTvSymKoru").classList.remove("active");
             document.getElementById("btnTvSymBtc").classList.remove("active");
             if (btnEl) btnEl.classList.add("active");
-            renderTradingViewChart();
+
+            if (chartEngineMode === "STRAT") {
+                fetchAndRenderStrategyChart(false);
+            } else {
+                renderTradingViewChart();
+            }
         }
 
         function switchTvInterval(tf, btnEl) {
             tvInterval = tf;
             document.querySelectorAll(".tv-tf-btn").forEach(b => b.classList.remove("active"));
             if (btnEl) btnEl.classList.add("active");
-            renderTradingViewChart();
+
+            if (chartEngineMode === "STRAT") {
+                fetchAndRenderStrategyChart(false);
+            } else {
+                renderTradingViewChart();
+            }
         }
 
         function toggleTvTheme() {
             tvTheme = tvTheme === "dark" ? "light" : "dark";
             const btn = document.getElementById("btnTvTheme");
-            if (btn) {
-                btn.textContent = tvTheme === "dark" ? "☀️ 亮色" : "🌙 暗夜";
+            const hud = document.getElementById("lwHudOverlay");
+            if (btn) btn.textContent = tvTheme === "dark" ? "☀️ 亮色" : "🌙 暗夜";
+            if (hud) {
+                if (tvTheme === "light") hud.classList.add("light-hud");
+                else hud.classList.remove("light-hud");
             }
-            renderTradingViewChart();
+            if (chartEngineMode === "STRAT") {
+                initLightweightChart();
+                fetchAndRenderStrategyChart(false);
+            } else {
+                renderTradingViewChart();
+            }
         }
 
         function toggleTvCollapse() {
@@ -1041,6 +1486,7 @@
                 shell.classList.remove("collapsed");
                 if (hint) hint.style.display = "flex";
                 if (btn) btn.textContent = "🔽 收起";
+                if (chartEngineMode === "STRAT") fetchAndRenderStrategyChart(true);
             }
         }
 
@@ -1079,9 +1525,7 @@
         }
 
         document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && isTvFullscreen) {
-                toggleTvFullscreen();
-            }
+            if (e.key === "Escape" && isTvFullscreen) toggleTvFullscreen();
         });
 
         // 0. 顶部战略总览卡片双频实时联动引擎
@@ -1145,7 +1589,7 @@
             narrativeEl.textContent = `${fxPhrase}，首尔最新成分股总市值 ${closeCap.toFixed(2)} 万亿韩元（单日 ${capSign}${capDelta.toFixed(1)} 万亿），半导体两强垄断 51.41% 权重主导波段结构。`;
         }
 
-        // 1. 混合双轨映射矩阵渲染函数
+        // 1. 混合双轨映射矩阵
         function switchMappingMode(mode) {
             mappingMode = mode;
             const btnAnchor = document.getElementById("btnModeAnchor");
@@ -1160,6 +1604,8 @@
                 btnLive.classList.remove("active");
                 badge.textContent = "🏛️ 日线基准定桩";
                 badge.className = "badge active";
+                badge.style.color = "";
+                badge.style.borderColor = "";
                 tip.innerHTML = `💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (${BASE_KOSPI_ANCHOR.toFixed(2)}点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。`;
                 th.textContent = "KORU 定桩目标 (用于挂单)";
                 if (copyBtn) copyBtn.textContent = "📋 一键复制【日线定桩】券商全套实战挂单计划 (GTC有效)";
@@ -1243,26 +1689,17 @@
             const bep = customKoruCost * 1.002;
             const modeName = mappingMode === 'ANCHOR' ? '🏛️ 日线基准定桩 (挂单死锚点)' : '⚡ 现价弹性推演 (盘中动量弹性)';
 
-            let slSection = [];
-            let buySection = [];
-            let tpSection = [];
-
+            let slSection = [], buySection = [], tpSection = [];
             STRATEGIC_TRENCHES.forEach(item => {
                 const pt = item.isBase ? baseK : item.point;
                 const deltaIndexPct = (pt - baseK) / baseK;
                 let price = item.staticPrice;
-                if (mappingMode === 'LIVE') {
-                    price = liveK * (1 + deltaIndexPct * 3.0);
-                }
+                if (mappingMode === 'LIVE') price = liveK * (1 + deltaIndexPct * 3.0);
                 const pStr = price.toFixed(3);
 
-                if (item.type === 'SL') {
-                    slSection.push(`• 🛡️ 结构止损单 (SL): 触发/限价 ${pStr} USDT (对应母体 ${pt.toFixed(2)} 点) | 操作: ${item.desc}`);
-                } else if (item.type === 'BUY') {
-                    buySection.push(`• 📥 梯形加仓单 (Buy Limit): 限价 ${pStr} USDT (对应母体 ${pt.toFixed(2)} 点) | 操作: ${item.desc}`);
-                } else if (item.type === 'TP') {
-                    tpSection.push(`• 🎯 阶梯止盈单 (${item.tag}): 限价 ${pStr} USDT (对应母体 ${pt.toFixed(2)} 点) | 操作: ${item.desc}`);
-                }
+                if (item.type === 'SL') slSection.push(`• 🛡️ 结构止损单 (SL): 触发/限价 ${pStr} USDT (对应母体 ${pt.toFixed(2)} 点) | 操作: ${item.desc}`);
+                else if (item.type === 'BUY') buySection.push(`• 📥 梯形加仓单 (Buy Limit): 限价 ${pStr} USDT (对应母体 ${pt.toFixed(2)} 点) | 操作: ${item.desc}`);
+                else if (item.type === 'TP') tpSection.push(`• 🎯 阶梯止盈单 (${item.tag}): 限价 ${pStr} USDT (对应母体 ${pt.toFixed(2)} 点) | 操作: ${item.desc}`);
             });
 
             const planText = `【KORU 券商战略作战挂单计划 · GTC有效】\n` +
@@ -1270,12 +1707,9 @@
                              `• 母体基准点: ${baseK.toFixed(2)} 点 | KORU 实时现价: ${liveK.toFixed(3)} USDT\n` +
                              `• 战略底仓成本: ${customKoruCost.toFixed(3)} USDT | 真实保本线 (BEP): ${bep.toFixed(3)} USDT\n` +
                              `========================================\n` +
-                             `【1. 极限防御止损区】\n` +
-                             slSection.join('\n') + `\n\n` +
-                             `【2. 战术回踩伏击区】\n` +
-                             buySection.join('\n') + `\n\n` +
-                             `【3. 目标阶梯兑现区】\n` +
-                             tpSection.join('\n') + `\n` +
+                             `【1. 极限防御止损区】\n${slSection.join('\n')}\n\n` +
+                             `【2. 战术回踩伏击区】\n${buySection.join('\n')}\n\n` +
+                             `【3. 目标阶梯兑现区】\n${tpSection.join('\n')}\n` +
                              `========================================\n` +
                              `🎖️ 参谋部执行律令:\n` +
                              `1. 券商订单有效期统一选择 GTC (Good-Til-Cancelled，撤单前有效)；\n` +
@@ -1284,18 +1718,12 @@
 
             navigator.clipboard.writeText(planText).then(() => {
                 showToast(`已成功复制【${mappingMode === 'ANCHOR' ? '定桩' : '弹性'}】券商实战挂单计划！`);
-            }).catch(() => {
-                showToast("浏览器权限受限，请长按手动复制");
-            });
+            }).catch(() => showToast("浏览器权限受限，请长按手动复制"));
         }
 
         function copySingleTrenchOrder(tag, price, kospiPoint) {
             const text = `KORU 限价挂单: ${price} USDT (对应 KOSPI ${kospiPoint} 点 · ${tag})`;
-            navigator.clipboard.writeText(text).then(() => {
-                showToast(`已复制: ${text}`);
-            }).catch(() => {
-                showToast("复制受限，请手动输入");
-            });
+            navigator.clipboard.writeText(text).then(() => showToast(`已复制: ${text}`)).catch(() => showToast("复制受限，请手动输入"));
         }
 
         // 2. 动态 SVG 折线图与柱状图
@@ -1305,22 +1733,13 @@
             if (!historyList || historyList.length === 0) return;
             currentKospiHistory = historyList;
 
-            const svgW = 500;
-            const svgH = 175;
-            const paddingY = 20;
-            
+            const svgW = 500, svgH = 175, paddingY = 20;
             const caps = historyList.map(item => item.cap);
-            const minCap = Math.min(...caps);
-            const maxCap = Math.max(...caps);
+            const minCap = Math.min(...caps), maxCap = Math.max(...caps);
             const capRange = maxCap - minCap || 1;
+            const n = historyList.length, stepX = svgW / (n - 1);
 
-            const n = historyList.length;
-            const stepX = svgW / (n - 1);
-            
-            let polylinePoints = [];
-            let minIdx = 0;
-            let minCoords = { x: 0, y: 0 };
-            let latestCoords = { x: 0, y: 0 };
+            let polylinePoints = [], minIdx = 0, minCoords = { x: 0, y: 0 }, latestCoords = { x: 0, y: 0 };
             chartPointsCache = [];
 
             caps.forEach((cap, i) => {
@@ -1328,25 +1747,15 @@
                 const y = svgH - paddingY - ((cap - minCap) / capRange) * (svgH - paddingY * 2);
                 polylinePoints.push(`${x.toFixed(1)},${y.toFixed(1)}`);
                 chartPointsCache.push({ x, y, item: historyList[i] });
-                
-                if (cap === minCap) {
-                    minIdx = i;
-                    minCoords = { x, y };
-                }
-                if (i === n - 1) {
-                    latestCoords = { x, y };
-                }
+                if (cap === minCap) { minIdx = i; minCoords = { x, y }; }
+                if (i === n - 1) latestCoords = { x, y };
             });
 
             const pointsStr = polylinePoints.join(" ");
-
             const polyline = document.getElementById("svgPolyline");
             if (polyline) polyline.setAttribute("points", pointsStr);
-
             const areaPolygon = document.getElementById("chartAreaPolygon");
-            if (areaPolygon) {
-                areaPolygon.setAttribute("points", `0,${svgH} ${pointsStr} ${svgW},${svgH}`);
-            }
+            if (areaPolygon) areaPolygon.setAttribute("points", `0,${svgH} ${pointsStr} ${svgW},${svgH}`);
 
             const markerGroup = document.getElementById("chartMarkers");
             const latest = historyList[n - 1];
@@ -1360,7 +1769,6 @@
                     ? `<circle cx="${minCoords.x.toFixed(1)}" cy="${minCoords.y.toFixed(1)}" r="4" fill="#ef4444"/>
                        <text x="${Math.max(10, minCoords.x - 30).toFixed(1)}" y="${(minCoords.y - 8).toFixed(1)}" fill="#f87171" font-size="10">${minItem.date} 底 ${minItem.cap.toFixed(0)}</text>`
                     : "";
-
                 markerGroup.innerHTML = `
                     ${minMarkerHtml}
                     <circle cx="${latestCoords.x.toFixed(1)}" cy="${latestCoords.y.toFixed(1)}" r="5" fill="${diff >= 0 ? '#10b981' : '#ef4444'}"/>
@@ -1383,10 +1791,7 @@
             }
 
             const barGroup = document.getElementById("chartBarGroup");
-            if (barGroup && barGroup.style.display !== "none") {
-                renderSvgBars();
-            }
-
+            if (barGroup && barGroup.style.display !== "none") renderSvgBars();
             updateStrategicBanner();
         }
 
@@ -1399,27 +1804,17 @@
             const uniqueIndices = [...new Set(indices)];
 
             let html = `<line x1="0" y1="${svgH}" x2="${svgW}" y2="${svgH}" stroke="#1e293b" stroke-width="1.2"/>`;
-
             uniqueIndices.forEach((idx) => {
                 const item = historyList[idx];
                 const x = idx * (svgW / (n - 1));
-                let anchor = "middle";
-                let textX = x;
-
-                if (idx === 0) {
-                    anchor = "start";
-                    textX = 2;
-                } else if (idx === n - 1) {
-                    anchor = "end";
-                    textX = svgW - 2;
-                }
-
+                let anchor = "middle", textX = x;
+                if (idx === 0) { anchor = "start"; textX = 2; }
+                else if (idx === n - 1) { anchor = "end"; textX = svgW - 2; }
                 html += `
                     <line x1="${x.toFixed(1)}" y1="${svgH}" x2="${x.toFixed(1)}" y2="${svgH + 4}" stroke="#334155" stroke-width="1"/>
                     <text x="${textX.toFixed(1)}" y="${svgH + 18}" fill="#64748b" font-size="10" font-family="monospace" text-anchor="${anchor}">${item.date}</text>
                 `;
             });
-
             axisGroup.innerHTML = html;
         }
 
@@ -1430,7 +1825,6 @@
             const crossPoint = document.getElementById("crosshairPoint");
             const inspectDateText = document.getElementById("inspectDateText");
             const inspectValText = document.getElementById("inspectValText");
-
             if (!viewport) return;
 
             const handleMove = (clientX) => {
@@ -1441,14 +1835,10 @@
                 const scaleX = svgW / rect.width;
                 const targetX = Math.max(0, Math.min(svgW, relX * scaleX));
 
-                let closest = chartPointsCache[0];
-                let minDiff = 99999;
+                let closest = chartPointsCache[0], minDiff = 99999;
                 chartPointsCache.forEach(pt => {
                     const diff = Math.abs(pt.x - targetX);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        closest = pt;
-                    }
+                    if (diff < minDiff) { minDiff = diff; closest = pt; }
                 });
 
                 if (closest) {
@@ -1457,7 +1847,6 @@
                     crossLine.setAttribute("x2", closest.x.toFixed(1));
                     crossPoint.setAttribute("cx", closest.x.toFixed(1));
                     crossPoint.setAttribute("cy", closest.y.toFixed(1));
-
                     const it = closest.item;
                     inspectDateText.innerHTML = `📅 <b>${it.date}</b> | KOSPI: <b>${it.point || '--'}</b> 点`;
                     inspectValText.innerHTML = `市值: <b>${it.cap.toFixed(2)}</b> 万亿韩元`;
@@ -1465,12 +1854,7 @@
             };
 
             viewport.addEventListener("mousemove", (e) => handleMove(e.clientX));
-            viewport.addEventListener("touchmove", (e) => {
-                if (e.touches && e.touches[0]) {
-                    handleMove(e.touches[0].clientX);
-                }
-            }, { passive: true });
-
+            viewport.addEventListener("touchmove", (e) => { if (e.touches && e.touches[0]) handleMove(e.touches[0].clientX); }, { passive: true });
             viewport.addEventListener("mouseleave", () => {
                 crossGroup.style.display = "none";
                 const latest = currentKospiHistory[currentKospiHistory.length - 1];
@@ -1506,36 +1890,26 @@
             const barGroup = document.getElementById("chartBarGroup");
             if (!barGroup || !currentKospiHistory || currentKospiHistory.length === 0) return;
 
-            const n = currentKospiHistory.length;
-            const svgW = 500;
-            const svgH = 175;
-            const paddingY = 20;
-            const slotW = svgW / n;
-            const barW = Math.max(5, slotW * 0.65);
-
+            const n = currentKospiHistory.length, svgW = 500, svgH = 175, paddingY = 20;
+            const slotW = svgW / n, barW = Math.max(5, slotW * 0.65);
             const caps = currentKospiHistory.map(x => x.cap);
-            const minCap = Math.min(...caps);
-            const maxCap = Math.max(...caps);
+            const minCap = Math.min(...caps), maxCap = Math.max(...caps);
             const capRange = maxCap - minCap || 1;
 
-            let html = "";
-            let minIdx = caps.indexOf(minCap);
-
+            let html = "", minIdx = caps.indexOf(minCap);
             currentKospiHistory.forEach((item, idx) => {
                 const x = idx * slotW + (slotW - barW) / 2;
                 const normalizedH = ((item.cap - minCap) / capRange) * (svgH - paddingY * 2) + 12;
                 const y = svgH - normalizedH;
 
                 let color = "#0284c7";
-                if (idx === minIdx) {
-                    color = "#ef4444";
-                } else if (idx >= n - 2) {
+                if (idx === minIdx) color = "#ef4444";
+                else if (idx >= n - 2) {
                     const prevC = idx > 0 ? currentKospiHistory[idx - 1].cap : item.cap;
                     color = item.cap >= prevC ? "#10b981" : "#f59e0b";
                 }
 
                 html += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${normalizedH.toFixed(1)}" rx="2" fill="${color}" opacity="0.85"></rect>`;
-
                 if (idx === minIdx && idx !== n - 1) {
                     html += `<text x="${(x + barW/2).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="#f87171" font-size="9" text-anchor="middle">${item.date}底</text>`;
                 }
@@ -1547,7 +1921,6 @@
                     html += `<text x="${(x + barW/2 - 6).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="${deltaColor}" font-size="9" font-weight="bold" text-anchor="middle">${deltaPrefix}${deltaCap}万亿</text>`;
                 }
             });
-
             barGroup.innerHTML = html;
         }
 
@@ -1555,9 +1928,7 @@
         function loadPositionSandbox() {
             const saved = localStorage.getItem("quant_koru_sandbox");
             if (saved) {
-                try {
-                    sandboxData = Object.assign(sandboxData, JSON.parse(saved));
-                } catch(e) {}
+                try { sandboxData = Object.assign(sandboxData, JSON.parse(saved)); } catch(e) {}
             }
             document.getElementById("coreEntryPrice").value = sandboxData.coreEntry.toFixed(3);
             document.getElementById("coreSlPrice").value = sandboxData.coreSl.toFixed(3);
@@ -1566,7 +1937,6 @@
             document.getElementById("satSlPrice").value = sandboxData.satSl.toFixed(3);
             document.getElementById("liveCalcSlInput").value = (sandboxData.liveSl || 7.800).toFixed(3);
             document.getElementById("liveCalcTpInput").value = (sandboxData.liveTp || 8.950).toFixed(3);
-
             updatePositionSandbox();
         }
 
@@ -1579,19 +1949,10 @@
             const liveSl = parseFloat(document.getElementById("liveCalcSlInput").value) || 7.800;
             const liveTp = parseFloat(document.getElementById("liveCalcTpInput").value) || 8.950;
 
-            sandboxData = {
-                coreEntry: coreP,
-                coreSl: coreSl,
-                satActive: isSatActive,
-                satEntry: satP,
-                satSl: satSl,
-                liveSl: liveSl,
-                liveTp: liveTp
-            };
+            sandboxData = { coreEntry: coreP, coreSl: coreSl, satActive: isSatActive, satEntry: satP, satSl: satSl, liveSl: liveSl, liveTp: liveTp };
             localStorage.setItem("quant_koru_sandbox", JSON.stringify(sandboxData));
 
             const kp = lastValidKoru;
-
             const coreGain = (((kp - coreP) / coreP) * 100).toFixed(2);
             const coreDisplay = document.getElementById("coreProfitDisplay");
             coreDisplay.textContent = `${coreGain >= 0 ? '+' : ''}${coreGain}%`;
@@ -1626,9 +1987,7 @@
                 satBadge.style.borderColor = "var(--border-color)";
             }
 
-            let blendedCost = coreP;
-            let totalWeightText = "底仓 50% 纯单运行";
-
+            let blendedCost = coreP, totalWeightText = "底仓 50% 纯单运行";
             if (isSatActive) {
                 blendedCost = (coreP * 0.5 + satP * 0.3) / 0.8;
                 totalWeightText = "底仓 50% + 加仓 30% (80% 仓位)";
@@ -1659,24 +2018,15 @@
         function initKospiSliderRange(basePoint) {
             const slider = document.getElementById("kospiSimSlider");
             if (!slider) return;
-
             const base = parseFloat(basePoint) || BASE_KOSPI_ANCHOR || 832.50;
-            const minVal = (base * 0.85).toFixed(1);
-            const maxVal = (base * 1.15).toFixed(1);
-
-            slider.min = minVal;
-            slider.max = maxVal;
-            slider.step = "0.2";
-            slider.value = base.toFixed(2);
-
+            const minVal = (base * 0.85).toFixed(1), maxVal = (base * 1.15).toFixed(1);
+            slider.min = minVal; slider.max = maxVal; slider.step = "0.2"; slider.value = base.toFixed(2);
             const lblMin = document.getElementById("sliderMinLabel");
             const lblMid = document.getElementById("sliderMidLabel");
             const lblMax = document.getElementById("sliderMaxLabel");
-
             if (lblMin) lblMin.textContent = `${minVal} (-15%)`;
             if (lblMid) lblMid.textContent = `${base.toFixed(2)} (基准)`;
             if (lblMax) lblMax.textContent = `${maxVal} (+15%)`;
-
             onKospiSliderChange(base);
         }
 
@@ -1684,10 +2034,8 @@
             const slider = document.getElementById("kospiSimSlider");
             const base = BASE_KOSPI_ANCHOR || 832.50;
             const targetPoint = base * (1 + offsetPct);
-
             if (slider) slider.value = targetPoint.toFixed(2);
             onKospiSliderChange(targetPoint);
-
             document.querySelectorAll(".kospi-preset-btn").forEach(btn => btn.classList.remove("active"));
             if (btnEl) btnEl.classList.add("active");
         }
@@ -1695,7 +2043,6 @@
         function onKospiSliderChange(val) {
             const simK = parseFloat(val);
             const base = BASE_KOSPI_ANCHOR || 832.50;
-
             document.querySelectorAll(".kospi-preset-btn").forEach(btn => btn.classList.remove("active"));
             if (Math.abs(simK - base) < 0.2) {
                 const baseBtn = document.getElementById("btnPresetBase");
@@ -1704,19 +2051,15 @@
 
             const deltaIndexPct = (simK - base) / base;
             const deltaKoruPct = deltaIndexPct * 3.0;
-
             const baseKoru = lastValidKoru || 8.201;
             const simP = baseKoru * (1 + deltaKoruPct);
-
             const cost = customKoruCost || 8.008;
             const simRoi = ((simP - cost) / cost) * 100;
 
             document.getElementById("simKospiDisplay").textContent = `${simK.toFixed(2)} 点 (${deltaIndexPct >= 0 ? '+' : ''}${(deltaIndexPct * 100).toFixed(2)}%)`;
-            
             const indexPctEl = document.getElementById("simIndexPct");
             indexPctEl.textContent = `${deltaIndexPct >= 0 ? '+' : ''}${(deltaIndexPct * 100).toFixed(2)}%`;
             indexPctEl.style.color = deltaIndexPct >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
-
             document.getElementById("simKoruPrice").textContent = `${simP.toFixed(3)} USDT`;
 
             const roiEl = document.getElementById("simRoiVal");
@@ -1725,29 +2068,19 @@
 
             const adviceEl = document.getElementById("simTacticalAdvice");
             if (simK <= 780.0) {
-                adviceEl.style.background = "rgba(239,68,68,0.15)";
-                adviceEl.style.borderColor = "var(--neon-red)";
-                adviceEl.style.color = "#fca5a5";
+                adviceEl.style.background = "rgba(239,68,68,0.15)"; adviceEl.style.borderColor = "var(--neon-red)"; adviceEl.style.color = "#fca5a5";
                 adviceEl.textContent = "🚨 跌破 780 破位生死线：母体下破结构支撑，执行机械清仓止损，规避杠杆损耗！";
             } else if (simK < 838.0) {
-                adviceEl.style.background = "rgba(245,158,11,0.15)";
-                adviceEl.style.borderColor = "var(--neon-amber)";
-                adviceEl.style.color = "#fcd34d";
+                adviceEl.style.background = "rgba(245,158,11,0.15)"; adviceEl.style.borderColor = "var(--neon-amber)"; adviceEl.style.color = "#fcd34d";
                 adviceEl.textContent = "🛡️ 回踩区间：大盘处于 800~830 震荡回踩测试，底仓启动保本防御，不盲目追单。";
             } else if (simK >= 875.0) {
-                adviceEl.style.background = "rgba(16,185,129,0.15)";
-                adviceEl.style.borderColor = "var(--neon-emerald)";
-                adviceEl.style.color = "#6ee7b7";
+                adviceEl.style.background = "rgba(16,185,129,0.15)"; adviceEl.style.borderColor = "var(--neon-emerald)"; adviceEl.style.color = "#6ee7b7";
                 adviceEl.textContent = "🏆 冲刺 875+ 终极战略阻力区：对应 KORU 接近 9.5~10 刀，全仓凯旋出清，绝不长持！";
             } else if (simK >= 850.0) {
-                adviceEl.style.background = "rgba(6,182,212,0.15)";
-                adviceEl.style.borderColor = "var(--neon-cyan)";
-                adviceEl.style.color = "#67e8f9";
+                adviceEl.style.background = "rgba(6,182,212,0.15)"; adviceEl.style.borderColor = "var(--neon-cyan)"; adviceEl.style.color = "#67e8f9";
                 adviceEl.textContent = "🎯 突破第一阻力带 (850 点)：KORU 触碰 8.8~9.0 区域，严格执行移动止损向上保护。";
             } else {
-                adviceEl.style.background = "rgba(30,41,59,0.5)";
-                adviceEl.style.borderColor = "var(--border-color)";
-                adviceEl.style.color = "var(--text-muted)";
+                adviceEl.style.background = "rgba(30,41,59,0.5)"; adviceEl.style.borderColor = "var(--border-color)"; adviceEl.style.color = "var(--text-muted)";
                 adviceEl.textContent = "💡 当前母体中枢平衡位，耐心持有浮盈底仓。";
             }
         }
@@ -1779,44 +2112,29 @@
             const tp = sandboxData.liveTp || 8.950;
 
             if (overviewRrMode === 'LIVE_ENTRY') {
-                const risk = kp - sl;
-                const reward = tp - kp;
-
+                const risk = kp - sl, reward = tp - kp;
                 if (risk <= 0) {
-                    rrValEl.textContent = "🚨 破位警戒";
-                    rrValEl.style.color = "var(--neon-red)";
+                    rrValEl.textContent = "🚨 破位警戒"; rrValEl.style.color = "var(--neon-red)";
                     rrDescEl.textContent = `现价 ${kp.toFixed(3)} 已破 SL ${sl.toFixed(3)}，暂停接单`;
                 } else if (reward <= 0) {
-                    rrValEl.textContent = "🎯 触及目标";
-                    rrValEl.style.color = "var(--neon-amber)";
+                    rrValEl.textContent = "🎯 触及目标"; rrValEl.style.color = "var(--neon-amber)";
                     rrDescEl.textContent = `现价 ${kp.toFixed(3)} 已达 TP ${tp.toFixed(3)}，禁追高`;
                 } else {
-                    const rr = reward / risk;
-                    const rrStr = rr.toFixed(2);
-                    if (rr >= 2.0) {
-                        rrValEl.textContent = `${rrStr} : 1 ✅`;
-                        rrValEl.style.color = "var(--neon-emerald)";
-                    } else if (rr >= 1.5) {
-                        rrValEl.textContent = `${rrStr} : 1`;
-                        rrValEl.style.color = "var(--neon-amber)";
-                    } else {
-                        rrValEl.textContent = `${rrStr} : 1 ⛔`;
-                        rrValEl.style.color = "var(--neon-red)";
-                    }
+                    const rr = reward / risk, rrStr = rr.toFixed(2);
+                    if (rr >= 2.0) { rrValEl.textContent = `${rrStr} : 1 ✅`; rrValEl.style.color = "var(--neon-emerald)"; }
+                    else if (rr >= 1.5) { rrValEl.textContent = `${rrStr} : 1`; rrValEl.style.color = "var(--neon-amber)"; }
+                    else { rrValEl.textContent = `${rrStr} : 1 ⛔`; rrValEl.style.color = "var(--neon-red)"; }
                     rrDescEl.textContent = `现价 ${kp.toFixed(3)} | SL ${sl.toFixed(3)} | TP ${tp.toFixed(3)}`;
                 }
             } else {
                 const activeSl = sandboxData.satActive ? sandboxData.satSl : sandboxData.coreSl;
                 const bep = customKoruCost * 1.002;
-
                 if (activeSl >= customKoruCost) {
                     const lockedGain = (((activeSl - customKoruCost) / customKoruCost) * 100).toFixed(2);
-                    rrValEl.textContent = "🛡️ 零风险锁盈";
-                    rrValEl.style.color = "var(--neon-emerald)";
+                    rrValEl.textContent = "🛡️ 零风险锁盈"; rrValEl.style.color = "var(--neon-emerald)";
                     rrDescEl.textContent = `成本 ${customKoruCost.toFixed(3)} | 止损 ${activeSl.toFixed(3)} (+${lockedGain}%)`;
                 } else {
-                    const risk = customKoruCost - activeSl;
-                    const reward = tp - kp;
+                    const risk = customKoruCost - activeSl, reward = tp - kp;
                     const rr = reward > 0 ? (reward / risk).toFixed(2) : "0.00";
                     rrValEl.textContent = `${rr} : 1`;
                     rrValEl.style.color = parseFloat(rr) >= 2.0 ? "var(--neon-emerald)" : "var(--neon-amber)";
@@ -1827,8 +2145,6 @@
 
         function updateTrenchTable() {
             const kp = lastValidKoru;
-            const t1 = 8.050, t2 = 7.600, t3 = 7.420;
-
             const updateStatus = (id, price) => {
                 const el = document.getElementById(id);
                 if (!el) return;
@@ -1839,65 +2155,43 @@
                     el.innerHTML = `<span style="color:var(--text-muted);">战备待命中</span>`;
                 }
             };
-
-            updateStatus("statusT1", t1);
-            updateStatus("statusT2", t2);
-            updateStatus("statusT3", t3);
+            updateStatus("statusT1", 8.050);
+            updateStatus("statusT2", 7.600);
+            updateStatus("statusT3", 7.420);
         }
 
         function switchChartType(type) {
-            const btnLine = document.getElementById("btnChartLine");
-            const btnBar = document.getElementById("btnChartBar");
-            const lineGrp = document.getElementById("chartLineGroup");
-            const barGrp = document.getElementById("chartBarGroup");
-
+            const btnLine = document.getElementById("btnChartLine"), btnBar = document.getElementById("btnChartBar");
+            const lineGrp = document.getElementById("chartLineGroup"), barGrp = document.getElementById("chartBarGroup");
             if (type === 'line') {
-                btnLine.classList.add("active");
-                btnBar.classList.remove("active");
-                lineGrp.style.display = "block";
-                barGrp.style.display = "none";
+                btnLine.classList.add("active"); btnBar.classList.remove("active");
+                lineGrp.style.display = "block"; barGrp.style.display = "none";
             } else {
-                btnBar.classList.add("active");
-                btnLine.classList.remove("active");
-                lineGrp.style.display = "none";
-                barGrp.style.display = "block";
+                btnBar.classList.add("active"); btnLine.classList.remove("active");
+                lineGrp.style.display = "none"; barGrp.style.display = "block";
                 renderSvgBars();
             }
         }
 
         function toggleChartZoom() {
-            const viewport = document.getElementById("chartViewport");
-            const btn = document.getElementById("btnChartZoom");
+            const viewport = document.getElementById("chartViewport"), btn = document.getElementById("btnChartZoom");
             isChartZoomed = !isChartZoomed;
             if (isChartZoomed) {
-                viewport.classList.add("enlarged");
-                btn.textContent = "🔍 还原视图";
-                btn.style.color = "var(--neon-amber)";
-                btn.style.borderColor = "var(--neon-amber)";
+                viewport.classList.add("enlarged"); btn.textContent = "🔍 还原视图"; btn.style.color = "var(--neon-amber)"; btn.style.borderColor = "var(--neon-amber)";
             } else {
-                viewport.classList.remove("enlarged");
-                btn.textContent = "🔍 放大图表";
-                btn.style.color = "#67e8f9";
-                btn.style.borderColor = "var(--neon-cyan)";
+                viewport.classList.remove("enlarged"); btn.textContent = "🔍 放大图表"; btn.style.color = "#67e8f9"; btn.style.borderColor = "var(--neon-cyan)";
             }
         }
 
         function switchMainTab(tab) {
-            const btnKoru = document.getElementById("btnTabKoru");
-            const btnBtc = document.getElementById("btnTabBtc");
-            const viewKoru = document.getElementById("view-koru");
-            const viewBtc = document.getElementById("view-btc");
-
+            const btnKoru = document.getElementById("btnTabKoru"), btnBtc = document.getElementById("btnTabBtc");
+            const viewKoru = document.getElementById("view-koru"), viewBtc = document.getElementById("view-btc");
             if (tab === 'koru') {
-                btnKoru.classList.add("active");
-                btnBtc.classList.remove("active");
-                viewKoru.classList.add("active");
-                viewBtc.classList.remove("active");
+                btnKoru.classList.add("active"); btnBtc.classList.remove("active");
+                viewKoru.classList.add("active"); viewBtc.classList.remove("active");
             } else {
-                btnBtc.classList.add("active");
-                btnKoru.classList.remove("active");
-                viewBtc.classList.add("active");
-                viewKoru.classList.remove("active");
+                btnBtc.classList.add("active"); btnKoru.classList.remove("active");
+                viewBtc.classList.add("active"); viewKoru.classList.remove("active");
                 calculateBtcLadder();
             }
         }
@@ -1916,20 +2210,16 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 6. BTC 战术阶梯开单与全自动追踪逻辑
+        // 6. BTC 战术阶梯开单与全自动追踪
         function updateAutoSyncBtnUI() {
             const btn = document.getElementById("btnToggleAutoSync");
             if (!btn) return;
             if (isBtcAutoSync) {
                 btn.textContent = "🔄 自动追踪: 开启";
-                btn.style.borderColor = "var(--neon-emerald)";
-                btn.style.color = "#34d399";
-                btn.style.background = "rgba(16, 185, 129, 0.15)";
+                btn.style.borderColor = "var(--neon-emerald)"; btn.style.color = "#34d399"; btn.style.background = "rgba(16, 185, 129, 0.15)";
             } else {
                 btn.textContent = "⏸️ 手动锁定 (点此恢复追踪)";
-                btn.style.borderColor = "var(--neon-amber)";
-                btn.style.color = "var(--neon-amber)";
-                btn.style.background = "rgba(245, 158, 11, 0.12)";
+                btn.style.borderColor = "var(--neon-amber)"; btn.style.color = "var(--neon-amber)"; btn.style.background = "rgba(245, 158, 11, 0.12)";
             }
         }
 
@@ -1949,10 +2239,7 @@
         }
 
         function onManualBtcPriceEdit() {
-            if (isBtcAutoSync) {
-                isBtcAutoSync = false;
-                updateAutoSyncBtnUI();
-            }
+            if (isBtcAutoSync) { isBtcAutoSync = false; updateAutoSyncBtnUI(); }
             calculateBtcLadder();
         }
 
@@ -1968,28 +2255,18 @@
         }
 
         function setBtcTradeSide(side, isManual = false) {
-            if (isManual && isBtcAutoSync) {
-                isBtcAutoSync = false;
-                updateAutoSyncBtnUI();
-            }
+            if (isManual && isBtcAutoSync) { isBtcAutoSync = false; updateAutoSyncBtnUI(); }
             currentSide = side;
-            const btnL = document.getElementById("btnSideLong");
-            const btnS = document.getElementById("btnSideShort");
-            const btnAction = document.getElementById("btnCopyAction");
-
+            const btnL = document.getElementById("btnSideLong"), btnS = document.getElementById("btnSideShort"), btnAction = document.getElementById("btnCopyAction");
             if (side === 'LONG') {
-                btnL.className = "btn-side active-long";
-                btnS.className = "btn-side";
-                btnAction.className = "btn-action";
-                btnAction.textContent = "📋 一键复制交易所实战做多挂单清单";
+                btnL.className = "btn-side active-long"; btnS.className = "btn-side";
+                btnAction.className = "btn-action"; btnAction.textContent = "📋 一键复制交易所实战做多挂单清单";
                 document.getElementById("labelSlPrice").textContent = "结构止损位 (SL · 下方支撑防线)";
                 document.getElementById("labelTpPrice").textContent = "第一目标位 (TP1 · 上方阻力目标)";
                 document.getElementById("labelTierHeadline").textContent = "策略吸附战壕档位 (逢低买入 2:3:5)";
             } else {
-                btnS.className = "btn-side active-short";
-                btnL.className = "btn-side";
-                btnAction.className = "btn-action short-action";
-                btnAction.textContent = "📋 一键复制交易所实战做空挂单清单";
+                btnS.className = "btn-side active-short"; btnL.className = "btn-side";
+                btnAction.className = "btn-action short-action"; btnAction.textContent = "📋 一键复制交易所实战做空挂单清单";
                 document.getElementById("labelSlPrice").textContent = "结构止损位 (SL · 上方强压防线)";
                 document.getElementById("labelTpPrice").textContent = "第一目标位 (TP1 · 下方目标)";
                 document.getElementById("labelTierHeadline").textContent = "策略吸附战壕档位 (逢高做空 2:3:5)";
@@ -2002,7 +2279,6 @@
             const riskPct = parseFloat(document.getElementById("btcRiskPct").value) || 0;
             const sl = parseFloat(document.getElementById("btcSlPrice").value) || 0;
             const tp = parseFloat(document.getElementById("btcTpPrice").value) || 0;
-
             const p1 = parseFloat(document.getElementById("tier1Price").value) || 0;
             const p2 = parseFloat(document.getElementById("tier2Price").value) || 0;
             const p3 = parseFloat(document.getElementById("tier3Price").value) || 0;
@@ -2017,32 +2293,15 @@
             let deltaLoss = 0, deltaWin = 0;
 
             if (currentSide === 'LONG') {
-                deltaLoss = avgPrice - sl;
-                deltaWin = tp - avgPrice;
-                if (deltaLoss <= 0) {
-                    rrBadge.textContent = "多单 SL 需低于均价";
-                    rrBadge.className = "rr-badge rr-fail";
-                    return;
-                }
+                deltaLoss = avgPrice - sl; deltaWin = tp - avgPrice;
+                if (deltaLoss <= 0) { rrBadge.textContent = "多单 SL 需低于均价"; rrBadge.className = "rr-badge rr-fail"; return; }
             } else {
-                deltaLoss = sl - avgPrice;
-                deltaWin = avgPrice - tp;
-                if (deltaLoss <= 0) {
-                    rrBadge.textContent = "空单 SL 需高于均价";
-                    rrBadge.className = "rr-badge rr-fail";
-                    return;
-                }
+                deltaLoss = sl - avgPrice; deltaWin = avgPrice - tp;
+                if (deltaLoss <= 0) { rrBadge.textContent = "空单 SL 需高于均价"; rrBadge.className = "rr-badge rr-fail"; return; }
             }
+            if (deltaWin <= 0) { rrBadge.textContent = "TP 设置错误 (无空间)"; rrBadge.className = "rr-badge rr-fail"; return; }
 
-            if (deltaWin <= 0) {
-                rrBadge.textContent = "TP 设置错误 (无空间)";
-                rrBadge.className = "rr-badge rr-fail";
-                return;
-            }
-
-            const totalQty = riskAmount / deltaLoss;
-            const totalUsdt = totalQty * avgPrice;
-
+            const totalQty = riskAmount / deltaLoss, totalUsdt = totalQty * avgPrice;
             document.getElementById("tier1Qty").textContent = `${(totalQty * 0.2).toFixed(3)} BTC`;
             document.getElementById("tier2Qty").textContent = `${(totalQty * 0.3).toFixed(3)} BTC`;
             document.getElementById("tier3Qty").textContent = `${(totalQty * 0.5).toFixed(3)} BTC`;
@@ -2054,13 +2313,8 @@
             document.getElementById("resProfit").textContent = `+$${expProfit.toFixed(2)}`;
 
             const rr = (deltaWin / deltaLoss).toFixed(2);
-            if (rr >= 2.0) {
-                rrBadge.textContent = `盈亏比 ${rr} : 1 (EV > 0 准入)`;
-                rrBadge.className = "rr-badge rr-pass";
-            } else {
-                rrBadge.textContent = `盈亏比 ${rr} : 1 (低于 1:2 禁止开单)`;
-                rrBadge.className = "rr-badge rr-fail";
-            }
+            if (rr >= 2.0) { rrBadge.textContent = `盈亏比 ${rr} : 1 (EV > 0 准入)`; rrBadge.className = "rr-badge rr-pass"; }
+            else { rrBadge.textContent = `盈亏比 ${rr} : 1 (低于 1:2 禁止开单)`; rrBadge.className = "rr-badge rr-fail"; }
 
             const breakevenPrice = currentSide === 'LONG' ? (avgPrice + deltaLoss) : (avgPrice - deltaLoss);
             document.getElementById("resBreakeven").textContent = `达到 ${breakevenPrice.toFixed(1)} USDT 时止损推至 ${avgPrice.toFixed(1)}`;
@@ -2073,40 +2327,24 @@
             const rr = document.getElementById("resRrBadge").textContent;
             const sideName = currentSide === 'LONG' ? '做多 (BUY / LONG)' : '做空 (SELL / SHORT)';
 
-            const p1 = document.getElementById("tier1Price").value;
-            const q1 = document.getElementById("tier1Qty").textContent;
-            const p2 = document.getElementById("tier2Price").value;
-            const q2 = document.getElementById("tier2Qty").textContent;
-            const p3 = document.getElementById("tier3Price").value;
-            const q3 = document.getElementById("tier3Qty").textContent;
-
             const planText = `【BTC 战术阶梯挂单计划 · ${sideName}】\n` +
-                             `• 档位 1 (20%): 限价 ${p1} | 数量: ${q1}\n` +
-                             `• 档位 2 (30%): 限价 ${p2} | 数量: ${q2}\n` +
-                             `• 档位 3 (50%): 限价 ${p3} | 数量: ${q3}\n` +
-                             `• 加权预估成本: ${avgP}\n` +
-                             `• 结构止损 (SL): ${sl} USDT\n` +
-                             `• 第一止盈 (TP1): ${tp} USDT\n` +
-                             `• 准入评估: ${rr}`;
+                             `• 档位 1 (20%): 限价 ${document.getElementById("tier1Price").value} | 数量: ${document.getElementById("tier1Qty").textContent}\n` +
+                             `• 档位 2 (30%): 限价 ${document.getElementById("tier2Price").value} | 数量: ${document.getElementById("tier2Qty").textContent}\n` +
+                             `• 档位 3 (50%): 限价 ${document.getElementById("tier3Price").value} | 数量: ${document.getElementById("tier3Qty").textContent}\n` +
+                             `• 加权预估成本: ${avgP}\n• 结构止损 (SL): ${sl} USDT\n• 第一止盈 (TP1): ${tp} USDT\n• 准入评估: ${rr}`;
 
-            navigator.clipboard.writeText(planText).then(() => {
-                showToast(`已成功复制 [${currentSide}] 实战挂单计划！`);
-            }).catch(() => {
-                showToast("浏览器权限受限，请长按手动复制");
-            });
+            navigator.clipboard.writeText(planText).then(() => showToast(`已成功复制 [${currentSide}] 实战挂单计划！`)).catch(() => showToast("浏览器权限受限，请长按手动复制"));
         }
 
         function showToast(msg) {
             const toast = document.getElementById("appToast");
-            toast.textContent = msg;
-            toast.style.display = "block";
+            toast.textContent = msg; toast.style.display = "block";
             setTimeout(() => { toast.style.display = "none"; }, 2500);
         }
 
         function renderKoruUI(kp) {
             document.getElementById("koru-val").innerHTML = `${kp.toFixed(3)} <span style="font-size:13px; color:var(--text-muted);">USDT</span>`;
             document.getElementById("koruCenterBtn").textContent = kp.toFixed(3);
-            
             const diff = (kp - customKoruCost).toFixed(3);
             const diffText = diff >= 0 ? `+${diff} (高出防区)` : `${diff} (已切入防区!)`;
             const diffBadge = document.getElementById("koruDiffText");
@@ -2125,15 +2363,11 @@
         }
 
         function renderKoruOiUI(oiCcy, oiUsd) {
-            const valEl = document.getElementById("koruOiVal");
-            const descEl = document.getElementById("koruOiDesc");
-            const srcEl = document.getElementById("oiFeedSource");
-            const detailVal = document.getElementById("derivOiDetailVal");
-            const detailDesc = document.getElementById("derivOiDetailDesc");
+            const valEl = document.getElementById("koruOiVal"), descEl = document.getElementById("koruOiDesc"), srcEl = document.getElementById("oiFeedSource");
+            const detailVal = document.getElementById("derivOiDetailVal"), detailDesc = document.getElementById("derivOiDetailDesc");
             if (!valEl || !descEl) return;
 
-            const oiWan = oiCcy / 10000.0;
-            const usdWan = oiUsd / 10000.0;
+            const oiWan = oiCcy / 10000.0, usdWan = oiUsd / 10000.0;
             valEl.innerHTML = `${oiWan.toFixed(2)} <span style="font-size:13px; color:var(--text-muted);">万</span>`;
             if (detailVal) detailVal.textContent = `${oiWan.toFixed(2)} 万`;
 
@@ -2141,59 +2375,36 @@
             if (prevKoruOiCcy !== null && prevKoruOiCcy > 0) {
                 const diffWan = (oiCcy - prevKoruOiCcy) / 10000.0;
                 latestOiDeltaWan = diffWan;
-                if (diffWan > 0.05) {
-                    deltaTag = `▲ 增仓 +${diffWan.toFixed(2)} 万`;
-                    descEl.style.color = "var(--neon-emerald)";
-                } else if (diffWan < -0.05) {
-                    deltaTag = `▼ 减仓 ${diffWan.toFixed(2)} 万`;
-                    descEl.style.color = "var(--neon-amber)";
-                } else {
-                    descEl.style.color = "var(--text-muted)";
-                }
+                if (diffWan > 0.05) { deltaTag = `▲ 增仓 +${diffWan.toFixed(2)} 万`; descEl.style.color = "var(--neon-emerald)"; }
+                else if (diffWan < -0.05) { deltaTag = `▼ 减仓 ${diffWan.toFixed(2)} 万`; descEl.style.color = "var(--neon-amber)"; }
+                else { descEl.style.color = "var(--text-muted)"; }
             }
             prevKoruOiCcy = oiCcy;
 
             descEl.textContent = `名义规模 $${usdWan.toFixed(1)} 万 · ${deltaTag}`;
             if (detailDesc) detailDesc.textContent = `名义 $${usdWan.toFixed(1)} 万`;
-            if (srcEl) {
-                srcEl.textContent = "OKX 实时OI ›";
-                srcEl.style.color = "var(--neon-cyan)";
-            }
+            if (srcEl) { srcEl.textContent = "OKX 实时OI ›"; srcEl.style.color = "var(--neon-cyan)"; }
             updateFxSentimentSynergy();
         }
 
         function renderKoruFundingAndRangeUI(fundingRate, high24h, low24h, volCcy24h, lastPx) {
-            const rateEl = document.getElementById("derivFundingRate");
-            const descEl = document.getElementById("derivFundingDesc");
+            const rateEl = document.getElementById("derivFundingRate"), descEl = document.getElementById("derivFundingDesc");
             if (rateEl && descEl && !isNaN(fundingRate)) {
                 latestFundingRate = fundingRate;
                 const pct = (fundingRate * 100).toFixed(4);
                 rateEl.textContent = `${fundingRate >= 0 ? '+' : ''}${pct}%`;
-                if (fundingRate > 0.0005) {
-                    rateEl.style.color = "var(--neon-red)";
-                    descEl.textContent = "⚠️ 多头拥挤偏热";
-                    descEl.style.color = "var(--neon-amber)";
-                } else if (fundingRate < 0) {
-                    rateEl.style.color = "var(--neon-cyan)";
-                    descEl.textContent = "🧊 负费率 · 空头补贴多头";
-                    descEl.style.color = "var(--neon-cyan)";
-                } else {
-                    rateEl.style.color = "var(--neon-emerald)";
-                    descEl.textContent = "情绪温和 · 无拥挤";
-                    descEl.style.color = "var(--text-muted)";
-                }
+                if (fundingRate > 0.0005) { rateEl.style.color = "var(--neon-red)"; descEl.textContent = "⚠️ 多头拥挤偏热"; descEl.style.color = "var(--neon-amber)"; }
+                else if (fundingRate < 0) { rateEl.style.color = "var(--neon-cyan)"; descEl.textContent = "🧊 负费率 · 空头补贴多头"; descEl.style.color = "var(--neon-cyan)"; }
+                else { rateEl.style.color = "var(--neon-emerald)"; descEl.textContent = "情绪温和 · 无拥挤"; descEl.style.color = "var(--text-muted)"; }
             }
-
-            const posEl = document.getElementById("derivRangePosVal");
-            const volEl = document.getElementById("derivVol24hDesc");
+            const posEl = document.getElementById("derivRangePosVal"), volEl = document.getElementById("derivVol24hDesc");
             if (posEl && high24h > low24h && lastPx > 0) {
                 const posPct = Math.max(0, Math.min(100, ((lastPx - low24h) / (high24h - low24h)) * 100));
                 posEl.textContent = `${posPct.toFixed(1)}% 分位`;
                 posEl.style.color = posPct > 80 ? "var(--neon-amber)" : (posPct < 30 ? "var(--neon-emerald)" : "var(--neon-cyan)");
             }
             if (volEl && volCcy24h > 0 && lastPx > 0) {
-                const turnoverWan = (volCcy24h * lastPx) / 10000.0;
-                volEl.textContent = `24H额 $${turnoverWan.toFixed(1)} 万`;
+                volEl.textContent = `24H额 $${((volCcy24h * lastPx) / 10000.0).toFixed(1)} 万`;
             }
             updateFxSentimentSynergy();
         }
@@ -2201,12 +2412,9 @@
         function renderFxRateUI(rate) {
             if (!rate || rate < 1000 || rate > 2000) return;
             latestUsdKrw = rate;
-            const valEl = document.getElementById("usdkrwVal");
-            const descEl = document.getElementById("usdkrwDesc");
-            const barLabel = document.getElementById("fxBarCurrentLabel");
-            const barFill = document.getElementById("fxBarFill");
-            const zoneBadge = document.getElementById("fxZoneBadge");
-            const bufferEl = document.getElementById("fxBufferVal");
+            const valEl = document.getElementById("usdkrwVal"), descEl = document.getElementById("usdkrwDesc");
+            const barLabel = document.getElementById("fxBarCurrentLabel"), barFill = document.getElementById("fxBarFill");
+            const zoneBadge = document.getElementById("fxZoneBadge"), bufferEl = document.getElementById("fxBufferVal");
 
             const formatted = rate.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             if (valEl) valEl.textContent = formatted;
@@ -2214,20 +2422,13 @@
             const isBullishZone = rate < 1340.0;
             const deltaLine = (rate - 1340.0).toFixed(2);
             if (descEl) {
-                if (isBullishZone) {
-                    descEl.textContent = `▼ 破位升值 (红利区 <1,340)`;
-                    descEl.style.color = "var(--neon-emerald)";
-                } else {
-                    descEl.textContent = `▲ 突破承压 (预警区 ≥1,340)`;
-                    descEl.style.color = "var(--neon-red)";
-                }
+                descEl.textContent = isBullishZone ? `▼ 破位升值 (红利区 <1,340)` : `▲ 突破承压 (预警区 ≥1,340)`;
+                descEl.style.color = isBullishZone ? "var(--neon-emerald)" : "var(--neon-red)";
             }
-
             if (bufferEl) {
                 bufferEl.textContent = `${deltaLine >= 0 ? '+' : ''}${deltaLine} 韩元`;
                 bufferEl.style.color = isBullishZone ? "var(--neon-emerald)" : "var(--neon-red)";
             }
-
             if (barLabel) {
                 barLabel.textContent = `当前 ${formatted} (${isBullishZone ? '升值' : '承压'})`;
                 barLabel.style.color = isBullishZone ? "var(--neon-emerald)" : "var(--neon-red)";
@@ -2238,41 +2439,27 @@
                 zoneBadge.style.borderColor = isBullishZone ? "#10b981" : "#ef4444";
             }
             if (barFill) {
-                const pct = Math.max(5, Math.min(95, ((1360.0 - rate) / 50.0) * 100));
-                barFill.style.width = `${pct.toFixed(1)}%`;
+                barFill.style.width = `${Math.max(5, Math.min(95, ((1360.0 - rate) / 50.0) * 100)).toFixed(1)}%`;
             }
             updateFxSentimentSynergy();
             updateStrategicBanner();
         }
 
         function updateFxSentimentSynergy() {
-            const box = document.getElementById("fxSentimentSynergyBox");
-            const title = document.getElementById("synergyTitle");
-            const desc = document.getElementById("synergyDesc");
+            const box = document.getElementById("fxSentimentSynergyBox"), title = document.getElementById("synergyTitle"), desc = document.getElementById("synergyDesc");
             if (!box || !title || !desc) return;
-
-            const fxBullish = latestUsdKrw < 1340.0;
-            const fundingCrowded = latestFundingRate > 0.0005;
-            const fundingNeg = latestFundingRate < 0;
+            const fxBullish = latestUsdKrw < 1340.0, fundingCrowded = latestFundingRate > 0.0005, fundingNeg = latestFundingRate < 0;
 
             if (fxBullish && !fundingCrowded) {
-                box.style.background = "rgba(16, 185, 129, 0.1)";
-                box.style.borderColor = "rgba(16, 185, 129, 0.35)";
-                box.style.borderLeftColor = "var(--neon-emerald)";
-                title.textContent = fundingNeg
-                    ? "🟢 强力多头共振：韩元升值红利 + 合约负费率空头挤压"
-                    : "🟢 双因子多头共振：外资红利流入 + 衍生品筹码健康";
+                box.style.background = "rgba(16, 185, 129, 0.1)"; box.style.borderColor = "rgba(16, 185, 129, 0.35)"; box.style.borderLeftColor = "var(--neon-emerald)";
+                title.textContent = fundingNeg ? "🟢 强力多头共振：韩元升值红利 + 合约负费率空头挤压" : "🟢 双因子多头共振：外资红利流入 + 衍生品筹码健康";
                 desc.textContent = `USDKRW (${latestUsdKrw.toFixed(2)}) 稳守 1,340 红利区下方，且 OKX 资金费率 (${(latestFundingRate * 100).toFixed(4)}%) 未出现过度拥挤，宏观汇率与衍生品结构正向共振，回踩均线支撑优先低吸。`;
             } else if (fxBullish && fundingCrowded) {
-                box.style.background = "rgba(245, 158, 11, 0.1)";
-                box.style.borderColor = "rgba(245, 158, 11, 0.35)";
-                box.style.borderLeftColor = "var(--neon-amber)";
+                box.style.background = "rgba(245, 158, 11, 0.1)"; box.style.borderColor = "rgba(245, 158, 11, 0.35)"; box.style.borderLeftColor = "var(--neon-amber)";
                 title.textContent = "🟡 宏观顺风但合约拥挤：汇率偏多 × 资金费率偏热";
                 desc.textContent = `USDKRW (${latestUsdKrw.toFixed(2)}) 仍处红利区，但 OKX 资金费率升至 ${(latestFundingRate * 100).toFixed(4)}%，短线杠杆多头偏挤，谨防向下插针清理高倍多单后再拉升。`;
             } else {
-                box.style.background = "rgba(239, 68, 68, 0.1)";
-                box.style.borderColor = "rgba(239, 68, 68, 0.35)";
-                box.style.borderLeftColor = "var(--neon-red)";
+                box.style.background = "rgba(239, 68, 68, 0.1)"; box.style.borderColor = "rgba(239, 68, 68, 0.35)"; box.style.borderLeftColor = "var(--neon-red)";
                 title.textContent = "🔴 汇率承压预警：USDKRW 突破 1,340 分水岭";
                 desc.textContent = `离岸汇率升破 1,340（当前 ${latestUsdKrw.toFixed(2)}），韩元走弱触发外资流出压力，自动收缩做多战线并严格执行结构止损。`;
             }
@@ -2280,108 +2467,66 @@
 
         function renderStrategyHUD(strat) {
             activeStrategy = strat;
-            const badge = document.getElementById("hudBadge");
-            const title = document.getElementById("hudTitleText");
-            const summary = document.getElementById("hudEmaSummary");
-            const desc = document.getElementById("hudDescText");
+            const badge = document.getElementById("hudBadge"), title = document.getElementById("hudTitleText");
+            const summary = document.getElementById("hudEmaSummary"), desc = document.getElementById("hudDescText");
 
             if (strat.bias === 'SHORT') {
-                badge.textContent = "🔴 顺势偏空";
-                badge.style.color = "var(--neon-red)";
-                badge.style.borderColor = "#ef4444";
-                badge.style.background = "rgba(239,68,68,0.15)";
+                badge.textContent = "🔴 顺势偏空"; badge.style.color = "var(--neon-red)"; badge.style.borderColor = "#ef4444"; badge.style.background = "rgba(239,68,68,0.15)";
             } else if (strat.bias === 'LONG') {
-                badge.textContent = "🟢 顺势偏多";
-                badge.style.color = "var(--neon-emerald)";
-                badge.style.borderColor = "#10b981";
-                badge.style.background = "rgba(16,185,129,0.15)";
+                badge.textContent = "🟢 顺势偏多"; badge.style.color = "var(--neon-emerald)"; badge.style.borderColor = "#10b981"; badge.style.background = "rgba(16,185,129,0.15)";
             } else {
-                badge.textContent = "⏸️ 均线缠绕";
-                badge.style.color = "var(--neon-amber)";
-                badge.style.borderColor = "#f59e0b";
-                badge.style.background = "rgba(245,158,11,0.15)";
+                badge.textContent = "⏸️ 均线缠绕"; badge.style.color = "var(--neon-amber)"; badge.style.borderColor = "#f59e0b"; badge.style.background = "rgba(245,158,11,0.15)";
             }
-
             title.textContent = strat.title;
             summary.textContent = `10EMA:${strat.ema10} | 15EMA:${strat.ema15} | 50MA:${strat.ma50}`;
             desc.textContent = strat.desc;
-
-            if (isBtcAutoSync && strat.bias !== 'NEUTRAL') {
-                applyStrategyToTrenchInputs(strat);
-            }
+            if (isBtcAutoSync && strat.bias !== 'NEUTRAL') applyStrategyToTrenchInputs(strat);
         }
 
         function calcLocalStrategy(closes, currentP) {
             if (!closes || closes.length < 50) return null;
-            const last50 = closes.slice(-50);
-            const ma50 = last50.reduce((a, b) => a + b, 0) / 50.0;
-
+            const ma50 = closes.slice(-50).reduce((a, b) => a + b, 0) / 50.0;
             const calcEma = (arr, period) => {
                 const k = 2.0 / (period + 1);
                 let e = arr[0];
                 for (let i = 1; i < arr.length; i++) e = arr[i] * k + e * (1.0 - k);
                 return e;
             };
-
-            const ema10 = calcEma(closes, 10);
-            const ema15 = calcEma(closes, 15);
+            const ema10 = calcEma(closes, 10), ema15 = calcEma(closes, 15);
             const diffPct = Math.abs(ema10 - ema15) / ema10;
 
             let bias = "NEUTRAL", title = "", desc = "", t1 = 0, t2 = 0, t3 = 0, sl = 0, tp = 0;
             if (diffPct < 0.0008) {
-                bias = "NEUTRAL";
-                title = "⏸️ 均线走平缠绕 · 强制静默观望";
+                bias = "NEUTRAL"; title = "⏸️ 均线走平缠绕 · 强制静默观望";
                 desc = `10 EMA (${ema10.toFixed(1)}) 与 15 EMA (${ema15.toFixed(1)}) 高度粘合，严禁在磨损区开单。`;
             } else if (ema10 < ema15) {
-                bias = "SHORT";
-                title = "🔴 顺势偏空 · 剔除做多选项";
+                bias = "SHORT"; title = "🔴 顺势偏空 · 剔除做多选项";
                 desc = `10 EMA (${ema10.toFixed(1)}) 死叉 15 EMA (${ema15.toFixed(1)})，50 MA (${ma50.toFixed(1)}) 强压。逢高分批做空。`;
-                t1 = Math.round(Math.max(ema10, currentP * 1.006));
-                t2 = Math.round(Math.max(ema15, currentP * 1.015));
-                t3 = Math.round(Math.max(ma50, currentP * 1.026));
-                sl = Math.round(Math.max(ma50 * 1.012, currentP * 1.035, t3 * 1.012));
-                tp = Math.round(currentP * 0.958);
+                t1 = Math.round(Math.max(ema10, currentP * 1.006)); t2 = Math.round(Math.max(ema15, currentP * 1.015)); t3 = Math.round(Math.max(ma50, currentP * 1.026));
+                sl = Math.round(Math.max(ma50 * 1.012, currentP * 1.035, t3 * 1.012)); tp = Math.round(currentP * 0.958);
             } else {
-                bias = "LONG";
-                title = "🟢 顺势偏多 · 剔除做空选项";
+                bias = "LONG"; title = "🟢 顺势偏多 · 剔除做空选项";
                 desc = `10 EMA (${ema10.toFixed(1)}) 金叉 15 EMA (${ema15.toFixed(1)})，运行于 50 MA 之上。缩量回踩分批做多。`;
-                t1 = Math.round(Math.min(ema10, currentP * 0.994));
-                t2 = Math.round(Math.min(ema15, currentP * 0.985));
-                t3 = Math.round(Math.min(ma50, currentP * 0.974));
-                sl = Math.round(Math.min(ma50 * 0.988, currentP * 0.965, t3 * 0.988));
-                tp = Math.round(currentP * 1.042);
+                t1 = Math.round(Math.min(ema10, currentP * 0.994)); t2 = Math.round(Math.min(ema15, currentP * 0.985)); t3 = Math.round(Math.min(ma50, currentP * 0.974));
+                sl = Math.round(Math.min(ma50 * 0.988, currentP * 0.965, t3 * 0.988)); tp = Math.round(currentP * 1.042);
             }
-
-            return {
-                ema10: Math.round(ema10 * 10) / 10,
-                ema15: Math.round(ema15 * 10) / 10,
-                ma50: Math.round(ma50 * 10) / 10,
-                bias, title, desc, tier1: t1, tier2: t2, tier3: t3, sl, tp
-            };
+            return { ema10: Math.round(ema10 * 10) / 10, ema15: Math.round(ema15 * 10) / 10, ma50: Math.round(ma50 * 10) / 10, bias, title, desc, tier1: t1, tier2: t2, tier3: t3, sl, tp };
         }
 
-        // 7. 实时离岸汇率同步（每 60 秒更新）
         async function fetchLiveFxRate() {
             const cached = parseFloat(localStorage.getItem("quant_usdkrw"));
             if (cached) renderFxRateUI(cached);
-
             try {
                 const res = await fetch(LIVE_FX_USD_URL, { cache: "no-store" });
                 const data = await res.json();
                 const krwRate = parseFloat(data?.rates?.KRW);
-                if (krwRate && krwRate > 1000) {
-                    localStorage.setItem("quant_usdkrw", krwRate);
-                    renderFxRateUI(krwRate);
-                }
+                if (krwRate && krwRate > 1000) { localStorage.setItem("quant_usdkrw", krwRate); renderFxRateUI(krwRate); }
             } catch (e) {}
         }
 
-        // 8. OKX 永续盘口 + 持仓量 (OI) + 资金费率五路并发直连引擎
         async function fetchLiveMarketData() {
             const startT = performance.now();
-            let btcDirectOk = false;
-            let koruDirectOk = false;
-
+            let btcDirectOk = false, koruDirectOk = false;
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 2500);
 
@@ -2399,9 +2544,7 @@
             if (btcTickerOut.status === "fulfilled" && btcTickerOut.value?.code === "0" && btcTickerOut.value.data?.[0]?.last) {
                 const liveBtc = parseFloat(btcTickerOut.value.data[0].last);
                 if (liveBtc > 10000) {
-                    btcDirectOk = true;
-                    currentBtcLivePrice = liveBtc;
-                    localStorage.setItem("quant_btc", liveBtc);
+                    btcDirectOk = true; currentBtcLivePrice = liveBtc; localStorage.setItem("quant_btc", liveBtc);
                     document.getElementById("btcLiveHeader").textContent = liveBtc.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
                 }
             }
@@ -2417,20 +2560,12 @@
             if (koruTickerOut.status === "fulfilled" && koruTickerOut.value?.code === "0" && koruTickerOut.value.data?.[0]?.last) {
                 const tObj = koruTickerOut.value.data[0];
                 const liveKoru = parseFloat(tObj.last);
-                high24h = parseFloat(tObj.high24h) || 0;
-                low24h = parseFloat(tObj.low24h) || 0;
-                volCcy24h = parseFloat(tObj.volCcy24h) || 0;
+                high24h = parseFloat(tObj.high24h) || 0; low24h = parseFloat(tObj.low24h) || 0; volCcy24h = parseFloat(tObj.volCcy24h) || 0;
 
                 if (liveKoru > 1.0 && liveKoru < 100.0) {
-                    koruDirectOk = true;
-                    lastValidKoru = liveKoru;
-                    localStorage.setItem("quant_koru", liveKoru);
-                    renderKoruUI(liveKoru);
-                    updatePositionSandbox();
-                    if (koruSourceBadge) {
-                        koruSourceBadge.textContent = "OKX 永续直连 ›";
-                        koruSourceBadge.style.color = "var(--neon-cyan)";
-                    }
+                    koruDirectOk = true; lastValidKoru = liveKoru; localStorage.setItem("quant_koru", liveKoru);
+                    renderKoruUI(liveKoru); updatePositionSandbox();
+                    if (koruSourceBadge) { koruSourceBadge.textContent = "OKX 永续直连 ›"; koruSourceBadge.style.color = "var(--neon-cyan)"; }
                 }
             }
 
@@ -2438,9 +2573,7 @@
                 const oiObj = koruOiOut.value.data[0];
                 const oiCcy = parseFloat(oiObj.oiCcy) || parseFloat(oiObj.oi) || 0;
                 const oiUsd = parseFloat(oiObj.oiUsd) || (oiCcy * lastValidKoru);
-                if (oiCcy > 0) {
-                    renderKoruOiUI(oiCcy, oiUsd);
-                }
+                if (oiCcy > 0) renderKoruOiUI(oiCcy, oiUsd);
             }
 
             let fRate = NaN;
@@ -2448,6 +2581,10 @@
                 fRate = parseFloat(koruFundingOut.value.data[0].fundingRate);
             }
             renderKoruFundingAndRangeUI(fRate, high24h, low24h, volCcy24h, lastValidKoru);
+
+            if (chartEngineMode === "STRAT" && !isTvCollapsed) {
+                fetchAndRenderStrategyChart(true);
+            }
 
             if (!koruDirectOk) {
                 try {
@@ -2457,14 +2594,9 @@
                     clearTimeout(koruTimer);
                     const data = await res.json();
                     if (data.status === "ok" && data.koru && data.koru > 1.0) {
-                        lastValidKoru = data.koru;
-                        localStorage.setItem("quant_koru", data.koru);
-                        renderKoruUI(data.koru);
-                        updatePositionSandbox();
-                        if (koruSourceBadge) {
-                            koruSourceBadge.textContent = "中继备用源 ›";
-                            koruSourceBadge.style.color = "var(--neon-amber)";
-                        }
+                        lastValidKoru = data.koru; localStorage.setItem("quant_koru", data.koru);
+                        renderKoruUI(data.koru); updatePositionSandbox();
+                        if (koruSourceBadge) { koruSourceBadge.textContent = "中继备用源 ›"; koruSourceBadge.style.color = "var(--neon-amber)"; }
                     }
                 } catch (e) {}
             }
@@ -2475,15 +2607,11 @@
                         fetch(DOMESTIC_FALLBACK_BTC_URL, { cache: "no-store" }),
                         fetch(DOMESTIC_FALLBACK_KLINES_URL, { cache: "no-store" })
                     ]);
-                    const fbData = await fbRes.json();
-                    const kData = await fbKlineRes.json();
-
+                    const fbData = await fbRes.json(), kData = await fbKlineRes.json();
                     if (fbData?.USD > 10000) {
                         const btcPrice = Math.round(fbData.USD * 10) / 10;
-                        currentBtcLivePrice = btcPrice;
-                        localStorage.setItem("quant_btc", btcPrice);
+                        currentBtcLivePrice = btcPrice; localStorage.setItem("quant_btc", btcPrice);
                         document.getElementById("btcLiveHeader").textContent = btcPrice.toLocaleString();
-
                         if (kData?.Data?.Data) {
                             const closes = kData.Data.Data.map(x => x.close);
                             const localStrat = calcLocalStrategy(closes, btcPrice);
@@ -2497,28 +2625,25 @@
             const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
             document.getElementById("latencyBadge").textContent = `${lat} ms`;
 
-            const statusEl = document.getElementById("terminalStatus");
-            const derivBadge = document.getElementById("derivSyncBadge");
+            const statusEl = document.getElementById("terminalStatus"), derivBadge = document.getElementById("derivSyncBadge");
             if (btcDirectOk && koruDirectOk) {
-                statusEl.textContent = `● OKX全量直连 ${timeStr}`;
-                statusEl.className = "badge active";
+                statusEl.textContent = `● OKX全量直连 ${timeStr}`; statusEl.className = "badge active";
                 if (derivBadge) derivBadge.textContent = `● 3.5s 盘口联动 ${timeStr}`;
             } else if (btcDirectOk) {
-                statusEl.textContent = `● OKX直连(KORU中继) ${timeStr}`;
-                statusEl.className = "badge active";
+                statusEl.textContent = `● OKX直连(KORU中继) ${timeStr}`; statusEl.className = "badge active";
             } else {
-                statusEl.textContent = `● 备用节点同步 ${timeStr}`;
-                statusEl.className = "badge";
+                statusEl.textContent = `● 备用节点同步 ${timeStr}`; statusEl.className = "badge";
             }
         }
 
         window.addEventListener('DOMContentLoaded', () => {
             loadPositionSandbox();
             initKospiSliderRange(BASE_KOSPI_ANCHOR);
-
             fetchKospiHistoryData();
             setupChartInspect();
-            renderTradingViewChart();
+
+            initLightweightChart();
+            fetchAndRenderStrategyChart(false);
 
             setBtcTradeSide('SHORT', false);
             calculateBtcLadder();
