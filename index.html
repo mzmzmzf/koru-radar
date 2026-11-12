@@ -159,17 +159,38 @@
         }
         .chart-viewport.enlarged { height: 440px; }
 
+        /* TradingView 首页看盘舱 + 网页全屏铺满样式 */
         .tv-chart-shell {
             width: 100%;
-            height: 540px;
+            height: 460px;
             background: #0a0f1d;
             border-radius: 6px;
             border: 1px solid #1a253c;
             overflow: hidden;
             position: relative;
-            transition: height 0.25s ease;
         }
-        .tv-chart-shell.expanded { height: 720px; }
+        .tv-chart-shell.collapsed {
+            display: none;
+        }
+        .tv-fullscreen-card {
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            border: none !important;
+            display: flex !important;
+            flex-direction: column !important;
+            background: #0b0f19 !important;
+            padding: 10px 14px !important;
+        }
+        .tv-fullscreen-card .tv-chart-shell {
+            flex: 1 !important;
+            height: auto !important;
+            display: block !important;
+        }
 
         .chart-inspect-banner {
             background: rgba(15, 23, 42, 0.85);
@@ -255,7 +276,7 @@
 
         .btn-auto-layout { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--neon-emerald); color: #34d399; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
 
-        #appToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 12px; border: 1px solid var(--neon-emerald); display: none; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        #appToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 12px; border: 1px solid var(--neon-emerald); display: none; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -277,7 +298,7 @@
     </nav>
 
     <!-- ========================================================================= -->
-    <!-- 模块 1：KORU 战略宏观雷达 (含 6 个独立子标签页)                           -->
+    <!-- 模块 1：KORU 战略宏观雷达                                                 -->
     <!-- ========================================================================= -->
     <main class="view-panel active" id="view-koru">
         <div class="koru-subtabs">
@@ -286,7 +307,6 @@
             <button class="subtab-btn" data-subtab="chart" onclick="switchKoruSubTab('chart', this)">📈 市值走势图 (自动核算)</button>
             <button class="subtab-btn" data-subtab="fx" onclick="switchKoruSubTab('fx', this)">💱 汇率总阀与衍生品情绪</button>
             <button class="subtab-btn" data-subtab="trench" onclick="switchKoruSubTab('trench', this)">🛡️ 持仓风控沙盒与战壕</button>
-            <button class="subtab-btn" data-subtab="tvchart" onclick="switchKoruSubTab('tvchart', this)">📺 实时K线 (TV)</button>
         </div>
 
         <div class="sub-nav">
@@ -295,7 +315,7 @@
                 <span class="btn-group">
                     <button class="btn-sm">-0.10</button>
                     <button class="btn-sm">-0.05</button>
-                    <button class="btn-sm" id="koruCenterBtn" style="color:var(--neon-emerald); font-weight:800;">8.145</button>
+                    <button class="btn-sm" id="koruCenterBtn" style="color:var(--neon-emerald); font-weight:800;">8.192</button>
                     <button class="btn-sm">+0.05</button>
                     <button class="btn-sm">+0.10</button>
                 </span>
@@ -303,13 +323,13 @@
             <div id="koruDiffText" style="color:var(--neon-emerald); font-weight:600;">● 挂单距现价: --</div>
         </div>
 
-        <!-- 子模块 1: 核心总览 -->
+        <!-- 子模块 1: 核心总览（首页直接集成实时行情图 + 支持 100vw×100vh 网页全屏） -->
         <div class="koru-subview active" id="subview-overview">
             <div class="card" id="strategicBannerCard" style="background: linear-gradient(180deg, #132238, #111a2d); border-color: #2b456e; cursor:pointer;" onclick="switchKoruSubTabById('chart')">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div>
                         <span id="bannerRegimeBadge" style="background:rgba(16,185,129,0.15); color:#34d399; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #10b981;">🛡️ CHoCH 多头蓄势</span>
-                        <span id="bannerHeadlineText" style="font-size:13px; font-weight:800; margin-left:6px;">首尔母体收盘 832.50 点 (-0.69%) · 盘中映射 831.55 点</span>
+                        <span id="bannerHeadlineText" style="font-size:13px; font-weight:800; margin-left:6px;">首尔母体收盘 832.50 点 (-0.69%) · 盘中映射 833.42 点</span>
                     </div>
                     <div style="text-align:right; flex-shrink:0;">
                         <div style="font-size:10px; color:var(--text-muted);">波段目标锚点</div>
@@ -327,8 +347,8 @@
                         <span>KORU 实时动态价</span>
                         <span id="koruFeedSource" style="color:var(--neon-cyan); font-weight:700;">OKX 永续直连 ›</span>
                     </div>
-                    <div class="metric-val" id="koru-val" style="color:#fff;">8.145 <span style="font-size:13px; color:var(--text-muted);">USDT</span></div>
-                    <div class="metric-desc" id="koruGainText" style="color:var(--neon-emerald);">距第一止盈 8.331: +2.3% 空间</div>
+                    <div class="metric-val" id="koru-val" style="color:#fff;">8.192 <span style="font-size:13px; color:var(--text-muted);">USDT</span></div>
+                    <div class="metric-desc" id="koruGainText" style="color:var(--neon-emerald);">距第一止盈 8.331: +1.7% 空间</div>
                 </div>
 
                 <div class="metric-card clickable" title="点击进入汇率总阀与衍生品情绪板块" onclick="switchKoruSubTabById('fx')">
@@ -354,8 +374,42 @@
                         <span><span id="overviewRrTitle">实时现价开仓盈亏比</span> <span style="color:var(--neon-cyan); font-weight:700;">· 沙盒 ›</span></span>
                         <button type="button" id="btnToggleRrMode" onclick="event.stopPropagation(); toggleOverviewRrMode();" style="background:rgba(6,182,212,0.12); border:1px solid rgba(6,182,212,0.4); color:var(--neon-cyan); font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; cursor:pointer;">🔄 现价测算</button>
                     </div>
-                    <div class="metric-val" id="overviewRrVal" style="color:var(--neon-emerald);">2.33 : 1 ✅</div>
-                    <div class="metric-desc" id="overviewRrDesc" style="color:var(--text-muted);">现价 8.145 | SL 7.800 | TP 8.950</div>
+                    <div class="metric-val" id="overviewRrVal" style="color:var(--neon-amber);">1.93 : 1</div>
+                    <div class="metric-desc" id="overviewRrDesc" style="color:var(--text-muted);">现价 8.192 | SL 7.800 | TP 8.950</div>
+                </div>
+            </div>
+
+            <!-- 首页内置 TradingView 实时交互看盘舱（支持一键网页全屏铺满 100vw×100vh） -->
+            <div class="card" id="tvChartCard" style="padding: 12px;">
+                <div class="card-title" style="flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span style="color:#fff;">📺 实时盘口结构图</span>
+                        <div class="btn-group">
+                            <button type="button" class="btn-sm active" id="btnTvSymKoru" onclick="switchTvSymbol('OKX:KORUUSDT.P', this)">🛰️ KORU 永续</button>
+                            <button type="button" class="btn-sm" id="btnTvSymBtc" onclick="switchTvSymbol('OKX:BTCUSDT.P', this)">⚡ BTC 永续</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <div class="btn-group">
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('15', this)">15m</button>
+                            <button type="button" class="btn-sm tv-tf-btn active" onclick="switchTvInterval('60', this)">1H</button>
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('240', this)">4H</button>
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('D', this)">1D</button>
+                        </div>
+                        <button type="button" class="btn-sm" id="btnTvTheme" onclick="toggleTvTheme()" style="border-color:var(--neon-amber); color:#fbbf24;">☀️ 亮色</button>
+                        <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
+                        <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 网页全屏</button>
+                    </div>
+                </div>
+
+                <div id="tvSubHintBar" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted); margin-bottom:8px; flex-wrap:wrap; gap:4px;">
+                    <span>指标: <b style="color:#60a5fa;">10/15 EMA</b> · <b style="color:#f87171;">50 MA (红线)</b> · <b style="color:#cbd5e1;">RSI + MACD</b> (UTC+8)</span>
+                    <span style="color:var(--neon-cyan);">点击右上角「⛶ 网页全屏」可 100% 铺满整个窗口画线</span>
+                </div>
+
+                <div class="tv-chart-shell" id="tvChartShell">
+                    <div id="tvWidgetContainer" style="width:100%; height:100%;"></div>
                 </div>
             </div>
 
@@ -703,41 +757,6 @@
                 </table>
             </div>
         </div>
-
-        <!-- 子模块 6: TradingView 原生实时交互看盘舱 (10/15 EMA + 50 MA + RSI + MACD) -->
-        <div class="koru-subview" id="subview-tvchart">
-            <div class="card" style="padding: 12px;">
-                <div class="card-title" style="flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                        <span style="color:#fff;">📺 TradingView 实时结构看盘</span>
-                        <div class="btn-group">
-                            <button type="button" class="btn-sm active" id="btnTvSymKoru" onclick="switchTvSymbol('OKX:KORUUSDT.P', this)">🛰️ KORU 永续</button>
-                            <button type="button" class="btn-sm" id="btnTvSymBtc" onclick="switchTvSymbol('OKX:BTCUSDT.P', this)">⚡ BTC 永续</button>
-                        </div>
-                    </div>
-
-                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                        <div class="btn-group">
-                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('15', this)">15m</button>
-                            <button type="button" class="btn-sm tv-tf-btn active" onclick="switchTvInterval('60', this)">1H</button>
-                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('240', this)">4H</button>
-                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('D', this)">1D</button>
-                        </div>
-                        <button type="button" class="btn-sm" id="btnTvTheme" onclick="toggleTvTheme()" style="border-color:var(--neon-amber); color:#fbbf24;">☀️ 亮色盘面</button>
-                        <button type="button" class="btn-sm" id="btnTvExpand" onclick="toggleTvExpand()" style="border-color:var(--neon-cyan); color:#67e8f9;">🔍 增高画布</button>
-                    </div>
-                </div>
-
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted); margin-bottom:8px; flex-wrap:wrap; gap:4px;">
-                    <span>已自动加载: <b style="color:#60a5fa;">10 EMA</b> · <b style="color:#34d399;">15 EMA</b> · <b style="color:#f87171;">50 MA (红线)</b> · <b style="color:#cbd5e1;">RSI + MACD</b> (UTC+8)</span>
-                    <span style="color:var(--neon-cyan);">左侧工具栏支持画通道/斐波那契并本地保存</span>
-                </div>
-
-                <div class="tv-chart-shell" id="tvChartShell">
-                    <div id="tvWidgetContainer" style="width:100%; height:100%;"></div>
-                </div>
-            </div>
-        </div>
     </main>
 
     <!-- ========================================================================= -->
@@ -927,7 +946,7 @@
         let customKoruCost = 8.008;
         let overviewRrMode = 'LIVE_ENTRY';
         let currentBtcLivePrice = parseFloat(localStorage.getItem("quant_btc")) || 73800.0;
-        let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 8.145;
+        let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 8.192;
         let latestUsdKrw = parseFloat(localStorage.getItem("quant_usdkrw")) || 1335.04;
         let latestFundingRate = 0.0001;
         let latestOiDeltaWan = 0;
@@ -937,12 +956,12 @@
         let isChartZoomed = false;
         let isBtcAutoSync = true;
 
-        // TradingView 状态管理（第 6 子标签页）
-        let tvInitialized = false;
+        // TradingView 首页实时看盘状态管理（支持 100vw×100vh 网页全屏无损铺满）
         let tvSymbol = "OKX:KORUUSDT.P";
         let tvInterval = "60";
         let tvTheme = "dark";
-        let isTvExpanded = false;
+        let isTvFullscreen = false;
+        let isTvCollapsed = false;
 
         function renderTradingViewChart() {
             const container = document.getElementById("tvWidgetContainer");
@@ -952,7 +971,6 @@
                 return;
             }
             container.innerHTML = "";
-            tvInitialized = true;
 
             new TradingView.widget({
                 autosize: true,
@@ -975,8 +993,8 @@
                     "MACD@tv-basicstudies"
                 ],
                 studies_overrides: {
-                    "moving average.plot.color": "#ef4444",
-                    "moving average.plot.linewidth": 2
+                    "MASimple@tv-basicstudies.plot.color": "#ef4444",
+                    "MASimple@tv-basicstudies.plot.linewidth": 2
                 },
                 container_id: "tvWidgetContainer"
             });
@@ -1001,23 +1019,68 @@
             tvTheme = tvTheme === "dark" ? "light" : "dark";
             const btn = document.getElementById("btnTvTheme");
             if (btn) {
-                btn.textContent = tvTheme === "dark" ? "☀️ 亮色盘面" : "🌙 暗夜盘面";
+                btn.textContent = tvTheme === "dark" ? "☀️ 亮色" : "🌙 暗夜";
             }
             renderTradingViewChart();
         }
 
-        function toggleTvExpand() {
+        function toggleTvCollapse() {
             const shell = document.getElementById("tvChartShell");
-            const btn = document.getElementById("btnTvExpand");
-            isTvExpanded = !isTvExpanded;
-            if (isTvExpanded) {
-                shell.classList.add("expanded");
-                if (btn) btn.textContent = "🔍 还原高度";
+            const hint = document.getElementById("tvSubHintBar");
+            const btn = document.getElementById("btnTvCollapse");
+            if (isTvFullscreen) toggleTvFullscreen();
+
+            isTvCollapsed = !isTvCollapsed;
+            if (isTvCollapsed) {
+                shell.classList.add("collapsed");
+                if (hint) hint.style.display = "none";
+                if (btn) btn.textContent = "🔼 展开";
             } else {
-                shell.classList.remove("expanded");
-                if (btn) btn.textContent = "🔍 增高画布";
+                shell.classList.remove("collapsed");
+                if (hint) hint.style.display = "flex";
+                if (btn) btn.textContent = "🔽 收起";
             }
         }
+
+        function toggleTvFullscreen() {
+            const card = document.getElementById("tvChartCard");
+            const shell = document.getElementById("tvChartShell");
+            const btn = document.getElementById("btnTvFullscreen");
+            const collapseBtn = document.getElementById("btnTvCollapse");
+
+            if (isTvCollapsed) {
+                isTvCollapsed = false;
+                shell.classList.remove("collapsed");
+                if (collapseBtn) collapseBtn.textContent = "🔽 收起";
+            }
+
+            isTvFullscreen = !isTvFullscreen;
+            if (isTvFullscreen) {
+                card.classList.add("tv-fullscreen-card");
+                document.body.style.overflow = "hidden";
+                if (btn) {
+                    btn.textContent = "✕ 退出全屏 (ESC)";
+                    btn.style.background = "rgba(239, 68, 68, 0.25)";
+                    btn.style.borderColor = "#ef4444";
+                    btn.style.color = "#fca5a5";
+                }
+            } else {
+                card.classList.remove("tv-fullscreen-card");
+                document.body.style.overflow = "";
+                if (btn) {
+                    btn.textContent = "⛶ 网页全屏";
+                    btn.style.background = "rgba(6, 182, 212, 0.18)";
+                    btn.style.borderColor = "var(--neon-cyan)";
+                    btn.style.color = "#67e8f9";
+                }
+            }
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && isTvFullscreen) {
+                toggleTvFullscreen();
+            }
+        });
 
         // 0. 顶部战略总览卡片双频实时联动引擎
         function updateStrategicBanner() {
@@ -1117,7 +1180,7 @@
             if (!tbody) return;
 
             const baseK = BASE_KOSPI_ANCHOR || 832.50;
-            const liveKoru = lastValidKoru || 8.145;
+            const liveKoru = lastValidKoru || 8.192;
 
             let html = "";
             STRATEGIC_TRENCHES.forEach(item => {
@@ -1174,7 +1237,7 @@
 
         function copyKoruOrderPlan() {
             const baseK = BASE_KOSPI_ANCHOR || 832.50;
-            const liveK = lastValidKoru || 8.145;
+            const liveK = lastValidKoru || 8.192;
             const bep = customKoruCost * 1.002;
             const modeName = mappingMode === 'ANCHOR' ? '🏛️ 日线基准定桩 (挂单死锚点)' : '⚡ 现价弹性推演 (盘中动量弹性)';
 
@@ -1640,7 +1703,7 @@
             const deltaIndexPct = (simK - base) / base;
             const deltaKoruPct = deltaIndexPct * 3.0;
 
-            const baseKoru = lastValidKoru || 8.145;
+            const baseKoru = lastValidKoru || 8.192;
             const simP = baseKoru * (1 + deltaKoruPct);
 
             const cost = customKoruCost || 8.008;
@@ -1709,7 +1772,7 @@
             const rrDescEl = document.getElementById("overviewRrDesc");
             if (!rrValEl || !rrDescEl) return;
 
-            const kp = lastValidKoru || 8.145;
+            const kp = lastValidKoru || 8.192;
             const sl = sandboxData.liveSl || 7.800;
             const tp = sandboxData.liveTp || 8.950;
 
@@ -1843,11 +1906,6 @@
             if (btnEl) btnEl.classList.add("active");
             const targetView = document.getElementById(`subview-${subId}`);
             if (targetView) targetView.classList.add("active");
-
-            // 切换到 TradingView 子标签页时按需初始化，避免隐藏容器尺寸塌陷
-            if (subId === 'tvchart' && !tvInitialized) {
-                setTimeout(renderTradingViewChart, 30);
-            }
         }
 
         function switchKoruSubTabById(subId) {
@@ -2458,6 +2516,7 @@
 
             fetchKospiHistoryData();
             setupChartInspect();
+            renderTradingViewChart();
 
             setBtcTradeSide('SHORT', false);
             calculateBtcLadder();
