@@ -264,7 +264,7 @@
     </nav>
 
     <!-- ========================================================================= -->
-    <!-- 模块 1：KORU 战略宏观雷达 (四宫格快捷跳转 + 汇率与衍生品情绪实时共振)       -->
+    <!-- 模块 1：KORU 战略宏观雷达 (四宫格全跳转 + 沙盒双向锚点联动)               -->
     <!-- ========================================================================= -->
     <main class="view-panel active" id="view-koru">
         <div class="koru-subtabs">
@@ -281,7 +281,7 @@
                 <span class="btn-group">
                     <button class="btn-sm">-0.10</button>
                     <button class="btn-sm">-0.05</button>
-                    <button class="btn-sm" id="koruCenterBtn" style="color:var(--neon-emerald); font-weight:800;">8.151</button>
+                    <button class="btn-sm" id="koruCenterBtn" style="color:var(--neon-emerald); font-weight:800;">8.145</button>
                     <button class="btn-sm">+0.05</button>
                     <button class="btn-sm">+0.10</button>
                 </span>
@@ -313,8 +313,8 @@
                         <span>KORU 实时动态价</span>
                         <span id="koruFeedSource" style="color:var(--neon-cyan); font-weight:700;">OKX 永续直连 ›</span>
                     </div>
-                    <div class="metric-val" id="koru-val" style="color:#fff;">8.151 <span style="font-size:13px; color:var(--text-muted);">USDT</span></div>
-                    <div class="metric-desc" id="koruGainText" style="color:var(--neon-emerald);">距第一止盈 8.331: +2.2% 空间</div>
+                    <div class="metric-val" id="koru-val" style="color:#fff;">8.145 <span style="font-size:13px; color:var(--text-muted);">USDT</span></div>
+                    <div class="metric-desc" id="koruGainText" style="color:var(--neon-emerald);">距第一止盈 8.331: +2.3% 空间</div>
                 </div>
 
                 <div class="metric-card clickable" title="点击进入汇率总阀与衍生品情绪板块" onclick="switchKoruSubTabById('fx')">
@@ -335,13 +335,13 @@
                     <div class="metric-desc" id="koruOiDesc" style="color:var(--text-muted);">正在同步全网未平仓合约...</div>
                 </div>
 
-                <div class="metric-card clickable" title="点击进入持仓风控沙盒" onclick="switchKoruSubTabById('trench')">
+                <div class="metric-card clickable" title="点击进入持仓风控沙盒调整测算参数" onclick="switchKoruSubTabById('trench')">
                     <div class="metric-name">
-                        <span id="overviewRrTitle">实时现价开仓盈亏比</span>
+                        <span><span id="overviewRrTitle">实时现价开仓盈亏比</span> <span style="color:var(--neon-cyan); font-weight:700;">· 沙盒 ›</span></span>
                         <button type="button" id="btnToggleRrMode" onclick="event.stopPropagation(); toggleOverviewRrMode();" style="background:rgba(6,182,212,0.12); border:1px solid rgba(6,182,212,0.4); color:var(--neon-cyan); font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; cursor:pointer;">🔄 现价测算</button>
                     </div>
-                    <div class="metric-val" id="overviewRrVal" style="color:var(--neon-emerald);">2.27 : 1 ✅</div>
-                    <div class="metric-desc" id="overviewRrDesc" style="color:var(--text-muted);">现价 8.151 | SL 7.800 | TP 8.950</div>
+                    <div class="metric-val" id="overviewRrVal" style="color:var(--neon-emerald);">2.33 : 1 ✅</div>
+                    <div class="metric-desc" id="overviewRrDesc" style="color:var(--text-muted);">现价 8.145 | SL 7.800 | TP 8.950</div>
                 </div>
             </div>
 
@@ -502,9 +502,8 @@
             </div>
         </div>
 
-        <!-- 子模块 4: 汇率总阀与衍生品情绪（全实时双因子共振） -->
+        <!-- 子模块 4: 汇率总阀与衍生品情绪 -->
         <div class="koru-subview" id="subview-fx">
-            <!-- 1. 离岸汇率总阀 -->
             <div class="card">
                 <div class="card-title">
                     <span>💱 USDKRW 离岸汇率总阀生死线状态</span>
@@ -527,7 +526,6 @@
                 </div>
             </div>
 
-            <!-- 2. OKX 衍生品情绪实时监测舱 -->
             <div class="card">
                 <div class="card-title">
                     <span>📡 OKX 衍生品多空情绪实时监测 (KORU-USDT-SWAP)</span>
@@ -554,7 +552,6 @@
                     </div>
                 </div>
 
-                <!-- 3. 汇率 × 衍生品情绪双因子共振裁决卡 -->
                 <div id="fxSentimentSynergyBox" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35); border-left: 4px solid var(--neon-emerald); border-radius: 6px; padding: 10px 12px;">
                     <div style="font-size:12px; font-weight:800; color:#fff; margin-bottom:4px;" id="synergyTitle">🟢 双因子多头共振：外资红利流入 + 衍生品筹码健康</div>
                     <div style="font-size:11px; color:#cbd5e1; line-height:1.5;" id="synergyDesc">
@@ -570,6 +567,21 @@
                 <div class="card-title" style="flex-wrap:wrap; gap:8px;">
                     <span>🛡️ 持仓风控沙盒 (底仓与战术加仓独立隔离核算)</span>
                     <span class="badge active">物理隔离架构</span>
+                </div>
+
+                <!-- 现价盈亏比测算锚点配置（与总览第4块卡片双向同步） -->
+                <div style="background:#0a1222; border:1px solid #1e3152; border-radius:6px; padding:8px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <span style="font-size:11px; font-weight:700; color:var(--neon-cyan);">🎯 总览现价开仓测算锚点：</span>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+                            <span>结构止损 (SL):</span>
+                            <input type="number" id="liveCalcSlInput" step="0.005" value="7.800" class="form-input" style="width:78px; padding:3px 6px; font-size:12px; color:#f87171;" oninput="updatePositionSandbox()">
+                        </label>
+                        <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+                            <span>波段目标 (TP):</span>
+                            <input type="number" id="liveCalcTpInput" step="0.005" value="8.950" class="form-input" style="width:78px; padding:3px 6px; font-size:12px; color:#34d399;" oninput="updatePositionSandbox()">
+                        </label>
+                    </div>
                 </div>
 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
@@ -855,15 +867,17 @@
             coreSl: 8.024,
             satActive: false,
             satEntry: 8.250,
-            satSl: 8.080
+            satSl: 8.080,
+            liveSl: 7.800,
+            liveTp: 8.950
         };
 
         let customKoruCost = 8.008;
         let overviewRrMode = 'LIVE_ENTRY';
         let currentBtcLivePrice = parseFloat(localStorage.getItem("quant_btc")) || 73800.0;
-        let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 8.151;
+        let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 8.145;
         let latestUsdKrw = parseFloat(localStorage.getItem("quant_usdkrw")) || 1336.60;
-        let latestFundingRate = 0.0001; // 默认 0.01%
+        let latestFundingRate = 0.0001;
         let latestOiDeltaWan = 0;
         let prevKoruOiCcy = null;
         let currentSide = 'SHORT';
@@ -908,7 +922,7 @@
             if (!tbody) return;
 
             const baseK = BASE_KOSPI_ANCHOR || 838.32;
-            const liveKoru = lastValidKoru || 8.151;
+            const liveKoru = lastValidKoru || 8.145;
 
             let html = "";
             STRATEGIC_TRENCHES.forEach(item => {
@@ -965,7 +979,7 @@
 
         function copyKoruOrderPlan() {
             const baseK = BASE_KOSPI_ANCHOR || 838.32;
-            const liveK = lastValidKoru || 8.151;
+            const liveK = lastValidKoru || 8.145;
             const bep = customKoruCost * 1.002;
             const modeName = mappingMode === 'ANCHOR' ? '🏛️ 日线基准定桩 (挂单死锚点)' : '⚡ 现价弹性推演 (盘中动量弹性)';
 
@@ -1288,6 +1302,8 @@
             document.getElementById("satActiveCheck").checked = sandboxData.satActive;
             document.getElementById("satEntryPrice").value = sandboxData.satEntry.toFixed(3);
             document.getElementById("satSlPrice").value = sandboxData.satSl.toFixed(3);
+            document.getElementById("liveCalcSlInput").value = (sandboxData.liveSl || 7.800).toFixed(3);
+            document.getElementById("liveCalcTpInput").value = (sandboxData.liveTp || 8.950).toFixed(3);
 
             updatePositionSandbox();
         }
@@ -1298,13 +1314,17 @@
             const isSatActive = document.getElementById("satActiveCheck").checked;
             const satP = parseFloat(document.getElementById("satEntryPrice").value) || 8.250;
             const satSl = parseFloat(document.getElementById("satSlPrice").value) || 8.080;
+            const liveSl = parseFloat(document.getElementById("liveCalcSlInput").value) || 7.800;
+            const liveTp = parseFloat(document.getElementById("liveCalcTpInput").value) || 8.950;
 
             sandboxData = {
                 coreEntry: coreP,
                 coreSl: coreSl,
                 satActive: isSatActive,
                 satEntry: satP,
-                satSl: satSl
+                satSl: satSl,
+                liveSl: liveSl,
+                liveTp: liveTp
             };
             localStorage.setItem("quant_koru_sandbox", JSON.stringify(sandboxData));
 
@@ -1422,7 +1442,7 @@
             const deltaIndexPct = (simK - base) / base;
             const deltaKoruPct = deltaIndexPct * 3.0;
 
-            const baseKoru = lastValidKoru || 8.151;
+            const baseKoru = lastValidKoru || 8.145;
             const simP = baseKoru * (1 + deltaKoruPct);
 
             const cost = customKoruCost || 8.008;
@@ -1491,11 +1511,11 @@
             const rrDescEl = document.getElementById("overviewRrDesc");
             if (!rrValEl || !rrDescEl) return;
 
-            const kp = lastValidKoru || 8.151;
+            const kp = lastValidKoru || 8.145;
+            const sl = sandboxData.liveSl || 7.800;
+            const tp = sandboxData.liveTp || 8.950;
 
             if (overviewRrMode === 'LIVE_ENTRY') {
-                const sl = 7.800;
-                const tp = 8.950;
                 const risk = kp - sl;
                 const reward = tp - kp;
 
@@ -1504,7 +1524,7 @@
                     rrValEl.style.color = "var(--neon-red)";
                     rrDescEl.textContent = `现价 ${kp.toFixed(3)} 已破 SL ${sl.toFixed(3)}，暂停接单`;
                 } else if (reward <= 0) {
-                    rrValEl.textContent = "🎯 触及前高";
+                    rrValEl.textContent = "🎯 触及目标";
                     rrValEl.style.color = "var(--neon-amber)";
                     rrDescEl.textContent = `现价 ${kp.toFixed(3)} 已达 TP ${tp.toFixed(3)}，禁追高`;
                 } else {
@@ -1524,7 +1544,6 @@
                 }
             } else {
                 const activeSl = sandboxData.satActive ? sandboxData.satSl : sandboxData.coreSl;
-                const tp = 8.950;
                 const bep = customKoruCost * 1.002;
 
                 if (activeSl >= customKoruCost) {
@@ -1955,7 +1974,6 @@
                 zoneBadge.style.borderColor = isBullishZone ? "#10b981" : "#ef4444";
             }
             if (barFill) {
-                // 1,360(0%) -> 1,340(40%) -> 1,310(100%) 精确线性映射
                 const pct = Math.max(5, Math.min(95, ((1360.0 - rate) / 50.0) * 100));
                 barFill.style.width = `${pct.toFixed(1)}%`;
             }
@@ -2113,7 +2131,6 @@
 
             const lat = Math.round(performance.now() - startT);
 
-            // 解析 OKX BTC-USDT-SWAP 盘口
             if (btcTickerOut.status === "fulfilled" && btcTickerOut.value?.code === "0" && btcTickerOut.value.data?.[0]?.last) {
                 const liveBtc = parseFloat(btcTickerOut.value.data[0].last);
                 if (liveBtc > 10000) {
@@ -2124,14 +2141,12 @@
                 }
             }
 
-            // 解析 OKX BTC-USDT-SWAP 1H K线均线
             if (btcKlineOut.status === "fulfilled" && btcKlineOut.value?.code === "0" && Array.isArray(btcKlineOut.value.data) && btcKlineOut.value.data.length >= 50) {
                 const closes = btcKlineOut.value.data.slice().reverse().map(c => parseFloat(c[4]));
                 const localStrat = calcLocalStrategy(closes, currentBtcLivePrice);
                 if (localStrat) renderStrategyHUD(localStrat);
             }
 
-            // 解析 OKX KORU-USDT-SWAP 盘口与 24H 振幅成交量
             let high24h = 0, low24h = 0, volCcy24h = 0;
             const koruSourceBadge = document.getElementById("koruFeedSource");
             if (koruTickerOut.status === "fulfilled" && koruTickerOut.value?.code === "0" && koruTickerOut.value.data?.[0]?.last) {
@@ -2154,7 +2169,6 @@
                 }
             }
 
-            // 解析 OKX KORU-USDT-SWAP 实时持仓量 (OI)
             if (koruOiOut.status === "fulfilled" && koruOiOut.value?.code === "0" && koruOiOut.value.data?.[0]) {
                 const oiObj = koruOiOut.value.data[0];
                 const oiCcy = parseFloat(oiObj.oiCcy) || parseFloat(oiObj.oi) || 0;
@@ -2164,14 +2178,12 @@
                 }
             }
 
-            // 解析 OKX KORU-USDT-SWAP 实时资金费率
             let fRate = NaN;
             if (koruFundingOut.status === "fulfilled" && koruFundingOut.value?.code === "0" && koruFundingOut.value.data?.[0]) {
                 fRate = parseFloat(koruFundingOut.value.data[0].fundingRate);
             }
             renderKoruFundingAndRangeUI(fRate, high24h, low24h, volCcy24h, lastValidKoru);
 
-            // 若 KORU 直连受限，自动降级到 Worker 中继兜底
             if (!koruDirectOk) {
                 try {
                     const koruCtrl = new AbortController();
@@ -2192,7 +2204,6 @@
                 } catch (e) {}
             }
 
-            // 若 BTC 直连受限，自动降级到备用行情节点
             if (!btcDirectOk) {
                 try {
                     const [fbRes, fbKlineRes] = await Promise.all([
@@ -2217,7 +2228,6 @@
                 } catch (e) {}
             }
 
-            // 更新顶部延迟与直连状态徽章
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
             document.getElementById("latencyBadge").textContent = `${lat} ms`;
