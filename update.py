@@ -32,65 +32,104 @@ BASE_HISTORY = [
 ]
 
 JSON_PATH = os.path.join("data", "kospi_history.json")
+MIN_VALID_CAP = 2000.0   # KOSPI 200 总市值物理下限（万亿韩元）
+MAX_VALID_CAP = 8500.0   # KOSPI 200 总市值物理上限（万亿韩元）
+
+
+def normalize_to_trillion_krw(raw_sum):
+    """自动匹配 원 / 천원 / 백만원 / 억원 量级，严格锁定在 2000~8500 万亿韩元物理区间"""
+    for divisor in (1e12, 1e9, 1e6, 1e4, 1.0):
+        val = raw_sum / divisor
+        if MIN_VALID_CAP <= val <= MAX_VALID_CAP:
+            return round(val, 2)
+    return None
+
 
 def parse_krx_csv(filepath):
-    """兼容 UTF-8 与韩文 CP949/EUC-KR 编码解析 KRX 成分股市值总和"""
-    for enc in ["utf-8-sig", "cp949", "euc-kr", "utf-8"]:
+    """兼容 UTF-8 / CP949 / EUC-KR 编码与多行表头，精准提取 KOSPI 200 总市值"""
+    for enc in ("utf-8-sig", "cp949", "euc-kr", "utf-8"):
         try:
             with open(filepath, "r", encoding=enc) as f:
                 rows = list(csv.reader(f))
-            if not rows or len(rows) < 2:
+            if len(rows) < 2:
                 continue
 
-            header = rows[0]
+            # 在前 5 行中自动定位表头行
+            header_row_idx = 0
             cap_idx = -1
-            for i, col in enumerate(header):
-                if any(k in col for k in ["상장시가총액", "시가총액", "Market Cap", "市值"]):
-                    cap_idx = i
+            for r_idx in range(min(5, len(rows))):
+                for c_idx, col in enumerate(rows[r_idx]):
+                    clean_col = col.strip().replace(" ", "")
+                    if any(k in clean_col for k in ("상장시가총액", "시가총액", "MKTCAP", "MarketCap", "市值")):
+                        header_row_idx = r_idx
+                        cap_idx = c_idx
+                        break
+                if cap_idx != -1:
                     break
 
-            total_val = 0.0
-            for row in rows[1:]:
-                if not row:
-                    continue
-                if cap_idx != -1 and cap_idx < len(row):
-                    raw = row[cap_idx].replace(",", "").strip()
-                    if raw.replace(".", "", 1).isdigit():
-                        total_val += float(raw)
-                else:
-                    # 兜底：取该行最大数值列作为市值
-                    nums = []
-                    for cell in row:
-                        c = cell.replace(",", "").strip()
-                        if c.replace(".", "", 1).isdigit():
-                            nums.append(float(c))
-                    if nums:
-                        total_val += max(nums)
+            data_rows = rows[header_row_idx + 1:]
+            # 过滤汇总行（如 합계 / 총계），防止重复累加翻倍
+            valid_rows = [
+                r for r in data_rows
+                if r and not any(w in "".join(r) for w in ("합계", "총계", "소계", "Total"))
+            ]
 
-            if total_val > 0:
-                # 自动归一化单位为“万亿韩元” (10^12 KRW)
-                if total_val > 1e14:
-                    cap_trillion = total_val / 1e12
-                elif total_val > 1e8:
-                    cap_trillion = total_val / 1e6
-                else:
-                    cap_trillion = total_val
-                return round(cap_trillion, 2)
+            # 方式 1：优先按匹配到的市值列求和
+            if cap_idx != -1:
+                total_val = 0.0
+                for row in valid_rows:
+                    if cap_idx < len(row):
+                        num_str = row[cap_idx].replace(",", "").strip()
+                        try:
+                            total_val += float(num_str)
+                        except ValueError:
+                            pass
+                cap = normalize_to_trillion_krw(total_val)
+                if cap:
+                    print(f"[INFO] 命中市值列(第{cap_idx}列): 原始求和={total_val} -> 归一化={cap} 万亿韩元")
+                    return cap
+
+            # 方式 2：按列独立求和并匹配物理区间（自动避开股票代码、成交额、股数列）
+            num_cols = max(len(r) for r in valid_rows)
+            header = rows[header_row_idx]
+            for c_idx in range(num_cols):
+                col_name = header[c_idx].strip() if c_idx < len(header) else ""
+                if any(bad in col_name for bad in ("코드", "거래량", "거래대금", "주식수", "종가", "대비", "등락")):
+                    continue
+                col_sum = 0.0
+                for row in valid_rows:
+                    if c_idx < len(row):
+                        num_str = row[c_idx].replace(",", "").strip()
+                        try:
+                            col_sum += float(num_str)
+                        except ValueError:
+                            pass
+                cap = normalize_to_trillion_krw(col_sum)
+                if cap:
+                    print(f"[INFO] 自动量级匹配(第{c_idx}列 {col_name}): 原始求和={col_sum} -> 归一化={cap} 万亿韩元")
+                    return cap
         except Exception:
             continue
     return None
+
 
 def main():
     os.makedirs("data", exist_ok=True)
     if os.path.exists(JSON_PATH):
         with open(JSON_PATH, "r", encoding="utf-8") as f:
-            history = json.load(f)
+            raw_history = json.load(f)
+        # 自动剔除历史 JSON 中的异常脏数据（如 20302358.00）
+        history = [
+            item for item in raw_history
+            if MIN_VALID_CAP <= float(item.get("cap", 0)) <= MAX_VALID_CAP
+        ]
     else:
         history = list(BASE_HISTORY)
 
     history_map = {item["date"]: item for item in history}
+    for base_item in BASE_HISTORY:
+        history_map.setdefault(base_item["date"], base_item)
 
-    # 扫描根目录所有 data_XXXX_YYYYMMDD.csv 文件
     csv_files = sorted(glob.glob("data_*_*.csv"))
     parsed_files = []
 
@@ -98,10 +137,9 @@ def main():
         m = re.search(r"data_\d+_(\d{4})(\d{2})(\d{2})\.csv$", os.path.basename(fp))
         if not m:
             continue
-        date_str = f"{m.group(2)}/{m.group(3)}"  # 转换为 MM/DD
+        date_str = f"{m.group(2)}/{m.group(3)}"
         cap = parse_krx_csv(fp)
         if cap:
-            # 锚定 11/11 (4088.85万亿 = 838.32点) 同步推算母体点位
             est_point = round(838.32 * (cap / 4088.85), 2)
             history_map[date_str] = {
                 "date": date_str,
@@ -109,18 +147,18 @@ def main():
                 "point": est_point
             }
             parsed_files.append(fp)
-            print(f"[OK] 解析成功 {fp} -> 日期: {date_str}, 市值: {cap} 万亿, 映射点位: {est_point}")
+            print(f"[OK] {fp} -> {date_str} | 市值: {cap} 万亿 | 点位: {est_point}")
+        else:
+            print(f"[WARN] {fp} 未识别到有效市值区间，跳过写入")
 
-    # 按日期排序并写回 JSON
     sorted_history = sorted(history_map.values(), key=lambda x: x["date"])
     with open(JSON_PATH, "w", encoding="utf-8") as f:
         json.dump(sorted_history, f, ensure_ascii=False, indent=2)
 
-    # 自动清理过期 CSV（仅保留最新 1 份，保持仓库整洁）
     if len(parsed_files) > 1:
         for old_fp in parsed_files[:-1]:
             os.remove(old_fp)
-            print(f"[CLEAN] 已清理旧数据文件: {old_fp}")
+
 
 if __name__ == "__main__":
     main()
