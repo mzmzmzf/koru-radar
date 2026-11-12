@@ -1,0 +1,35 @@
+name: Auto Parse KOSPI CSV
+
+on:
+  push:
+    paths:
+      - 'data_*.csv'
+      - 'update.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run CSV parser
+        run: python update.py
+
+      - name: Commit updated JSON
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/kospi_history.json
+          git add -u
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: auto update kospi_history.json from CSV"
+          git push
