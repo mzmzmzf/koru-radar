@@ -264,7 +264,7 @@
     </nav>
 
     <!-- ========================================================================= -->
-    <!-- 模块 1：KORU 战略宏观雷达 (四宫格全跳转 + 沙盒双向锚点联动)               -->
+    <!-- 模块 1：KORU 战略宏观雷达 (顶部战略总览已接入双频实时联动)                 -->
     <!-- ========================================================================= -->
     <main class="view-panel active" id="view-koru">
         <div class="koru-subtabs">
@@ -291,19 +291,20 @@
 
         <!-- 子模块 1: 核心总览 -->
         <div class="koru-subview active" id="subview-overview">
-            <div class="card" style="background: linear-gradient(180deg, #132238, #111a2d); border-color: #2b456e;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <!-- 动态战略定调总览卡（日线收盘 JSON + 3.5s 盘口 + 60s 汇率 + 沙盒目标四维实时联动） -->
+            <div class="card" id="strategicBannerCard" style="background: linear-gradient(180deg, #132238, #111a2d); border-color: #2b456e; cursor:pointer;" onclick="switchKoruSubTabById('chart')">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div>
-                        <span style="background:rgba(16,185,129,0.15); color:#34d399; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #10b981;">CHoCH 确立</span>
-                        <span style="font-size:13px; font-weight:800; margin-left:6px;">首尔母体收复 838.32 点 (+2.95%)</span>
+                        <span id="bannerRegimeBadge" style="background:rgba(16,185,129,0.15); color:#34d399; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #10b981;">🛡️ CHoCH 多头蓄势</span>
+                        <span id="bannerHeadlineText" style="font-size:13px; font-weight:800; margin-left:6px;">首尔母体收盘 832.50 点 (-0.69%) · 盘中映射 831.55 点</span>
                     </div>
-                    <div style="text-align:right;">
+                    <div style="text-align:right; flex-shrink:0;">
                         <div style="font-size:10px; color:var(--text-muted);">波段目标锚点</div>
-                        <div style="font-size:14px; font-weight:800; color:var(--neon-amber);">8.950 USDT</div>
+                        <div id="bannerTargetTp" style="font-size:14px; font-weight:800; color:var(--neon-amber);">8.950 USDT</div>
                     </div>
                 </div>
-                <p style="font-size:11px; color:var(--text-muted); margin-top:8px; line-height:1.4;">
-                    USDKRW 跌穿 1,340 生死线，首尔成分股总市值基准锚定 2,044.43 万亿韩元，半导体两强垄断 51.41% 指数权重虹吸拉升。
+                <p id="bannerNarrativeText" style="font-size:11px; color:var(--text-muted); margin-top:8px; line-height:1.5;">
+                    USDKRW 稳守 1,340 红利区下方（实时 1,335.04），首尔最新成分股总市值 2,030.24 万亿韩元（单日 -14.2 万亿），半导体两强垄断 51.41% 权重主导波段结构。
                 </p>
             </div>
 
@@ -322,7 +323,7 @@
                         <span>USDKRW 实时汇率</span>
                         <span id="fxFeedSource" style="color:var(--neon-cyan); font-weight:700;">外汇实时同步 ›</span>
                     </div>
-                    <div class="metric-val" id="usdkrwVal" style="color:var(--neon-cyan);">1,336.60</div>
+                    <div class="metric-val" id="usdkrwVal" style="color:var(--neon-cyan);">1,335.04</div>
                     <div class="metric-desc" id="usdkrwDesc" style="color:var(--neon-emerald);">▼ 破位升值 (红利区 &lt;1,340)</div>
                 </div>
 
@@ -381,18 +382,18 @@
                         </span>
                     </div>
                     <div>
-                        <b style="color:var(--neon-cyan); font-family:monospace; font-size:14px;" id="simKospiDisplay">838.32 点</b>
+                        <b style="color:var(--neon-cyan); font-family:monospace; font-size:14px;" id="simKospiDisplay">832.50 点</b>
                     </div>
                 </div>
 
-                <input type="range" id="kospiSimSlider" step="0.2" value="838.32" 
+                <input type="range" id="kospiSimSlider" step="0.2" value="832.50" 
                        style="width:100%; accent-color:var(--neon-emerald); cursor:pointer;" 
                        oninput="onKospiSliderChange(this.value)">
 
                 <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-top:2px;">
-                    <span id="sliderMinLabel">712.6 (-15%)</span>
-                    <span id="sliderMidLabel" style="color:var(--neon-amber);">838.32 (基准)</span>
-                    <span id="sliderMaxLabel">964.1 (+15%)</span>
+                    <span id="sliderMinLabel">707.6 (-15%)</span>
+                    <span id="sliderMidLabel" style="color:var(--neon-amber);">832.50 (基准)</span>
+                    <span id="sliderMaxLabel">957.4 (+15%)</span>
                 </div>
 
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin: 12px 0 10px 0;">
@@ -428,7 +429,7 @@
                 </div>
 
                 <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px; line-height:1.5;" id="mappingModeTip">
-                    💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (838.32点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。
+                    💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (832.50点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。
                 </div>
 
                 <div style="overflow-x:auto;">
@@ -513,15 +514,15 @@
                     <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--text-muted);">
                         <span>1,360 恐慌失血</span>
                         <span style="color:var(--neon-red); font-weight:800;">1,340 生死分水岭</span>
-                        <span id="fxBarCurrentLabel" style="color:var(--neon-emerald); font-weight:800;">当前 1,336.60 (升值)</span>
+                        <span id="fxBarCurrentLabel" style="color:var(--neon-emerald); font-weight:800;">当前 1,335.04 (升值)</span>
                         <span>1,310 牛市狂欢</span>
                     </div>
                     <div style="width:100%; height:10px; background:#1e293b; border-radius:5px; overflow:hidden; position:relative;">
-                        <div id="fxBarFill" style="width:46.8%; height:100%; background:linear-gradient(90deg, #ef4444 0%, #f59e0b 40%, #10b981 100%); transition: width 0.4s ease;"></div>
+                        <div id="fxBarFill" style="width:49.9%; height:100%; background:linear-gradient(90deg, #ef4444 0%, #f59e0b 40%, #10b981 100%); transition: width 0.4s ease;"></div>
                     </div>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); border-top:1px dashed #1a273f; padding-top:8px;">
-                    <span>距 1,340 生死线安全垫: <b id="fxBufferVal" style="color:var(--neon-emerald); font-family:monospace;">-3.40 韩元</b></span>
+                    <span>距 1,340 生死线安全垫: <b id="fxBufferVal" style="color:var(--neon-emerald); font-family:monospace;">-4.96 韩元</b></span>
                     <span>更新频率: <b style="color:var(--neon-cyan);">60s 实时外汇直连</b></span>
                 </div>
             </div>
@@ -569,7 +570,6 @@
                     <span class="badge active">物理隔离架构</span>
                 </div>
 
-                <!-- 现价盈亏比测算锚点配置（与总览第4块卡片双向同步） -->
                 <div style="background:#0a1222; border:1px solid #1e3152; border-radius:6px; padding:8px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                     <span style="font-size:11px; font-weight:700; color:var(--neon-cyan);">🎯 总览现价开仓测算锚点：</span>
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -821,9 +821,9 @@
         const LIVE_FX_USD_URL = "https://open.er-api.com/v6/latest/USD";
         const DOMESTIC_FALLBACK_BTC_URL = "https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD";
         const DOMESTIC_FALLBACK_KLINES_URL = "https://min-api.cryptocompare.com/data/v2/histohour?fsym=BTC&tsym=USD&limit=60";
-        let BASE_KOSPI_ANCHOR = 838.32;
+        let BASE_KOSPI_ANCHOR = 832.50;
 
-        // 统一单倍成分股总市值基准底座（万亿韩元）
+        // 统一单倍成分股总市值基准底座（含 11/12 最新校准点）
         const DEFAULT_KOSPI_HISTORY = [
             { date: "10/08", cap: 2090.25, point: 865.20 },
             { date: "10/10", cap: 2070.10, point: 855.10 },
@@ -847,7 +847,8 @@
             { date: "11/08", cap: 1975.20, point: 811.20 },
             { date: "11/09", cap: 1907.50, point: 782.40 },
             { date: "11/10", cap: 1915.10, point: 785.60 },
-            { date: "11/11", cap: 2044.43, point: 838.32 }
+            { date: "11/11", cap: 2044.43, point: 838.32 },
+            { date: "11/12", cap: 2030.24, point: 832.50 }
         ];
 
         let currentKospiHistory = DEFAULT_KOSPI_HISTORY;
@@ -856,7 +857,7 @@
         const STRATEGIC_TRENCHES = [
             { point: 780.00, tag: "系统止损防线", tagClass: "color:var(--neon-red); border-color:#ef4444;", staticPrice: 7.150, type: "SL", orderType: "STOP (条件止损单)", desc: "跌破机械全仓清仓" },
             { point: 795.50, tag: "梯形加权建仓线", tagClass: "color:var(--neon-cyan); border-color:#06b6d4;", staticPrice: 7.435, type: "BUY", orderType: "LIMIT (限价买单)", desc: "深度黄金回踩埋伏 (30%)" },
-            { point: 838.32, tag: "收复突破基准", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 8.347, isBase: true, type: "BASE", orderType: "BENCHMARK", desc: "当前日线基准中枢" },
+            { point: 832.50, tag: "收复突破基准", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 8.173, isBase: true, type: "BASE", orderType: "BENCHMARK", desc: "当前日线基准中枢" },
             { point: 850.00, tag: "第二目标区 (TP2)", tagClass: "color:var(--neon-amber); border-color:#f59e0b;", staticPrice: 8.850, type: "TP", orderType: "LIMIT (限价卖单)", desc: "分批减持兑现 50%" },
             { point: 875.00, tag: "波段强阻力带", tagClass: "color:#cbd5e1; border-color:#475569;", staticPrice: 9.500, type: "TP", orderType: "LIMIT (限价卖单)", desc: "分批减持兑现 25%" },
             { point: 900.00, tag: "战略清仓凯旋", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 10.200, type: "TP", orderType: "LIMIT (限价卖单)", desc: "全军班师全仓出清" }
@@ -876,7 +877,7 @@
         let overviewRrMode = 'LIVE_ENTRY';
         let currentBtcLivePrice = parseFloat(localStorage.getItem("quant_btc")) || 73800.0;
         let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 8.145;
-        let latestUsdKrw = parseFloat(localStorage.getItem("quant_usdkrw")) || 1336.60;
+        let latestUsdKrw = parseFloat(localStorage.getItem("quant_usdkrw")) || 1335.04;
         let latestFundingRate = 0.0001;
         let latestOiDeltaWan = 0;
         let prevKoruOiCcy = null;
@@ -884,6 +885,69 @@
         let activeStrategy = null;
         let isChartZoomed = false;
         let isBtcAutoSync = true;
+
+        // 0. 顶部战略总览卡片双频实时联动引擎（日线收盘 JSON + 3.5s 盘口 + 60s 汇率 + 沙盒目标）
+        function updateStrategicBanner() {
+            const badgeEl = document.getElementById("bannerRegimeBadge");
+            const headlineEl = document.getElementById("bannerHeadlineText");
+            const tpEl = document.getElementById("bannerTargetTp");
+            const narrativeEl = document.getElementById("bannerNarrativeText");
+            if (!badgeEl || !headlineEl || !narrativeEl) return;
+
+            const hist = currentKospiHistory && currentKospiHistory.length > 0 ? currentKospiHistory : DEFAULT_KOSPI_HISTORY;
+            const latest = hist[hist.length - 1];
+            const prev = hist[hist.length - 2] || latest;
+
+            const closePt = parseFloat(latest.point) || 832.50;
+            const prevPt = parseFloat(prev.point) || closePt;
+            const dailyPtPct = prevPt > 0 ? ((closePt - prevPt) / prevPt) * 100 : 0;
+
+            const closeCap = parseFloat(latest.cap) || 2030.24;
+            const prevCap = parseFloat(prev.cap) || closeCap;
+            const capDelta = closeCap - prevCap;
+
+            // 基于最近收盘基准反推 3x 杠杆盘中隐含母体点位
+            const anchorKoru = 8.347 * (1 + 3.0 * ((closePt - 838.32) / 838.32));
+            const liveKoru = lastValidKoru || anchorKoru;
+            const intradayImpliedPct = anchorKoru > 0 ? ((liveKoru - anchorKoru) / anchorKoru) / 3.0 : 0;
+            const impliedPt = closePt * (1 + intradayImpliedPct);
+
+            const targetTp = sandboxData.liveTp || 8.950;
+            const stopSl = sandboxData.liveSl || 7.800;
+            if (tpEl) tpEl.textContent = `${targetTp.toFixed(3)} USDT`;
+
+            const dailySign = dailyPtPct >= 0 ? "+" : "";
+            headlineEl.textContent = `首尔母体 ${latest.date} 收盘 ${closePt.toFixed(2)} 点 (${dailySign}${dailyPtPct.toFixed(2)}%) · 盘中映射 ${impliedPt.toFixed(2)} 点`;
+
+            // 动态定性状态徽章
+            if (liveKoru < stopSl || latestUsdKrw >= 1340.0) {
+                badgeEl.textContent = "⚠️ 结构承压警戒";
+                badgeEl.style.color = "#f87171";
+                badgeEl.style.borderColor = "#ef4444";
+                badgeEl.style.background = "rgba(239,68,68,0.15)";
+            } else if (liveKoru >= targetTp) {
+                badgeEl.textContent = "🎯 抵达波段目标";
+                badgeEl.style.color = "#fbbf24";
+                badgeEl.style.borderColor = "#f59e0b";
+                badgeEl.style.background = "rgba(245,158,11,0.15)";
+            } else if (liveKoru >= 8.220) {
+                badgeEl.textContent = "🚀 多头突破加速";
+                badgeEl.style.color = "#34d399";
+                badgeEl.style.borderColor = "#10b981";
+                badgeEl.style.background = "rgba(16,185,129,0.15)";
+            } else {
+                badgeEl.textContent = "🛡️ CHoCH 多头蓄势";
+                badgeEl.style.color = "#34d399";
+                badgeEl.style.borderColor = "#10b981";
+                badgeEl.style.background = "rgba(16,185,129,0.15)";
+            }
+
+            const fxPhrase = latestUsdKrw < 1340.0
+                ? `USDKRW 稳守 1,340 红利区下方（实时 ${latestUsdKrw.toFixed(2)}）`
+                : `USDKRW 突破 1,340 警戒线（实时 ${latestUsdKrw.toFixed(2)}）`;
+            const capSign = capDelta >= 0 ? "+" : "";
+            narrativeEl.textContent = `${fxPhrase}，首尔最新成分股总市值 ${closeCap.toFixed(2)} 万亿韩元（单日 ${capSign}${capDelta.toFixed(1)} 万亿），半导体两强垄断 51.41% 权重主导波段结构。`;
+        }
 
         // 1. 混合双轨映射矩阵渲染函数
         function switchMappingMode(mode) {
@@ -921,7 +985,7 @@
             const tbody = document.getElementById("mappingTableBody");
             if (!tbody) return;
 
-            const baseK = BASE_KOSPI_ANCHOR || 838.32;
+            const baseK = BASE_KOSPI_ANCHOR || 832.50;
             const liveKoru = lastValidKoru || 8.145;
 
             let html = "";
@@ -978,7 +1042,7 @@
         }
 
         function copyKoruOrderPlan() {
-            const baseK = BASE_KOSPI_ANCHOR || 838.32;
+            const baseK = BASE_KOSPI_ANCHOR || 832.50;
             const liveK = lastValidKoru || 8.145;
             const bep = customKoruCost * 1.002;
             const modeName = mappingMode === 'ANCHOR' ? '🏛️ 日线基准定桩 (挂单死锚点)' : '⚡ 现价弹性推演 (盘中动量弹性)';
@@ -1126,6 +1190,8 @@
             if (barGroup && barGroup.style.display !== "none") {
                 renderSvgBars();
             }
+
+            updateStrategicBanner();
         }
 
         function renderChartXAxis(historyList, svgW, svgH) {
@@ -1384,6 +1450,7 @@
             document.getElementById("cardTrailingTrigger").textContent = `${trailingTrigger.toFixed(3)} USDT`;
 
             updateOverviewCostMetrics();
+            updateStrategicBanner();
             renderKoruUI(kp);
             updateTrenchTable();
             renderMappingTable();
@@ -1397,7 +1464,7 @@
             const slider = document.getElementById("kospiSimSlider");
             if (!slider) return;
 
-            const base = parseFloat(basePoint) || BASE_KOSPI_ANCHOR || 838.32;
+            const base = parseFloat(basePoint) || BASE_KOSPI_ANCHOR || 832.50;
             const minVal = (base * 0.85).toFixed(1);
             const maxVal = (base * 1.15).toFixed(1);
 
@@ -1419,7 +1486,7 @@
 
         function jumpKospiOffset(offsetPct, btnEl) {
             const slider = document.getElementById("kospiSimSlider");
-            const base = BASE_KOSPI_ANCHOR || 838.32;
+            const base = BASE_KOSPI_ANCHOR || 832.50;
             const targetPoint = base * (1 + offsetPct);
 
             if (slider) slider.value = targetPoint.toFixed(2);
@@ -1431,7 +1498,7 @@
 
         function onKospiSliderChange(val) {
             const simK = parseFloat(val);
-            const base = BASE_KOSPI_ANCHOR || 838.32;
+            const base = BASE_KOSPI_ANCHOR || 832.50;
 
             document.querySelectorAll(".kospi-preset-btn").forEach(btn => btn.classList.remove("active"));
             if (Math.abs(simK - base) < 0.2) {
@@ -1858,6 +1925,7 @@
                 document.getElementById("koruGainText").textContent = `距第一止盈 8.331: +${gain}% 空间`;
                 document.getElementById("koruGainText").style.color = "var(--neon-emerald)";
             }
+            updateStrategicBanner();
         }
 
         function renderKoruOiUI(oiCcy, oiUsd) {
@@ -1978,6 +2046,7 @@
                 barFill.style.width = `${pct.toFixed(1)}%`;
             }
             updateFxSentimentSynergy();
+            updateStrategicBanner();
         }
 
         function updateFxSentimentSynergy() {
