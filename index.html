@@ -1190,8 +1190,12 @@
                     html += `<text x="${(x + barW/2).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="#f87171" font-size="9" text-anchor="middle">${item.date}底</text>`;
                 }
                 if (idx === n - 1) {
-                    html += `<text x="${(x + barW/2 - 6).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="#34d399" font-size="9" font-weight="bold" text-anchor="middle">+105万亿</text>`;
-                }
+    const prevCap = idx > 0 ? currentKospiHistory[idx - 1].cap : item.cap;
+    const deltaCap = (item.cap - prevCap).toFixed(1);
+    const deltaColor = deltaCap >= 0 ? "#34d399" : "#f87171";
+    const deltaPrefix = deltaCap >= 0 ? "+" : "";
+    html += `<text x="${(x + barW/2 - 6).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="${deltaColor}" font-size="9" font-weight="bold" text-anchor="middle">${deltaPrefix}${deltaCap}万亿</text>`;
+}
             });
 
             barGroup.innerHTML = html;
