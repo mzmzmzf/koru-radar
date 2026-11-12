@@ -184,7 +184,7 @@
             padding: 12px 14px;
             margin-bottom: 12px;
         }
-        .hud-ruling-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .hud-ruling-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px; }
         .hud-ruling-title { font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
         .hud-ruling-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
 
@@ -237,7 +237,7 @@
         .btn-action.short-action { background: linear-gradient(135deg, #ef4444, #b91c1c); }
         .btn-action:active { transform: scale(0.98); }
 
-        .btn-auto-layout { background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(59, 130, 246, 0.2)); border: 1px solid var(--neon-cyan); color: #67e8f9; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-auto-layout { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--neon-emerald); color: #34d399; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
 
         #appToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 12px; border: 1px solid var(--neon-emerald); display: none; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
     </style>
@@ -312,12 +312,12 @@
                 </div>
                 <div class="metric-card">
                     <div class="metric-name">USDKRW 离岸汇率</div>
-                <div class="metric-val" style="color:var(--neon-cyan);">1,334.61</div>
+                    <div class="metric-val" style="color:var(--neon-cyan);">1,334.75</div>
                     <div class="metric-desc" style="color:var(--neon-emerald);">▼ 破位升值 (红利区 &lt;1,340)</div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-name">OKX 合约持仓量 (OI)</div>
-                <div class="metric-val" style="color:#60a5fa;">1712.18 万</div>
+                    <div class="metric-val" style="color:#60a5fa;">117.32 万</div>
                     <div class="metric-desc" style="color:var(--text-muted);">做市商换手稳固 / 投机空头出清</div>
                 </div>
                 <div class="metric-card">
@@ -343,9 +343,8 @@
             </div>
         </div>
 
-        <!-- 子模块 2: 大盘逐档映射 (支持一键复制券商作战挂单清单) -->
+        <!-- 子模块 2: 大盘逐档映射 -->
         <div class="koru-subview" id="subview-mapping">
-            <!-- 动态推演滑块卡片 -->
             <div class="card" style="background: linear-gradient(180deg, #132238, #0e1726); border: 1px solid #233b5d; margin-bottom: 12px;">
                 <div class="card-title" style="margin-bottom: 8px;">
                     <span>🎚️ KOSPI 200 动态点位推演测算器</span>
@@ -398,7 +397,6 @@
                 </div>
             </div>
 
-            <!-- 混合双轨映射矩阵卡片 -->
             <div class="card">
                 <div class="card-title" style="flex-wrap:wrap; gap:8px;">
                     <div style="display:flex; align-items:center; gap:6px;">
@@ -426,20 +424,17 @@
                                 <th>战略作战指令</th>
                             </tr>
                         </thead>
-                        <tbody id="mappingTableBody">
-                            <!-- 由 renderMappingTable() 毫秒级动态渲染 -->
-                        </tbody>
+                        <tbody id="mappingTableBody"></tbody>
                     </table>
                 </div>
 
-                <!-- 复制券商挂单计划主按钮 -->
                 <button class="btn-action" id="btnCopyKoruPlan" style="margin-top:12px; background: linear-gradient(135deg, #0284c7, #0369a1);" onclick="copyKoruOrderPlan()">
                     📋 一键复制当前模式券商全套实战挂单计划 (GTC有效)
                 </button>
             </div>
         </div>
 
-        <!-- 子模块 3: 走势图 (含 X 轴等距日期刻度线与动态时间十字标尺) -->
+        <!-- 子模块 3: 走势图 -->
         <div class="koru-subview" id="subview-chart">
             <div class="card">
                 <div class="card-title" style="flex-wrap:wrap; gap:8px;">
@@ -454,7 +449,6 @@
                     </div>
                 </div>
 
-                <!-- 交互悬浮状态条 -->
                 <div class="chart-inspect-banner" id="chartInspectBanner">
                     <span id="inspectDateText">📅 提示: 滑动/移动光标可查看对应日期精确数据</span>
                     <span id="inspectValText"><b>--</b> 万亿韩元</span>
@@ -468,25 +462,19 @@
                                 <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
-                        <!-- 水平网格线 -->
                         <line x1="0" y1="35" x2="500" y2="35" stroke="#1e293b" stroke-dasharray="3,3"/>
                         <line x1="0" y1="90" x2="500" y2="90" stroke="#1e293b" stroke-dasharray="3,3"/>
                         <line x1="0" y1="145" x2="500" y2="145" stroke="#1e293b" stroke-dasharray="3,3"/>
                         
-                        <!-- 折线模式图形组 -->
                         <g id="chartLineGroup">
                             <polygon id="chartAreaPolygon" points="0,180 500,180" fill="url(#chartGrad)"/>
                             <polyline id="svgPolyline" points="" fill="none" stroke="#10b981" stroke-width="2.5"/>
                             <g id="chartMarkers"></g>
                         </g>
 
-                        <!-- 柱状模式图形组 -->
                         <g id="chartBarGroup" style="display:none;"></g>
-
-                        <!-- X 轴日期刻度群组 (动态铺设) -->
                         <g id="chartAxisGroup"></g>
 
-                        <!-- 动态交互十字标尺 -->
                         <g id="chartCrosshairGroup" style="display:none;">
                             <line id="crosshairLine" x1="0" y1="10" x2="0" y2="180" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="2,2"/>
                             <circle id="crosshairPoint" cx="0" cy="0" r="4.5" fill="#38bdf8" stroke="#080b12" stroke-width="1.5"/>
@@ -634,33 +622,33 @@
     </main>
 
     <!-- ========================================================================= -->
-    <!-- 模块 2：BTC 战术阶梯开单 (策略驱动 HUD)                                   -->
+    <!-- 模块 2：BTC 战术阶梯开单 (OKX 实盘直连 + 全自动均线追踪)                   -->
     <!-- ========================================================================= -->
     <main class="view-panel" id="view-btc">
         <div class="hud-ruling-card" id="hudCard">
             <div class="hud-ruling-header">
                 <div class="hud-ruling-title">
                     <span class="badge" id="hudBadge" style="color:var(--neon-red); border-color:#ef4444; background:rgba(239,68,68,0.15);">🔴 顺势偏空</span>
-                    <span id="hudTitleText">参谋部即时战略裁决：1H 均线死叉压制</span>
+                    <span id="hudTitleText">参谋部即时战略裁决：正在对齐 OKX 1H 均线...</span>
                 </div>
-                <span style="font-size:11px; color:var(--text-muted); font-family:monospace;" id="hudEmaSummary">EMA 10 &lt; 15</span>
+                <span style="font-size:11px; color:var(--text-muted); font-family:monospace;" id="hudEmaSummary">10EMA:-- | 15EMA:-- | 50MA:--</span>
             </div>
             <div class="hud-ruling-desc" id="hudDescText">
-                先锋线 10 EMA 死叉 15 EMA，上方受 50 MA 趋势线强压。主动剔除逆势做多，逢高分批埋伏做空。
+                正在同步 OKX BTC-USDT 永续合约实时盘口与 1H 周期均线斜率...
             </div>
         </div>
 
         <div class="card">
-            <div class="card-title">
+            <div class="card-title" style="flex-wrap:wrap; gap:8px;">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <span>🛡️ BTC 战术开单 (现价: <b id="btcLiveHeader" style="color:var(--neon-cyan); font-family:monospace;">73,800</b> USDT)</span>
+                    <span>🛡️ BTC 战术开单 (现价: <b id="btcLiveHeader" style="color:var(--neon-cyan); font-family:monospace;">--</b> USDT)</span>
                 </div>
-                <div style="display:flex; align-items:center; gap:8px;">
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                     <div class="side-switch-group">
-                        <button class="btn-side" id="btnSideLong" onclick="setBtcTradeSide('LONG')">🟢 做多 (Long)</button>
-                        <button class="btn-side active-short" id="btnSideShort" onclick="setBtcTradeSide('SHORT')">🔴 做空 (Short)</button>
+                        <button class="btn-side" id="btnSideLong" onclick="setBtcTradeSide('LONG', true)">🟢 做多 (Long)</button>
+                        <button class="btn-side active-short" id="btnSideShort" onclick="setBtcTradeSide('SHORT', true)">🔴 做空 (Short)</button>
                     </div>
-                    <button class="btn-auto-layout" onclick="autoLayoutByStrategy()">🎯 策略吸附排阵</button>
+                    <button class="btn-auto-layout" id="btnToggleAutoSync" onclick="toggleBtcAutoSync()">🔄 自动追踪: 开启</button>
                 </div>
             </div>
 
@@ -678,11 +666,11 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label" id="labelSlPrice">结构止损位 (SL · 上方强压防线)</label>
-                    <input type="number" id="btcSlPrice" class="form-input" value="76000" oninput="calculateBtcLadder()">
+                    <input type="number" id="btcSlPrice" class="form-input" value="76000" oninput="onManualBtcPriceEdit()">
                 </div>
                 <div class="form-group">
                     <label class="form-label" id="labelTpPrice">第一目标位 (TP1 · 下方关键支撑)</label>
-                    <input type="number" id="btcTpPrice" class="form-input" value="71200" oninput="calculateBtcLadder()">
+                    <input type="number" id="btcTpPrice" class="form-input" value="71200" oninput="onManualBtcPriceEdit()">
                 </div>
             </div>
 
@@ -690,17 +678,17 @@
             <div class="tier-box">
                 <div class="tier-row">
                     <span class="tier-tag tag-1" id="tagTier1">战壕 1 (20%)</span>
-                    <input type="number" id="tier1Price" class="form-input" value="74200" oninput="calculateBtcLadder()">
+                    <input type="number" id="tier1Price" class="form-input" value="74200" oninput="onManualBtcPriceEdit()">
                     <span id="tier1Qty" style="font-size:12px; color:var(--text-muted); font-family:monospace; text-align:right;">-- BTC</span>
                 </div>
                 <div class="tier-row">
                     <span class="tier-tag tag-2" id="tagTier2">战壕 2 (30%)</span>
-                    <input type="number" id="tier2Price" class="form-input" value="74600" oninput="calculateBtcLadder()">
+                    <input type="number" id="tier2Price" class="form-input" value="74600" oninput="onManualBtcPriceEdit()">
                     <span id="tier2Qty" style="font-size:12px; color:var(--text-muted); font-family:monospace; text-align:right;">-- BTC</span>
                 </div>
                 <div class="tier-row">
                     <span class="tier-tag tag-3" id="tagTier3">战壕 3 (50%)</span>
-                    <input type="number" id="tier3Price" class="form-input" value="75200" oninput="calculateBtcLadder()">
+                    <input type="number" id="tier3Price" class="form-input" value="75200" oninput="onManualBtcPriceEdit()">
                     <span id="tier3Qty" style="font-size:12px; color:var(--text-muted); font-family:monospace; text-align:right;">-- BTC</span>
                 </div>
             </div>
@@ -710,16 +698,16 @@
             <div class="eval-headline">
                 <div>
                     <div style="font-size:11px; color:var(--text-muted);">预估加权建仓均价 (P̄)</div>
-                    <div style="font-size:22px; font-weight:800; color:var(--neon-cyan);" id="resAvgPrice">74820.0 USDT</div>
+                    <div style="font-size:22px; font-weight:800; color:var(--neon-cyan);" id="resAvgPrice">-- USDT</div>
                 </div>
                 <div id="rrBadgeContainer">
-                    <span class="rr-badge rr-pass" id="resRrBadge">R:R 3.07 : 1 (EV > 0 准入)</span>
+                    <span class="rr-badge rr-pass" id="resRrBadge">正在核算盈亏比...</span>
                 </div>
             </div>
 
             <div class="stat-line">
                 <span>规划建议开仓总量</span>
-                <b id="resTotalQty">0.169 BTC (约 $12644 规模)</b>
+                <b id="resTotalQty">-- BTC</b>
             </div>
             <div class="stat-line">
                 <span>吃满被打止损最大亏损</span>
@@ -727,11 +715,11 @@
             </div>
             <div class="stat-line">
                 <span>第一目标预期利润 (TP1)</span>
-                <b id="resProfit" style="color:var(--neon-emerald);">+$613.47</b>
+                <b id="resProfit" style="color:var(--neon-emerald);">--</b>
             </div>
             <div class="stat-line" style="border-top:1px dashed rgba(255,255,255,0.08); padding-top:6px; margin-top:6px;">
                 <span style="color:#cbd5e1;">战术保本推进触发位 (+1R)</span>
-                <b id="resBreakeven" style="color:var(--neon-amber);">达到 73640.0 USDT 时止损推至 74820.0</b>
+                <b id="resBreakeven" style="color:var(--neon-amber);">--</b>
             </div>
         </div>
 
@@ -810,6 +798,7 @@
         let currentSide = 'SHORT';
         let activeStrategy = null;
         let isChartZoomed = false;
+        let isBtcAutoSync = true;
 
         // 1. 混合双轨映射矩阵渲染函数
         function switchMappingMode(mode) {
@@ -826,7 +815,7 @@
                 btnLive.classList.remove("active");
                 badge.textContent = "🏛️ 日线基准定桩";
                 badge.className = "badge active";
-                tip.innerHTML = "💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (838.32点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。";
+                tip.innerHTML = `💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (${BASE_KOSPI_ANCHOR.toFixed(2)}点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。`;
                 th.textContent = "KORU 定桩目标 (用于挂单)";
                 if (copyBtn) copyBtn.textContent = "📋 一键复制【日线定桩】券商全套实战挂单计划 (GTC有效)";
             } else {
@@ -852,7 +841,8 @@
 
             let html = "";
             STRATEGIC_TRENCHES.forEach(item => {
-                const deltaIndexPct = (item.point - baseK) / baseK;
+                const pt = item.isBase ? baseK : item.point;
+                const deltaIndexPct = (pt - baseK) / baseK;
                 const deltaIndexStr = `${deltaIndexPct >= 0 ? '+' : ''}${(deltaIndexPct * 100).toFixed(2)}%`;
 
                 let targetPrice = item.staticPrice;
@@ -866,7 +856,7 @@
 
                 if (item.isBase) {
                     const aboveBasePct = (((liveKoru - targetPrice) / targetPrice) * 100).toFixed(1);
-                    statusHtml = `<span style="color:var(--neon-emerald); font-weight:700;">● 现价 ${liveKoru.toFixed(3)} (高出基准 +${aboveBasePct}%)</span>`;
+                    statusHtml = `<span style="color:var(--neon-emerald); font-weight:700;">● 现价 ${liveKoru.toFixed(3)} (相对基准 ${aboveBasePct >= 0 ? '+' : ''}${aboveBasePct}%)</span>`;
                 } else if (diff > 0) {
                     if (diff <= 0.05) {
                         statusHtml = `<span style="color:var(--neon-amber); font-weight:700;">🎯 正在逼近 (仅差 ${diff.toFixed(3)} / +${diffPct.toFixed(1)}%)</span>`;
@@ -875,7 +865,7 @@
                     }
                 } else {
                     const reachedPct = Math.abs(diffPct).toFixed(1);
-                    if (item.point < baseK) {
+                    if (pt < baseK) {
                         statusHtml = `<span style="color:var(--neon-emerald);">🛡️ 运行于防区上方 (+${reachedPct}%)</span>`;
                     } else {
                         statusHtml = `<span style="color:var(--neon-emerald); font-weight:700;">✅ 已突破达成 (+${reachedPct}%)</span>`;
@@ -887,11 +877,11 @@
 
                 html += `
                     <tr ${isCurrentHighlight}>
-                        <td style="font-weight:700;">${item.point.toFixed(2)}</td>
+                        <td style="font-weight:700;">${pt.toFixed(2)}</td>
                         <td style="color:${changeColor};">${item.isBase ? '基准原点' : deltaIndexStr}</td>
                         <td style="font-weight:800; color:var(--neon-amber); white-space:nowrap;">
                             ${targetPrice.toFixed(3)} USDT
-                            <button class="btn-sm" title="一键复制该单项限价" onclick="copySingleTrenchOrder('${item.tag}', ${targetPrice.toFixed(3)}, ${item.point.toFixed(2)})" style="padding:1px 5px; font-size:10px; margin-left:4px; border-color:#2a4365;">📋</button>
+                            <button class="btn-sm" title="一键复制该单项限价" onclick="copySingleTrenchOrder('${item.tag}', ${targetPrice.toFixed(3)}, ${pt.toFixed(2)})" style="padding:1px 5px; font-size:10px; margin-left:4px; border-color:#2a4365;">📋</button>
                         </td>
                         <td>${statusHtml}</td>
                         <td><span class="badge" style="${item.tagClass}">${item.tag}</span></td>
@@ -913,7 +903,8 @@
             let tpSection = [];
 
             STRATEGIC_TRENCHES.forEach(item => {
-                const deltaIndexPct = (item.point - baseK) / baseK;
+                const pt = item.isBase ? baseK : item.point;
+                const deltaIndexPct = (pt - baseK) / baseK;
                 let price = item.staticPrice;
                 if (mappingMode === 'LIVE') {
                     price = liveK * (1 + deltaIndexPct * 3.0);
@@ -921,11 +912,11 @@
                 const pStr = price.toFixed(3);
 
                 if (item.type === 'SL') {
-                    slSection.push(`• 🛡️ 结构止损单 (SL): 触发/限价 ${pStr} USDT (对应母体 ${item.point.toFixed(2)} 点) | 操作: ${item.desc}`);
+                    slSection.push(`• 🛡️ 结构止损单 (SL): 触发/限价 ${pStr} USDT (对应母体 ${pt.toFixed(2)} 点) | 操作: ${item.desc}`);
                 } else if (item.type === 'BUY') {
-                    buySection.push(`• 📥 梯形加仓单 (Buy Limit): 限价 ${pStr} USDT (对应母体 ${item.point.toFixed(2)} 点) | 操作: ${item.desc}`);
+                    buySection.push(`• 📥 梯形加仓单 (Buy Limit): 限价 ${pStr} USDT (对应母体 ${pt.toFixed(2)} 点) | 操作: ${item.desc}`);
                 } else if (item.type === 'TP') {
-                    tpSection.push(`• 🎯 阶梯止盈单 (${item.tag}): 限价 ${pStr} USDT (对应母体 ${item.point.toFixed(2)} 点) | 操作: ${item.desc}`);
+                    tpSection.push(`• 🎯 阶梯止盈单 (${item.tag}): 限价 ${pStr} USDT (对应母体 ${pt.toFixed(2)} 点) | 操作: ${item.desc}`);
                 }
             });
 
@@ -962,7 +953,7 @@
             });
         }
 
-        // 2. 动态 SVG 折线图 (含时间轴刻度与交互式悬浮引擎)
+        // 2. 动态 SVG 折线图与柱状图
         let chartPointsCache = [];
 
         function renderDynamicKospiChart(historyList) {
@@ -970,7 +961,7 @@
             currentKospiHistory = historyList;
 
             const svgW = 500;
-            const svgH = 175; // 图表有效绘图高度 (留出底部放置日期刻度)
+            const svgH = 175;
             const paddingY = 20;
             
             const caps = historyList.map(item => item.cap);
@@ -1019,21 +1010,28 @@
             const minItem = historyList[minIdx];
 
             if (markerGroup) {
+                const diffColor = diff >= 0 ? "#34d399" : "#f87171";
                 markerGroup.innerHTML = `
                     <circle cx="${minCoords.x.toFixed(1)}" cy="${minCoords.y.toFixed(1)}" r="4" fill="#ef4444"/>
                     <text x="${Math.max(10, minCoords.x - 30).toFixed(1)}" y="${(minCoords.y - 8).toFixed(1)}" fill="#f87171" font-size="10">${minItem.date} 底 ${minItem.cap.toFixed(0)}</text>
-                    <circle cx="${latestCoords.x.toFixed(1)}" cy="${latestCoords.y.toFixed(1)}" r="5" fill="#10b981"/>
-                    <text x="${(svgW - 75).toFixed(1)}" y="${(latestCoords.y - 10).toFixed(1)}" fill="#34d399" font-size="10" font-weight="bold">${diff >= 0 ? '+' : ''}${diff}万亿</text>
+                    <circle cx="${latestCoords.x.toFixed(1)}" cy="${latestCoords.y.toFixed(1)}" r="5" fill="${diff >= 0 ? '#10b981' : '#ef4444'}"/>
+                    <text x="${(svgW - 75).toFixed(1)}" y="${(latestCoords.y - 10).toFixed(1)}" fill="${diffColor}" font-size="10" font-weight="bold">${diff >= 0 ? '+' : ''}${diff}万亿</text>
                 `;
             }
 
-            // 渲染 X 轴等距日期时间线 (从历史数据中抽取代表性日期节点)
             renderChartXAxis(historyList, svgW, svgH);
 
             const titleMeta = document.getElementById("chartTitleMeta");
             if (titleMeta) titleMeta.textContent = `最新: ${latest.cap.toFixed(2)} 万亿韩元`;
             const titleMain = document.getElementById("chartTitleMain");
-            if (titleMain) titleMain.textContent = `📈 KOSPI 200 整体市值变动走势 (10/08 - 11/11)`;
+            if (titleMain) titleMain.textContent = `📈 KOSPI 200 整体市值变动走势 (${historyList[0].date} - ${latest.date})`;
+
+            const inspectDateText = document.getElementById("inspectDateText");
+            const inspectValText = document.getElementById("inspectValText");
+            if (inspectDateText && inspectValText) {
+                inspectDateText.innerHTML = `📅 最新收盘: <b>${latest.date}</b> | KOSPI: <b>${latest.point || '--'}</b> 点`;
+                inspectValText.innerHTML = `市值: <b>${latest.cap.toFixed(2)}</b> 万亿韩元`;
+            }
 
             const barGroup = document.getElementById("chartBarGroup");
             if (barGroup && barGroup.style.display !== "none") {
@@ -1041,7 +1039,6 @@
             }
         }
 
-        // X 轴日期刻度渲染函数 (等距均匀分布)
         function renderChartXAxis(historyList, svgW, svgH) {
             const axisGroup = document.getElementById("chartAxisGroup");
             if (!axisGroup || !historyList || historyList.length === 0) return;
@@ -1075,7 +1072,6 @@
             axisGroup.innerHTML = html;
         }
 
-        // 交互式十字标尺悬浮监听
         function setupChartInspect() {
             const viewport = document.getElementById("chartViewport");
             const crossGroup = document.getElementById("chartCrosshairGroup");
@@ -1094,7 +1090,6 @@
                 const scaleX = svgW / rect.width;
                 const targetX = Math.max(0, Math.min(svgW, relX * scaleX));
 
-                // 找到距离光标最近的数据点
                 let closest = chartPointsCache[0];
                 let minDiff = 99999;
                 chartPointsCache.forEach(pt => {
@@ -1181,8 +1176,12 @@
                 const y = svgH - normalizedH;
 
                 let color = "#0284c7";
-                if (idx === minIdx) color = "#ef4444";
-                else if (idx >= n - 2) color = "#10b981";
+                if (idx === minIdx) {
+                    color = "#ef4444";
+                } else if (idx >= n - 2) {
+                    const prevC = idx > 0 ? currentKospiHistory[idx - 1].cap : item.cap;
+                    color = item.cap >= prevC ? "#10b981" : "#f59e0b";
+                }
 
                 html += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${normalizedH.toFixed(1)}" rx="2" fill="${color}" opacity="0.85"></rect>`;
 
@@ -1190,12 +1189,12 @@
                     html += `<text x="${(x + barW/2).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="#f87171" font-size="9" text-anchor="middle">${item.date}底</text>`;
                 }
                 if (idx === n - 1) {
-    const prevCap = idx > 0 ? currentKospiHistory[idx - 1].cap : item.cap;
-    const deltaCap = (item.cap - prevCap).toFixed(1);
-    const deltaColor = deltaCap >= 0 ? "#34d399" : "#f87171";
-    const deltaPrefix = deltaCap >= 0 ? "+" : "";
-    html += `<text x="${(x + barW/2 - 6).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="${deltaColor}" font-size="9" font-weight="bold" text-anchor="middle">${deltaPrefix}${deltaCap}万亿</text>`;
-}
+                    const prevCap = idx > 0 ? currentKospiHistory[idx - 1].cap : item.cap;
+                    const deltaCap = (item.cap - prevCap).toFixed(1);
+                    const deltaColor = deltaCap >= 0 ? "#34d399" : "#f87171";
+                    const deltaPrefix = deltaCap >= 0 ? "+" : "";
+                    html += `<text x="${(x + barW/2 - 6).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="${deltaColor}" font-size="9" font-weight="bold" text-anchor="middle">${deltaPrefix}${deltaCap}万亿</text>`;
+                }
             });
 
             barGroup.innerHTML = html;
@@ -1502,8 +1501,62 @@
             if (targetView) targetView.classList.add("active");
         }
 
-        // 6. BTC 战术阶梯开单
-        function setBtcTradeSide(side) {
+        // 6. BTC 战术阶梯开单与全自动追踪逻辑
+        function updateAutoSyncBtnUI() {
+            const btn = document.getElementById("btnToggleAutoSync");
+            if (!btn) return;
+            if (isBtcAutoSync) {
+                btn.textContent = "🔄 自动追踪: 开启";
+                btn.style.borderColor = "var(--neon-emerald)";
+                btn.style.color = "#34d399";
+                btn.style.background = "rgba(16, 185, 129, 0.15)";
+            } else {
+                btn.textContent = "⏸️ 手动锁定 (点此恢复追踪)";
+                btn.style.borderColor = "var(--neon-amber)";
+                btn.style.color = "var(--neon-amber)";
+                btn.style.background = "rgba(245, 158, 11, 0.12)";
+            }
+        }
+
+        function toggleBtcAutoSync() {
+            isBtcAutoSync = !isBtcAutoSync;
+            updateAutoSyncBtnUI();
+            if (isBtcAutoSync && activeStrategy) {
+                if (activeStrategy.bias === 'NEUTRAL') {
+                    showToast("⚠️ 当前 1H 均线粘合走平，暂保持现有参数静默观望");
+                } else {
+                    applyStrategyToTrenchInputs(activeStrategy);
+                    showToast(`已恢复自动追踪，战壕已实时对齐 [${activeStrategy.bias}] 均线！`);
+                }
+            } else if (!isBtcAutoSync) {
+                showToast("已切换为手动锁定模式，自动刷新不会覆盖你的自定义价格");
+            }
+        }
+
+        function onManualBtcPriceEdit() {
+            if (isBtcAutoSync) {
+                isBtcAutoSync = false;
+                updateAutoSyncBtnUI();
+            }
+            calculateBtcLadder();
+        }
+
+        function applyStrategyToTrenchInputs(strat) {
+            if (!strat || strat.bias === 'NEUTRAL') return;
+            setBtcTradeSide(strat.bias, false);
+            document.getElementById("tier1Price").value = strat.tier1;
+            document.getElementById("tier2Price").value = strat.tier2;
+            document.getElementById("tier3Price").value = strat.tier3;
+            document.getElementById("btcSlPrice").value = strat.sl;
+            document.getElementById("btcTpPrice").value = strat.tp;
+            calculateBtcLadder();
+        }
+
+        function setBtcTradeSide(side, isManual = false) {
+            if (isManual && isBtcAutoSync) {
+                isBtcAutoSync = false;
+                updateAutoSyncBtnUI();
+            }
             currentSide = side;
             const btnL = document.getElementById("btnSideLong");
             const btnS = document.getElementById("btnSideShort");
@@ -1530,23 +1583,14 @@
         }
 
         function autoLayoutByStrategy() {
-            if (!activeStrategy) {
-                showToast("正在同步 1H 均线战备数据，请稍候 1 秒...");
-                return;
-            }
+            isBtcAutoSync = true;
+            updateAutoSyncBtnUI();
+            if (!activeStrategy) return;
             if (activeStrategy.bias === 'NEUTRAL') {
                 showToast("⚠️ EMA 均线走平缠绕！根据律令：无斜率强制静默，严禁在磨损期开单！");
                 return;
             }
-
-            setBtcTradeSide(activeStrategy.bias);
-            document.getElementById("tier1Price").value = activeStrategy.tier1;
-            document.getElementById("tier2Price").value = activeStrategy.tier2;
-            document.getElementById("tier3Price").value = activeStrategy.tier3;
-            document.getElementById("btcSlPrice").value = activeStrategy.sl;
-            document.getElementById("btcTpPrice").value = activeStrategy.tp;
-
-            calculateBtcLadder();
+            applyStrategyToTrenchInputs(activeStrategy);
             showToast(`已按 1H 均线策略吸附铺设 [${activeStrategy.bias}] 真实战壕！`);
         }
 
@@ -1703,6 +1747,10 @@
             title.textContent = strat.title;
             summary.textContent = `10EMA:${strat.ema10} | 15EMA:${strat.ema15} | 50MA:${strat.ma50}`;
             desc.textContent = strat.desc;
+
+            if (isBtcAutoSync && strat.bias !== 'NEUTRAL') {
+                applyStrategyToTrenchInputs(strat);
+            }
         }
 
         function calcLocalStrategy(closes, currentP) {
@@ -1737,7 +1785,7 @@
                 tp = Math.round(currentP * 0.958);
             } else {
                 bias = "LONG";
-                title = "🟢 顺势偏多 · 剔除做多选项";
+                title = "🟢 顺势偏多 · 剔除做空选项";
                 desc = `10 EMA (${ema10.toFixed(1)}) 金叉 15 EMA (${ema15.toFixed(1)})，运行于 50 MA 之上。缩量回踩分批做多。`;
                 t1 = Math.round(Math.min(ema10, currentP * 0.994));
                 t2 = Math.round(Math.min(ema15, currentP * 0.985));
@@ -1754,69 +1802,69 @@
             };
         }
 
-        // 7. 双通道轮询引擎
+        // 7. OKX 永续实盘直连 + 多源容灾轮询引擎
         async function fetchLiveMarketData() {
             const startT = performance.now();
-            let isRelaySuccess = false;
+            let btcSynced = false;
 
+            // 通道 A：直连 OKX BTC-USDT 永续合约实时盘口与 1H K线
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 1800);
-                const res = await fetch(PRIMARY_RELAY_URL, { cache: "no-store", signal: controller.signal });
+                const timeoutId = setTimeout(() => controller.abort(), 2500);
+                const [tickerRes, klineRes] = await Promise.all([
+                    fetch("https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP", { cache: "no-store", signal: controller.signal }),
+                    fetch("https://www.okx.com/api/v5/market/candles?instId=BTC-USDT-SWAP&bar=1H&limit=60", { cache: "no-store", signal: controller.signal })
+                ]);
                 clearTimeout(timeoutId);
 
-                const data = await res.json();
-                if (data.status === "ok") {
-                    isRelaySuccess = true;
-                    const lat = Math.round(performance.now() - startT);
-                    document.getElementById("latencyBadge").textContent = `${lat} ms`;
-                    const now = new Date();
-                    const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-                    document.getElementById("terminalStatus").textContent = `● 5G极速中继 ${timeStr}`;
+                const tickerJson = await tickerRes.json();
+                const klineJson = await klineRes.json();
 
-                    if (data.btc && data.btc > 10000) {
-                        currentBtcLivePrice = data.btc;
-                        localStorage.setItem("quant_btc", data.btc);
-                        document.getElementById("btcLiveHeader").textContent = data.btc.toLocaleString();
-                    }
+                if (tickerJson?.code === "0" && tickerJson.data?.[0]?.last) {
+                    const liveBtc = parseFloat(tickerJson.data[0].last);
+                    if (liveBtc > 10000) {
+                        btcSynced = true;
+                        currentBtcLivePrice = liveBtc;
+                        localStorage.setItem("quant_btc", liveBtc);
+                        document.getElementById("btcLiveHeader").textContent = liveBtc.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-                    if (data.koru && data.koru > 2.0) {
-                        lastValidKoru = data.koru;
-                        localStorage.setItem("quant_koru", data.koru);
-                        renderKoruUI(data.koru);
-                        updatePositionSandbox();
+                        const lat = Math.round(performance.now() - startT);
+                        document.getElementById("latencyBadge").textContent = `${lat} ms`;
+                        const now = new Date();
+                        const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+                        document.getElementById("terminalStatus").textContent = `● OKX实盘直连 ${timeStr}`;
                     }
+                }
 
-                    if (data.strategy) {
-                        renderStrategyHUD(data.strategy);
-                    }
+                if (klineJson?.code === "0" && Array.isArray(klineJson.data) && klineJson.data.length >= 50) {
+                    const closes = klineJson.data.slice().reverse().map(c => parseFloat(c[4]));
+                    const localStrat = calcLocalStrategy(closes, currentBtcLivePrice);
+                    if (localStrat) renderStrategyHUD(localStrat);
                 }
             } catch (err) {}
 
-            if (!isRelaySuccess) {
+            // 通道 B：若 OKX 直连受限，自动切换 CryptoCompare 备用源
+            if (!btcSynced) {
                 try {
-                    const fallbackStart = performance.now();
-                    const [fbRes, klineRes] = await Promise.all([
+                    const fbStart = performance.now();
+                    const [fbRes, fbKlineRes] = await Promise.all([
                         fetch(DOMESTIC_FALLBACK_BTC_URL, { cache: "no-store" }),
                         fetch(DOMESTIC_FALLBACK_KLINES_URL, { cache: "no-store" })
                     ]);
                     const fbData = await fbRes.json();
-                    const kData = await klineRes.json();
+                    const kData = await fbKlineRes.json();
 
-                    if (fbData && fbData.USD) {
+                    if (fbData?.USD > 10000) {
                         const btcPrice = Math.round(fbData.USD * 10) / 10;
                         currentBtcLivePrice = btcPrice;
                         localStorage.setItem("quant_btc", btcPrice);
                         document.getElementById("btcLiveHeader").textContent = btcPrice.toLocaleString();
 
-                        const lat = Math.round(performance.now() - fallbackStart);
+                        const lat = Math.round(performance.now() - fbStart);
                         document.getElementById("latencyBadge").textContent = `${lat} ms`;
                         const now = new Date();
                         const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-                        document.getElementById("terminalStatus").textContent = `● 5G国内直连 ${timeStr}`;
-
-                        renderKoruUI(lastValidKoru);
-                        updatePositionSandbox();
+                        document.getElementById("terminalStatus").textContent = `● 备用节点直连 ${timeStr}`;
 
                         if (kData?.Data?.Data) {
                             const closes = kData.Data.Data.map(x => x.close);
@@ -1824,10 +1872,25 @@
                             if (localStrat) renderStrategyHUD(localStrat);
                         }
                     }
-                } catch (fbErr) {
+                } catch (e) {
                     document.getElementById("terminalStatus").textContent = `● 离线防御模式`;
                 }
             }
+
+            // 通道 C：同步拉取 KORU 实时报价
+            try {
+                const koruCtrl = new AbortController();
+                const koruTimer = setTimeout(() => koruCtrl.abort(), 1800);
+                const res = await fetch(PRIMARY_RELAY_URL, { cache: "no-store", signal: koruCtrl.signal });
+                clearTimeout(koruTimer);
+                const data = await res.json();
+                if (data.status === "ok" && data.koru && data.koru > 2.0) {
+                    lastValidKoru = data.koru;
+                    localStorage.setItem("quant_koru", data.koru);
+                    renderKoruUI(data.koru);
+                    updatePositionSandbox();
+                }
+            } catch (e) {}
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -1837,7 +1900,7 @@
             fetchKospiHistoryData();
             setupChartInspect();
 
-            setBtcTradeSide('SHORT');
+            setBtcTradeSide('SHORT', false);
             calculateBtcLadder();
             fetchLiveMarketData();
             setInterval(fetchLiveMarketData, 3500);
