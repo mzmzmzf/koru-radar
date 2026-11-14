@@ -422,7 +422,7 @@
                         <button type="button" class="btn-sm" id="btnTvCandleStyle" onclick="toggleTvCandleStyle()" title="切换威科夫黑白空心K线 / 经典红绿K线">🕯️ K线:红绿</button>
                         <button type="button" class="btn-sm" id="btnTvGrid" onclick="toggleTvGrid()" title="切换横竖网格线">⊞ 网格:关</button>
                         <button type="button" class="btn-sm active" id="btnTvLog" onclick="toggleTvLog()" title="切换对数坐标 (Log) / 线性坐标">LOG</button>
-                        <button type="button" class="btn-sm" id="btnDrawHLine" onclick="toggleDrawHLineMode()" title="开启后点击图表任意位置或输入价格画水平支撑/阻力线（自动永久保存）">📏 画水平线</button>
+                        <button type="button" class="btn-sm" id="btnToggleDrawBar" onclick="toggleDrawingToolbar()" title="展开/收起画线与测量工具箱（水平线/趋势线段/斐波那契/矩形箱体/测量尺）">✏️ 画线工具</button>
                         <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
                         <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 网页全屏</button>
                     </div>
@@ -433,12 +433,32 @@
                     <span id="stratLatestSignalBadge" style="color:var(--neon-cyan); font-weight:700;">正在扫描破阵3.3信号...</span>
                 </div>
 
-                <div id="customHLineBar" style="display:none; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; background:rgba(15, 23, 42, 0.72); border:1px solid var(--border-color); border-radius:6px; padding:6px 10px; margin-bottom:8px; font-size:11px;">
-                    <div id="customHLineChips" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"></div>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <input type="number" id="customHLineInput" step="any" placeholder="输入价格..." class="form-input" style="width:92px; padding:3px 6px; font-size:11px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); addCustomHLineFromInput();}">
-                        <button type="button" class="btn-sm" onclick="addCustomHLineFromInput()" style="border-color:var(--neon-cyan); color:#67e8f9; font-weight:700;">+ 落线</button>
-                        <button type="button" class="btn-sm" id="btnCancelDrawHLine" onclick="toggleDrawHLineMode(false)" style="display:none; border-color:var(--neon-amber); color:var(--neon-amber);">完成</button>
+                <div id="chartDrawingToolbar" style="display:none; flex-direction:column; gap:6px; background:rgba(15, 23, 42, 0.85); border:1px solid var(--border-color); border-radius:6px; padding:7px 10px; margin-bottom:8px; font-size:11px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                            <button type="button" class="btn-sm draw-tool-btn" data-tool="hline" onclick="selectDrawTool('hline')" title="点击图面或输入价格落水平支撑/阻力线">📏 水平线</button>
+                            <button type="button" class="btn-sm draw-tool-btn" data-tool="trend" onclick="selectDrawTool('trend')" title="两点拉出趋势线段/通道边线（跨周期自动对齐）">╱ 趋势线段</button>
+                            <button type="button" class="btn-sm draw-tool-btn" data-tool="fib" onclick="selectDrawTool('fib')" title="两点拉出斐波那契回撤（含 0.382/0.5/0.618/0.786）">🔱 斐波那契</button>
+                            <button type="button" class="btn-sm draw-tool-btn" data-tool="rect" onclick="selectDrawTool('rect')" title="框选威科夫箱体/供需区间">▭ 矩形箱体</button>
+                            <span id="rectColorGroup" style="display:inline-flex; align-items:center; gap:3px; margin-left:2px; padding:2px 5px; background:rgba(8,11,18,0.6); border:1px solid var(--border-color); border-radius:4px;">
+                                <button type="button" onclick="setRectColorPreset('bull')" title="多头需求绿" style="width:12px; height:12px; border-radius:50%; background:#10b981; border:1px solid #fff; cursor:pointer;"></button>
+                                <button type="button" onclick="setRectColorPreset('bear')" title="空头供给红" style="width:12px; height:12px; border-radius:50%; background:#ef4444; border:1px solid transparent; cursor:pointer;"></button>
+                                <button type="button" onclick="setRectColorPreset('neutral')" title="威科夫箱体蓝" style="width:12px; height:12px; border-radius:50%; background:#38bdf8; border:1px solid transparent; cursor:pointer;"></button>
+                            </span>
+                            <button type="button" class="btn-sm draw-tool-btn" data-tool="ruler" onclick="selectDrawTool('ruler')" title="测量两点之间的价格涨跌幅%与K线根数">📐 测量尺</button>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                            <input type="number" id="customHLineInput" step="any" placeholder="输入水平线价..." class="form-input" style="width:96px; padding:3px 6px; font-size:11px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); addCustomHLineFromInput();}">
+                            <button type="button" class="btn-sm" onclick="addCustomHLineFromInput()" style="border-color:var(--neon-cyan); color:#67e8f9; font-weight:700;">+ 水平线</button>
+                            <button type="button" class="btn-sm" id="btnDeleteSelectedDraw" onclick="deleteSelectedDrawing()" style="display:none; border-color:var(--neon-red); color:#fca5a5; font-weight:700;">🗑️ 删除选中</button>
+                            <button type="button" class="btn-sm" id="btnCancelDrawTool" onclick="selectDrawTool('none')" style="display:none; border-color:var(--neon-amber); color:var(--neon-amber);">退出画线 (ESC)</button>
+                        </div>
+                    </div>
+
+                    <div id="customDrawStatusRow" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; border-top:1px dashed rgba(148,163,184,0.2); padding-top:5px;">
+                        <div id="customDrawHintOrChips" style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;"></div>
+                        <button type="button" class="btn-sm" id="btnClearAllDraws" onclick="clearAllDrawingsForSymbol()" style="display:none; padding:1px 6px; font-size:10px; color:#fca5a5; border-color:rgba(239,68,68,0.4);">清空本品种画线</button>
                     </div>
                 </div>
 
@@ -454,6 +474,7 @@
                             <div id="lwSmcLine" style="color:#94a3b8;">SMC结构: 扫描中 | 沙盒线已投影</div>
                         </div>
                         <div id="lwChartContainer" style="width:100%; height:100%;"></div>
+                        <canvas id="lwDrawOverlay" style="position:absolute; inset:0; width:100%; height:100%; z-index:6; pointer-events:none;"></canvas>
                     </div>
 
                     <div id="tvWidgetContainer" style="width:100%; height:100%; display:none;"></div>
@@ -1007,12 +1028,28 @@
         let candleColorStyle = localStorage.getItem("quant_candle_style") || "auto"; // 'auto' | 'mono' | 'classic'
         let chartGridMode = localStorage.getItem("quant_chart_grid") || "none"; // 'none' | 'horz' | 'both'
         let isChartLogScale = localStorage.getItem("quant_chart_log") !== "false"; // 默认开启 Log 对数坐标
-        let isDrawHLineMode = false;
+        let activeDrawTool = "none"; // 'none' | 'hline' | 'trend' | 'fib' | 'rect' | 'ruler'
+        let isDrawingToolbarOpen = false;
+        let rectColorPreset = localStorage.getItem("quant_rect_preset") || "bull"; // 'bull' | 'bear' | 'neutral'
+        let selectedDrawingId = null;
+        let draftDrawing = null;
+        let awaitingSecondClick = false;
+        let draftDownScreen = null;
+        let activeRulerMeasurement = null;
+        let isChartPointerDown = false;
+
         let customHorizontalLines = { KORU: [], BTC: [] };
         try {
             const savedHLines = JSON.parse(localStorage.getItem("quant_custom_hlines") || "{}");
             if (Array.isArray(savedHLines.KORU)) customHorizontalLines.KORU = savedHLines.KORU;
             if (Array.isArray(savedHLines.BTC)) customHorizontalLines.BTC = savedHLines.BTC;
+        } catch (e) {}
+
+        let customShapeDrawings = { KORU: [], BTC: [] };
+        try {
+            const savedShapes = JSON.parse(localStorage.getItem("quant_custom_shapes") || "{}");
+            if (Array.isArray(savedShapes.KORU)) customShapeDrawings.KORU = savedShapes.KORU;
+            if (Array.isArray(savedShapes.BTC)) customShapeDrawings.BTC = savedShapes.BTC;
         } catch (e) {}
 
         let isTvFullscreen = false;
@@ -1140,46 +1177,150 @@
             localStorage.setItem("quant_custom_hlines", JSON.stringify(customHorizontalLines));
         }
 
-        function renderCustomHLineBar() {
-            const bar = document.getElementById("customHLineBar");
-            const chips = document.getElementById("customHLineChips");
-            const cancelBtn = document.getElementById("btnCancelDrawHLine");
+        function saveCustomShapesToStorage() {
+            localStorage.setItem("quant_custom_shapes", JSON.stringify(customShapeDrawings));
+        }
+
+        function setRectColorPreset(preset) {
+            rectColorPreset = preset;
+            localStorage.setItem("quant_rect_preset", preset);
+            if (selectedDrawingId) {
+                const symKey = getCurrentSymKey();
+                const found = (customShapeDrawings[symKey] || []).find(d => d.id === selectedDrawingId);
+                if (found && found.type === "rect") {
+                    found.colorVariant = preset;
+                    saveCustomShapesToStorage();
+                    renderDrawOverlay();
+                }
+            }
+            syncRectColorDots();
+            if (activeDrawTool === "none") selectDrawTool("rect");
+        }
+
+        function syncRectColorDots() {
+            const grp = document.getElementById("rectColorGroup");
+            if (!grp) return;
+            const map = ["bull", "bear", "neutral"];
+            const btns = grp.querySelectorAll("button");
+            btns.forEach((b, i) => {
+                b.style.borderColor = map[i] === rectColorPreset ? "#ffffff" : "transparent";
+                b.style.transform = map[i] === rectColorPreset ? "scale(1.18)" : "scale(1)";
+            });
+        }
+
+        function toggleDrawingToolbar(forceState) {
+            isDrawingToolbarOpen = typeof forceState === "boolean" ? forceState : !isDrawingToolbarOpen;
+            if (!isDrawingToolbarOpen && activeDrawTool !== "none") {
+                selectDrawTool("none");
+            }
+            syncChartControlButtons();
+        }
+
+        function selectDrawTool(tool) {
+            if (tool !== "none" && chartEngineMode !== "STRAT") {
+                switchChartEngine("STRAT", document.getElementById("btnEngineStrat"));
+            }
+            activeDrawTool = tool;
+            draftDrawing = null;
+            awaitingSecondClick = false;
+            draftDownScreen = null;
+            if (tool !== "ruler") activeRulerMeasurement = null;
+            if (tool !== "none") {
+                isDrawingToolbarOpen = true;
+                selectedDrawingId = null;
+            }
+            const overlay = document.getElementById("lwDrawOverlay");
+            if (overlay) {
+                overlay.style.pointerEvents = tool !== "none" ? "auto" : "none";
+                overlay.style.cursor = tool !== "none" ? "crosshair" : "default";
+            }
+            syncChartControlButtons();
+            renderDrawOverlay();
+
+            const tips = {
+                hline: "📏 水平线模式：点击图面任意价位或直接输入价格落线",
+                trend: "╱ 趋势线段模式：在起点点击/按下，拉至终点点击/松手（跨周期自动同步）",
+                fib: "🔱 斐波那契模式：从波段起点拉至波段终点，自动标注 0.382 / 0.5 / 0.618 / 0.786",
+                rect: "▭ 矩形箱体模式：拖拽框选威科夫箱体或供需区（可点绿/红/蓝切换色块）",
+                ruler: "📐 测量尺模式：拖拽测量两点间的价差、涨跌幅 % 与K线根数"
+            };
+            if (tips[tool]) showToast(tips[tool]);
+        }
+
+        function renderDrawingToolbarState() {
+            const bar = document.getElementById("chartDrawingToolbar");
+            const hintOrChips = document.getElementById("customDrawHintOrChips");
+            const delSelBtn = document.getElementById("btnDeleteSelectedDraw");
+            const cancelBtn = document.getElementById("btnCancelDrawTool");
+            const clearAllBtn = document.getElementById("btnClearAllDraws");
             const inputEl = document.getElementById("customHLineInput");
-            if (!bar || !chips) return;
+            if (!bar || !hintOrChips) return;
 
             const symKey = getCurrentSymKey();
             const dec = symKey === "KORU" ? 3 : 1;
-            const list = customHorizontalLines[symKey] || [];
+            const hList = customHorizontalLines[symKey] || [];
+            const sList = customShapeDrawings[symKey] || [];
+            const totalCount = hList.length + sList.length;
 
             if (inputEl) {
                 inputEl.step = symKey === "KORU" ? "0.001" : "1";
-                inputEl.placeholder = symKey === "KORU" ? "如 7.637" : "如 74500";
+                inputEl.placeholder = symKey === "KORU" ? "输入价格如 7.637" : "输入价格如 74500";
             }
 
-            if (!isDrawHLineMode && list.length === 0) {
-                bar.style.display = "none";
-                return;
+            document.querySelectorAll(".draw-tool-btn").forEach(btn => {
+                btn.classList.toggle("active", btn.dataset.tool === activeDrawTool);
+            });
+            syncRectColorDots();
+
+            const shouldShow = isDrawingToolbarOpen || activeDrawTool !== "none" || totalCount > 0 || selectedDrawingId !== null;
+            bar.style.display = shouldShow ? "flex" : "none";
+            if (!shouldShow) return;
+
+            if (cancelBtn) cancelBtn.style.display = activeDrawTool !== "none" ? "inline-block" : "none";
+            if (delSelBtn) delSelBtn.style.display = selectedDrawingId ? "inline-block" : "none";
+            if (clearAllBtn) clearAllBtn.style.display = totalCount > 0 ? "inline-block" : "none";
+
+            const toolGuide = {
+                hline: "🎯 点击图面任意价位落水平线，或右侧输入价格：",
+                trend: "🎯 趋势线段：点击/拖拽起点 → 终点落线（刷新永久保留）",
+                fib: "🎯 斐波那契：点击/拖拽波段高点 ↔ 低点自动生成回撤位",
+                rect: "🎯 矩形箱体：点击/拖拽框选价格区间（支持跨周期缩放）",
+                ruler: "🎯 测量尺：点击/拖拽任意两点查看涨跌幅 % 与K线跨度"
+            };
+
+            let html = "";
+            if (activeDrawTool !== "none") {
+                html += `<span style="color:var(--neon-amber); font-weight:700;">${toolGuide[activeDrawTool]}</span>`;
+            } else if (totalCount === 0) {
+                html += `<span style="color:var(--text-muted);">💡 选择上方工具在主图画线（自动跨周期对齐并永久保存）；点击已画图形可选中并按 Delete 删除。</span>`;
+            } else {
+                html += `<span style="color:var(--neon-cyan); font-weight:700;">📐 ${symKey} 存档 (${totalCount}):</span>`;
             }
 
-            bar.style.display = "flex";
-            if (cancelBtn) cancelBtn.style.display = isDrawHLineMode ? "inline-block" : "none";
-
-            let html = isDrawHLineMode
-                ? `<span style="color:var(--neon-amber); font-weight:700;">🎯 请在下方K线图任意价位点击落线，或直接输入：</span>`
-                : `<span style="color:var(--neon-cyan); font-weight:700;">📐 ${symKey} 已存水平线 (${list.length}):</span>`;
-
-            list.forEach((price, idx) => {
-                html += `<span style="display:inline-flex; align-items:center; gap:4px; background:rgba(6,182,212,0.14); border:1px solid rgba(6,182,212,0.45); color:#67e8f9; padding:2px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
-                    ${Number(price).toFixed(dec)}
-                    <button type="button" onclick="removeCustomHLine(${idx})" title="删除此水平线" style="background:none; border:none; color:#f87171; font-weight:900; cursor:pointer; padding:0 2px; font-size:11px;">✕</button>
+            hList.forEach((price, idx) => {
+                html += `<span style="display:inline-flex; align-items:center; gap:3px; background:rgba(6,182,212,0.14); border:1px solid rgba(6,182,212,0.45); color:#67e8f9; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
+                    📏 ${Number(price).toFixed(dec)}
+                    <button type="button" onclick="removeCustomHLine(${idx})" title="删除水平线" style="background:none; border:none; color:#f87171; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
                 </span>`;
             });
 
-            if (list.length > 0) {
-                html += `<button type="button" class="btn-sm" onclick="clearAllCustomHLines()" style="padding:1px 6px; font-size:10px; color:#fca5a5; border-color:rgba(239,68,68,0.4);">清空</button>`;
-            }
+            const typeBadgeMap = {
+                trend: { icon: "╱", name: "线段" },
+                fib: { icon: "🔱", name: "斐波" },
+                rect: { icon: "▭", name: "箱体" }
+            };
+            sList.forEach((item) => {
+                const meta = typeBadgeMap[item.type] || { icon: "✏️", name: "图形" };
+                const isSel = item.id === selectedDrawingId;
+                const pA = Number(item.p1.price).toFixed(dec);
+                const pB = Number(item.p2.price).toFixed(dec);
+                html += `<span onclick="selectSavedShape('${item.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isSel ? 'rgba(245,158,11,0.22)' : 'rgba(59,130,246,0.14)'}; border:1px solid ${isSel ? '#f59e0b' : 'rgba(59,130,246,0.45)'}; color:${isSel ? '#fcd34d' : '#93c5fd'}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
+                    ${meta.icon} ${meta.name} ${pA}→${pB}
+                    <button type="button" onclick="event.stopPropagation(); removeSavedShapeById('${item.id}')" title="删除图形" style="background:none; border:none; color:#f87171; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
+                </span>`;
+            });
 
-            chips.innerHTML = html;
+            hintOrChips.innerHTML = html;
         }
 
         function syncChartControlButtons() {
@@ -1189,7 +1330,7 @@
             const candleBtn = document.getElementById("btnTvCandleStyle");
             const gridBtn = document.getElementById("btnTvGrid");
             const logBtn = document.getElementById("btnTvLog");
-            const drawBtn = document.getElementById("btnDrawHLine");
+            const drawBtn = document.getElementById("btnToggleDrawBar");
             const hud = document.getElementById("lwHudOverlay");
             const smcLine = document.getElementById("lwSmcLine");
             const shell = document.getElementById("tvChartShell");
@@ -1239,10 +1380,9 @@
                 logBtn.classList.toggle("active", isChartLogScale);
             }
             if (drawBtn) {
-                drawBtn.textContent = isDrawHLineMode ? "🎯 点击图面落线..." : "📏 画水平线";
-                drawBtn.classList.toggle("active", isDrawHLineMode);
+                drawBtn.classList.toggle("active", isDrawingToolbarOpen || activeDrawTool !== "none");
             }
-            renderCustomHLineBar();
+            renderDrawingToolbarState();
         }
 
         function formatBeijingTime(unixSec, dateOnly = false) {
@@ -1345,20 +1485,36 @@
             });
 
             lwChart.subscribeClick((param) => {
-                if (!isDrawHLineMode || !param || !param.point || !lwCandleSeries) return;
-                const rawPrice = lwCandleSeries.coordinateToPrice(param.point.y);
-                if (rawPrice === null || !isFinite(rawPrice) || rawPrice <= 0) return;
-                addCustomHLineValue(rawPrice, true);
+                if (activeDrawTool !== "none" || !param || !param.point) return;
+                if (activeRulerMeasurement) {
+                    activeRulerMeasurement = null;
+                    renderDrawOverlay();
+                }
+                const hit = hitTestSavedShape(param.point.x, param.point.y);
+                const nextSel = hit ? hit.id : null;
+                if (nextSel !== selectedDrawingId) {
+                    selectedDrawingId = nextSel;
+                    renderDrawingToolbarState();
+                    renderDrawOverlay();
+                }
+            });
+
+            lwChart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+                renderDrawOverlay();
             });
 
             if (typeof ResizeObserver !== "undefined") {
                 const ro = new ResizeObserver(() => {
                     if (lwChart && container.clientWidth > 0 && container.clientHeight > 0) {
                         lwChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+                        resizeAndRenderDrawOverlay();
                     }
                 });
                 ro.observe(container);
             }
+
+            bindDrawOverlayEvents();
+            resizeAndRenderDrawOverlay();
         }
 
         function updateLwHudText(bar) {
@@ -1573,6 +1729,7 @@
                 } else if (!preserveViewport) {
                     lwChart.timeScale().fitContent();
                 }
+                renderDrawOverlay();
 
                 const latestBar = enriched[enriched.length - 1];
                 updateLwHudText(latestBar);
@@ -1652,19 +1809,6 @@
             });
         }
 
-        function toggleDrawHLineMode(forceState) {
-            if (chartEngineMode !== "STRAT") {
-                switchChartEngine("STRAT", document.getElementById("btnEngineStrat"));
-            }
-            isDrawHLineMode = typeof forceState === "boolean" ? forceState : !isDrawHLineMode;
-            const container = document.getElementById("lwChartContainer");
-            if (container) container.style.cursor = isDrawHLineMode ? "crosshair" : "";
-            syncChartControlButtons();
-            if (isDrawHLineMode) {
-                showToast("已开启画线模式：点击图表任意价位或直接输入价格落线");
-            }
-        }
-
         function addCustomHLineValue(rawPrice, exitDrawMode = false) {
             const symKey = getCurrentSymKey();
             const dec = symKey === "KORU" ? 3 : 1;
@@ -1679,11 +1823,10 @@
                 saveCustomHLinesToStorage();
             }
             if (exitDrawMode) {
-                isDrawHLineMode = false;
-                const container = document.getElementById("lwChartContainer");
-                if (container) container.style.cursor = "";
+                selectDrawTool("none");
+            } else {
+                syncChartControlButtons();
             }
-            syncChartControlButtons();
             renderAllLwPriceLines();
             showToast(`已永久保存 ${symKey} 水平线: ${cleanPrice.toFixed(dec)}`);
         }
@@ -1713,13 +1856,468 @@
             }
         }
 
-        function clearAllCustomHLines() {
+        function selectSavedShape(id) {
+            selectedDrawingId = selectedDrawingId === id ? null : id;
+            renderDrawingToolbarState();
+            renderDrawOverlay();
+        }
+
+        function removeSavedShapeById(id) {
+            const symKey = getCurrentSymKey();
+            const list = customShapeDrawings[symKey] || [];
+            const idx = list.findIndex(x => x.id === id);
+            if (idx >= 0) {
+                list.splice(idx, 1);
+                customShapeDrawings[symKey] = list;
+                if (selectedDrawingId === id) selectedDrawingId = null;
+                saveCustomShapesToStorage();
+                renderDrawingToolbarState();
+                renderDrawOverlay();
+                showToast("已删除该画线图形");
+            }
+        }
+
+        function deleteSelectedDrawing() {
+            if (selectedDrawingId) {
+                removeSavedShapeById(selectedDrawingId);
+            }
+        }
+
+        function clearAllDrawingsForSymbol() {
             const symKey = getCurrentSymKey();
             customHorizontalLines[symKey] = [];
+            customShapeDrawings[symKey] = [];
+            selectedDrawingId = null;
+            activeRulerMeasurement = null;
             saveCustomHLinesToStorage();
+            saveCustomShapesToStorage();
             syncChartControlButtons();
             renderAllLwPriceLines();
-            showToast(`已清空 ${symKey} 全部自定义水平线`);
+            renderDrawOverlay();
+            showToast(`已清空 ${symKey} 全部自定义画线`);
+        }
+
+        // --- 跨周期连续时空坐标转换引擎 (支持 Log 对数坐标与 15m/1H/4H/1D/3D 无缝映射) ---
+        function timeToOverlayX(ts) {
+            if (!lwChart) return null;
+            const tsApi = lwChart.timeScale();
+            if (!lwLastDataCache || lwLastDataCache.length < 2) {
+                return tsApi.timeToCoordinate(ts);
+            }
+            const cache = lwLastDataCache;
+            const n = cache.length;
+            let logical = 0;
+
+            if (ts <= cache[0].time) {
+                const dt = Math.max(1, cache[1].time - cache[0].time);
+                logical = (ts - cache[0].time) / dt;
+            } else if (ts >= cache[n - 1].time) {
+                const dt = Math.max(1, cache[n - 1].time - cache[n - 2].time);
+                logical = (n - 1) + (ts - cache[n - 1].time) / dt;
+            } else {
+                let lo = 0, hi = n - 1;
+                while (lo + 1 < hi) {
+                    const mid = (lo + hi) >> 1;
+                    if (cache[mid].time <= ts) lo = mid;
+                    else hi = mid;
+                }
+                const span = Math.max(1, cache[hi].time - cache[lo].time);
+                logical = lo + (ts - cache[lo].time) / span;
+            }
+            return tsApi.logicalToCoordinate(logical);
+        }
+
+        function screenToChartPoint(x, y) {
+            if (!lwChart || !lwCandleSeries) return null;
+            const rawPrice = lwCandleSeries.coordinateToPrice(y);
+            if (rawPrice === null || !isFinite(rawPrice) || rawPrice <= 0) return null;
+
+            const tsApi = lwChart.timeScale();
+            const logical = tsApi.coordinateToLogical(x);
+            if (logical === null || !isFinite(logical)) return null;
+
+            const cache = lwLastDataCache;
+            const n = cache.length;
+            let ts = Math.floor(Date.now() / 1000);
+            if (n >= 2) {
+                const idx = Math.floor(logical);
+                const frac = logical - idx;
+                if (idx < 0) {
+                    const dt = Math.max(1, cache[1].time - cache[0].time);
+                    ts = Math.round(cache[0].time + logical * dt);
+                } else if (idx >= n - 1) {
+                    const dt = Math.max(1, cache[n - 1].time - cache[n - 2].time);
+                    ts = Math.round(cache[n - 1].time + (logical - (n - 1)) * dt);
+                } else {
+                    const span = cache[idx + 1].time - cache[idx].time;
+                    ts = Math.round(cache[idx].time + frac * span);
+                }
+            }
+            const symKey = getCurrentSymKey();
+            const dec = symKey === "KORU" ? 3 : 1;
+            return {
+                time: ts,
+                price: parseFloat(rawPrice.toFixed(dec)),
+                logical
+            };
+        }
+
+        function priceToOverlayY(price) {
+            if (!lwCandleSeries) return null;
+            return lwCandleSeries.priceToCoordinate(Number(price));
+        }
+
+        function distToSegment(px, py, x1, y1, x2, y2) {
+            const dx = x2 - x1, dy = y2 - y1;
+            const lenSq = dx * dx + dy * dy;
+            if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+            let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+            t = Math.max(0, Math.min(1, t));
+            return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+        }
+
+        function hitTestSavedShape(px, py) {
+            const symKey = getCurrentSymKey();
+            const list = customShapeDrawings[symKey] || [];
+            for (let i = list.length - 1; i >= 0; i--) {
+                const d = list[i];
+                const x1 = timeToOverlayX(d.p1.time);
+                const y1 = priceToOverlayY(d.p1.price);
+                const x2 = timeToOverlayX(d.p2.time);
+                const y2 = priceToOverlayY(d.p2.price);
+                if (x1 === null || y1 === null || x2 === null || y2 === null) continue;
+
+                if (d.type === "trend") {
+                    if (distToSegment(px, py, x1, y1, x2, y2) <= 9) return d;
+                } else if (d.type === "rect" || d.type === "fib") {
+                    const minX = Math.min(x1, x2) - 6, maxX = Math.max(x1, x2) + 6;
+                    const minY = Math.min(y1, y2) - 6, maxY = Math.max(y1, y2) + 6;
+                    if (px >= minX && px <= maxX && py >= minY && py <= maxY) return d;
+                }
+            }
+            return null;
+        }
+
+        function resizeAndRenderDrawOverlay() {
+            const canvas = document.getElementById("lwDrawOverlay");
+            const wrapper = document.getElementById("lwChartWrapper");
+            if (!canvas || !wrapper) return;
+            const dpr = window.devicePixelRatio || 1;
+            const w = wrapper.clientWidth || 600;
+            const h = wrapper.clientHeight || 460;
+            if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+                canvas.width = Math.round(w * dpr);
+                canvas.height = Math.round(h * dpr);
+            }
+            renderDrawOverlay();
+        }
+
+        function renderDrawOverlay() {
+            const canvas = document.getElementById("lwDrawOverlay");
+            if (!canvas || !lwChart || !lwCandleSeries) return;
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.width / dpr;
+            const h = canvas.height / dpr;
+            if (w <= 0 || h <= 0) return;
+
+            const ctx = canvas.getContext("2d");
+            ctx.save();
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, w, h);
+
+            // 裁剪掉右侧价格轴区域，避免画线盖住价格刻度
+            const plotW = Math.max(50, w - 58);
+            ctx.beginPath();
+            ctx.rect(0, 0, plotW, Math.max(40, h - 24));
+            ctx.clip();
+
+            const symKey = getCurrentSymKey();
+            const dec = symKey === "KORU" ? 3 : 1;
+            const isDark = tvTheme === "dark";
+
+            const savedList = customShapeDrawings[symKey] || [];
+            savedList.forEach(item => {
+                drawSingleShapeOnCanvas(ctx, item, item.id === selectedDrawingId, dec, isDark, plotW);
+            });
+
+            if (draftDrawing) {
+                drawSingleShapeOnCanvas(ctx, draftDrawing, true, dec, isDark, plotW);
+            }
+
+            if (activeRulerMeasurement) {
+                drawSingleShapeOnCanvas(ctx, activeRulerMeasurement, true, dec, isDark, plotW);
+            }
+
+            ctx.restore();
+        }
+
+        function drawSingleShapeOnCanvas(ctx, item, isHighlighted, dec, isDark, plotW) {
+            const x1 = timeToOverlayX(item.p1.time);
+            const y1 = priceToOverlayY(item.p1.price);
+            const x2 = timeToOverlayX(item.p2.time);
+            const y2 = priceToOverlayY(item.p2.price);
+            if (x1 === null || y1 === null || x2 === null || y2 === null) return;
+
+            ctx.save();
+            ctx.font = "bold 11px monospace";
+
+            if (item.type === "trend") {
+                const lineColor = isHighlighted ? "#f59e0b" : (isDark ? "#38bdf8" : "#0284c7");
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = isHighlighted ? 2.5 : 2;
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                // 端点圆锚
+                [ [x1, y1, item.p1.price], [x2, y2, item.p2.price] ].forEach(([ax, ay, ap], idx) => {
+                    ctx.fillStyle = isDark ? "#0b0f19" : "#FAF7EE";
+                    ctx.strokeStyle = lineColor;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(ax, ay, isHighlighted ? 4.5 : 3.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    if (isHighlighted) {
+                        const tag = Number(ap).toFixed(dec);
+                        ctx.fillStyle = lineColor;
+                        ctx.fillText(tag, ax + 6, ay + (idx === 0 ? -6 : 12));
+                    }
+                });
+            } else if (item.type === "rect") {
+                const presets = {
+                    bull: { fill: isDark ? "rgba(16, 185, 129, 0.14)" : "rgba(16, 185, 129, 0.15)", stroke: "#10b981" },
+                    bear: { fill: isDark ? "rgba(239, 68, 68, 0.14)" : "rgba(220, 38, 38, 0.14)", stroke: "#ef4444" },
+                    neutral: { fill: isDark ? "rgba(56, 189, 248, 0.14)" : "rgba(37, 99, 235, 0.12)", stroke: isDark ? "#38bdf8" : "#2563eb" }
+                };
+                const style = presets[item.colorVariant || "bull"] || presets.bull;
+                const left = Math.min(x1, x2), top = Math.min(y1, y2);
+                const rw = Math.max(2, Math.abs(x2 - x1)), rh = Math.max(2, Math.abs(y2 - y1));
+
+                ctx.fillStyle = style.fill;
+                ctx.fillRect(left, top, rw, rh);
+                ctx.strokeStyle = isHighlighted ? "#f59e0b" : style.stroke;
+                ctx.lineWidth = isHighlighted ? 2 : 1.5;
+                ctx.strokeRect(left, top, rw, rh);
+
+                const hiP = Math.max(item.p1.price, item.p2.price).toFixed(dec);
+                const loP = Math.min(item.p1.price, item.p2.price).toFixed(dec);
+                ctx.fillStyle = style.stroke;
+                ctx.fillText(hiP, Math.min(plotW - 46, left + rw + 4), top + 10);
+                if (rh > 18) {
+                    ctx.fillText(loP, Math.min(plotW - 46, left + rw + 4), top + rh - 2);
+                }
+            } else if (item.type === "fib") {
+                const levels = [
+                    { r: 0, color: isDark ? "#94a3b8" : "#475569" },
+                    { r: 0.236, color: "#ef4444" },
+                    { r: 0.382, color: "#f59e0b" },
+                    { r: 0.5, color: "#10b981" },
+                    { r: 0.618, color: "#06b6d4" },
+                    { r: 0.786, color: "#3b82f6" },
+                    { r: 1, color: isDark ? "#94a3b8" : "#475569" }
+                ];
+                const left = Math.min(x1, x2);
+                const right = Math.max(Math.max(x1, x2), left + 90);
+                const pStart = item.p1.price;
+                const pEnd = item.p2.price;
+                const diff = pEnd - pStart;
+
+                // 连接起点与终点的斜向基准虚线
+                ctx.strokeStyle = isDark ? "rgba(148,163,184,0.45)" : "rgba(30,34,45,0.35)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 黄金口袋 (0.382 ~ 0.618) 淡色高亮填充
+                const y382 = priceToOverlayY(pEnd - diff * 0.382);
+                const y618 = priceToOverlayY(pEnd - diff * 0.618);
+                if (y382 !== null && y618 !== null) {
+                    ctx.fillStyle = isDark ? "rgba(6, 182, 212, 0.08)" : "rgba(6, 182, 212, 0.11)";
+                    ctx.fillRect(left, Math.min(y382, y618), right - left, Math.abs(y618 - y382));
+                }
+
+                levels.forEach(lv => {
+                    const lvlPrice = pEnd - diff * lv.r;
+                    const ly = priceToOverlayY(lvlPrice);
+                    if (ly === null) return;
+                    ctx.strokeStyle = isHighlighted && (lv.r === 0 || lv.r === 1) ? "#f59e0b" : lv.color;
+                    ctx.lineWidth = (lv.r === 0.5 || lv.r === 0.618) ? 1.6 : 1.1;
+                    ctx.beginPath();
+                    ctx.moveTo(left, ly);
+                    ctx.lineTo(right, ly);
+                    ctx.stroke();
+
+                    const label = `${lv.r} (${lvlPrice.toFixed(dec)})`;
+                    ctx.fillStyle = lv.color;
+                    ctx.fillText(label, left + 4, ly - 3);
+                });
+            } else if (item.type === "ruler") {
+                const p1 = item.p1.price, p2 = item.p2.price;
+                const deltaP = p2 - p1;
+                const pct = p1 > 0 ? (deltaP / p1) * 100 : 0;
+                const isUp = deltaP >= 0;
+                const mainColor = isUp ? "#10b981" : "#ef4444";
+                const fillColor = isUp ? "rgba(16, 185, 129, 0.16)" : "rgba(239, 68, 68, 0.16)";
+
+                const left = Math.min(x1, x2), top = Math.min(y1, y2);
+                const rw = Math.max(2, Math.abs(x2 - x1)), rh = Math.max(2, Math.abs(y2 - y1));
+
+                ctx.fillStyle = fillColor;
+                ctx.fillRect(left, top, rw, rh);
+                ctx.strokeStyle = mainColor;
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(left, top, rw, rh);
+
+                // 中心十字测量指示线
+                const midX = left + rw / 2, midY = top + rh / 2;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(midX, top); ctx.lineTo(midX, top + rh);
+                ctx.moveTo(left, midY); ctx.lineTo(left + rw, midY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                const barDiff = Math.abs(Math.round((item.p2.logical || 0) - (item.p1.logical || 0)));
+                const line1 = `${deltaP >= 0 ? "+" : ""}${deltaP.toFixed(dec)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)`;
+                const line2 = `${barDiff} 根K线`;
+                const boxW = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width) + 18;
+                const boxH = 38;
+                const bx = Math.max(6, Math.min(plotW - boxW - 6, midX - boxW / 2));
+                const by = isUp ? Math.max(6, top - boxH - 6) : Math.min(ctx.canvas.height / (window.devicePixelRatio || 1) - boxH - 28, top + rh + 6);
+
+                ctx.fillStyle = isDark ? "rgba(11, 15, 25, 0.94)" : "rgba(250, 247, 238, 0.96)";
+                ctx.strokeStyle = mainColor;
+                ctx.lineWidth = 1.5;
+                ctx.fillRect(bx, by, boxW, boxH);
+                ctx.strokeRect(bx, by, boxW, boxH);
+
+                ctx.fillStyle = mainColor;
+                ctx.fillText(line1, bx + 9, by + 15);
+                ctx.fillStyle = isDark ? "#cbd5e1" : "#1E222D";
+                ctx.fillText(line2, bx + 9, by + 30);
+            }
+
+            ctx.restore();
+        }
+
+        function bindDrawOverlayEvents() {
+            const overlay = document.getElementById("lwDrawOverlay");
+            const wrapper = document.getElementById("lwChartWrapper");
+            if (!overlay || overlay.dataset.bound === "1") return;
+            overlay.dataset.bound = "1";
+
+            // 鼠标按下拖动价格轴或时间轴时，同步刷新覆盖层
+            if (wrapper) {
+                wrapper.addEventListener("pointerdown", () => {
+                    isChartPointerDown = true;
+                    const tick = () => {
+                        if (!isChartPointerDown) return;
+                        renderDrawOverlay();
+                        requestAnimationFrame(tick);
+                    };
+                    requestAnimationFrame(tick);
+                });
+                window.addEventListener("pointerup", () => {
+                    isChartPointerDown = false;
+                });
+            }
+
+            overlay.addEventListener("pointerdown", (e) => {
+                if (activeDrawTool === "none") return;
+                e.preventDefault();
+                e.stopPropagation();
+                const rect = overlay.getBoundingClientRect();
+                const sx = e.clientX - rect.left;
+                const sy = e.clientY - rect.top;
+                const pt = screenToChartPoint(sx, sy);
+                if (!pt) return;
+
+                if (activeDrawTool === "hline") {
+                    addCustomHLineValue(pt.price, true);
+                    return;
+                }
+
+                // 第二次点击确认终点（Click-Move-Click 方式）
+                if (awaitingSecondClick && draftDrawing) {
+                    draftDrawing.p2 = pt;
+                    finalizeCurrentDraftDrawing();
+                    return;
+                }
+
+                draftDownScreen = { x: sx, y: sy };
+                awaitingSecondClick = false;
+                draftDrawing = {
+                    id: "d_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+                    type: activeDrawTool,
+                    p1: pt,
+                    p2: pt,
+                    colorVariant: rectColorPreset
+                };
+                renderDrawOverlay();
+            });
+
+            overlay.addEventListener("pointermove", (e) => {
+                if (activeDrawTool === "none" || !draftDrawing) return;
+                const rect = overlay.getBoundingClientRect();
+                const sx = e.clientX - rect.left;
+                const sy = e.clientY - rect.top;
+                const pt = screenToChartPoint(sx, sy);
+                if (!pt) return;
+                draftDrawing.p2 = pt;
+                renderDrawOverlay();
+            });
+
+            overlay.addEventListener("pointerup", (e) => {
+                if (activeDrawTool === "none" || !draftDrawing || !draftDownScreen) return;
+                const rect = overlay.getBoundingClientRect();
+                const sx = e.clientX - rect.left;
+                const sy = e.clientY - rect.top;
+                const movedDist = Math.hypot(sx - draftDownScreen.x, sy - draftDownScreen.y);
+
+                if (movedDist > 8) {
+                    // Press-Drag-Release 方式完成画线
+                    const pt = screenToChartPoint(sx, sy);
+                    if (pt) draftDrawing.p2 = pt;
+                    finalizeCurrentDraftDrawing();
+                } else {
+                    // 单击起点后等待移动并点击终点
+                    awaitingSecondClick = true;
+                }
+            });
+        }
+
+        function finalizeCurrentDraftDrawing() {
+            if (!draftDrawing) return;
+            const finished = draftDrawing;
+            draftDrawing = null;
+            awaitingSecondClick = false;
+            draftDownScreen = null;
+
+            if (finished.type === "ruler") {
+                activeRulerMeasurement = finished;
+                selectDrawTool("none");
+                renderDrawOverlay();
+                return;
+            }
+
+            const symKey = getCurrentSymKey();
+            const list = customShapeDrawings[symKey] || [];
+            list.push(finished);
+            customShapeDrawings[symKey] = list;
+            saveCustomShapesToStorage();
+
+            selectedDrawingId = finished.id;
+            selectDrawTool("none");
+            const names = { trend: "趋势线段", fib: "斐波那契回撤", rect: "矩形箱体" };
+            showToast(`已永久保存 ${symKey} ${names[finished.type] || "图形"}（跨周期自动同步）`);
         }
 
         function renderTradingViewChart() {
@@ -1800,7 +2398,7 @@
                 tvWrap.style.display = "none";
                 fetchAndRenderStrategyChart(false);
             } else {
-                if (isDrawHLineMode) toggleDrawHLineMode(false);
+                if (activeDrawTool !== "none") selectDrawTool("none");
                 lwWrap.style.display = "none";
                 tvWrap.style.display = "block";
                 renderTradingViewChart();
@@ -1809,13 +2407,16 @@
 
         function switchTvSymbol(sym, btnEl) {
             tvSymbol = sym;
+            selectedDrawingId = null;
+            activeRulerMeasurement = null;
             document.getElementById("btnTvSymKoru").classList.remove("active");
             document.getElementById("btnTvSymBtc").classList.remove("active");
             if (btnEl) btnEl.classList.add("active");
-            renderCustomHLineBar();
+            renderDrawingToolbarState();
 
             if (chartEngineMode === "STRAT") {
                 fetchAndRenderStrategyChart(false);
+                renderDrawOverlay();
             } else {
                 renderTradingViewChart();
             }
@@ -1962,7 +2563,29 @@
         }
 
         document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && isTvFullscreen) toggleTvFullscreen();
+            const tag = (e.target && e.target.tagName) || "";
+            const isInput = tag === "INPUT" || tag === "TEXTAREA";
+            if (e.key === "Escape") {
+                if (activeDrawTool !== "none") {
+                    selectDrawTool("none");
+                    return;
+                }
+                if (activeRulerMeasurement) {
+                    activeRulerMeasurement = null;
+                    renderDrawOverlay();
+                    return;
+                }
+                if (selectedDrawingId) {
+                    selectedDrawingId = null;
+                    renderDrawingToolbarState();
+                    renderDrawOverlay();
+                    return;
+                }
+                if (isTvFullscreen) toggleTvFullscreen();
+            } else if ((e.key === "Backspace" || e.key === "Delete") && !isInput && selectedDrawingId) {
+                e.preventDefault();
+                deleteSelectedDrawing();
+            }
         });
 
         // 0. 顶部战略总览卡片双频实时联动引擎
