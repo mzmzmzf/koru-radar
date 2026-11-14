@@ -416,10 +416,13 @@
                             <button type="button" class="btn-sm tv-tf-btn active" onclick="switchTvInterval('60', this)">1H</button>
                             <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('240', this)">4H</button>
                             <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('D', this)">1D</button>
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('3D', this)">3D</button>
                         </div>
                         <button type="button" class="btn-sm" id="btnTvTheme" onclick="toggleTvTheme()" style="border-color:var(--neon-amber); color:#fbbf24;">☀️ 象牙白</button>
+                        <button type="button" class="btn-sm" id="btnTvCandleStyle" onclick="toggleTvCandleStyle()" title="切换威科夫黑白空心K线 / 经典红绿K线">🕯️ K线:红绿</button>
                         <button type="button" class="btn-sm" id="btnTvGrid" onclick="toggleTvGrid()" title="切换横竖网格线">⊞ 网格:关</button>
                         <button type="button" class="btn-sm active" id="btnTvLog" onclick="toggleTvLog()" title="切换对数坐标 (Log) / 线性坐标">LOG</button>
+                        <button type="button" class="btn-sm" id="btnDrawHLine" onclick="toggleDrawHLineMode()" title="开启后点击图表任意位置或输入价格画水平支撑/阻力线（自动永久保存）">📏 画水平线</button>
                         <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
                         <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 网页全屏</button>
                     </div>
@@ -428,6 +431,15 @@
                 <div id="tvSubHintBar" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted); margin-bottom:8px; flex-wrap:wrap; gap:4px;">
                     <span id="tvMaLegendText">均线三色锁定: <b style="color:#facc15;">EMA10(黄)</b> · <b style="color:#38bdf8;">EMA15(蓝)</b> · <b style="color:#f87171;">MA50(红)</b> · 破阵3.3信号 + SMC结构 (UTC+8)</span>
                     <span id="stratLatestSignalBadge" style="color:var(--neon-cyan); font-weight:700;">正在扫描破阵3.3信号...</span>
+                </div>
+
+                <div id="customHLineBar" style="display:none; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; background:rgba(15, 23, 42, 0.72); border:1px solid var(--border-color); border-radius:6px; padding:6px 10px; margin-bottom:8px; font-size:11px;">
+                    <div id="customHLineChips" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;"></div>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <input type="number" id="customHLineInput" step="any" placeholder="输入价格..." class="form-input" style="width:92px; padding:3px 6px; font-size:11px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); addCustomHLineFromInput();}">
+                        <button type="button" class="btn-sm" onclick="addCustomHLineFromInput()" style="border-color:var(--neon-cyan); color:#67e8f9; font-weight:700;">+ 落线</button>
+                        <button type="button" class="btn-sm" id="btnCancelDrawHLine" onclick="toggleDrawHLineMode(false)" style="display:none; border-color:var(--neon-amber); color:var(--neon-amber);">完成</button>
+                    </div>
                 </div>
 
                 <div class="tv-chart-shell" id="tvChartShell">
@@ -992,8 +1004,17 @@
         let tvSymbol = "OKX:KORUUSDT.P";
         let tvInterval = "60";
         let tvTheme = localStorage.getItem("quant_chart_theme") || "dark";
+        let candleColorStyle = localStorage.getItem("quant_candle_style") || "auto"; // 'auto' | 'mono' | 'classic'
         let chartGridMode = localStorage.getItem("quant_chart_grid") || "none"; // 'none' | 'horz' | 'both'
         let isChartLogScale = localStorage.getItem("quant_chart_log") !== "false"; // 默认开启 Log 对数坐标
+        let isDrawHLineMode = false;
+        let customHorizontalLines = { KORU: [], BTC: [] };
+        try {
+            const savedHLines = JSON.parse(localStorage.getItem("quant_custom_hlines") || "{}");
+            if (Array.isArray(savedHLines.KORU)) customHorizontalLines.KORU = savedHLines.KORU;
+            if (Array.isArray(savedHLines.BTC)) customHorizontalLines.BTC = savedHLines.BTC;
+        } catch (e) {}
+
         let isTvFullscreen = false;
         let isTvCollapsed = false;
 
@@ -1005,23 +1026,64 @@
         let lwVolSeries = null;
         let lwPriceLines = [];
         let lwLastDataCache = [];
+        let lwLastSmcSnapshot = { lastSH: null, lastSL: null };
+
+        function isEffectiveMonoCandles() {
+            if (candleColorStyle === "mono") return true;
+            if (candleColorStyle === "classic") return false;
+            return tvTheme === "light"; // auto 模式下：浅色象牙白默认威科夫黑白空心K线，暗夜模式默认红绿K线
+        }
 
         function getChartPalette() {
             const isDark = tvTheme === "dark";
+            const useMono = isEffectiveMonoCandles();
+
+            const candleColors = useMono
+                ? (isDark
+                    ? {
+                        upColor: "#0a0f1d",
+                        downColor: "#e2e8f0",
+                        borderUpColor: "#e2e8f0",
+                        borderDownColor: "#e2e8f0",
+                        wickUpColor: "#e2e8f0",
+                        wickDownColor: "#e2e8f0"
+                    }
+                    : {
+                        upColor: "#FAF7EE",
+                        downColor: "#111111",
+                        borderUpColor: "#111111",
+                        borderDownColor: "#111111",
+                        wickUpColor: "#111111",
+                        wickDownColor: "#111111"
+                    })
+                : (isDark
+                    ? {
+                        upColor: "#10b981",
+                        downColor: "#ef4444",
+                        borderUpColor: "#10b981",
+                        borderDownColor: "#ef4444",
+                        wickUpColor: "#10b981",
+                        wickDownColor: "#ef4444"
+                    }
+                    : {
+                        upColor: "#059669",
+                        downColor: "#dc2626",
+                        borderUpColor: "#059669",
+                        borderDownColor: "#dc2626",
+                        wickUpColor: "#059669",
+                        wickDownColor: "#dc2626"
+                    });
+
             if (isDark) {
                 return {
                     isDark: true,
+                    useMono,
                     bg: "#0a0f1d",
                     text: "#94a3b8",
                     border: "#1e293b",
                     gridColor: "rgba(30, 41, 59, 0.55)",
                     crosshairColor: "rgba(148, 163, 184, 0.4)",
-                    upColor: "#10b981",
-                    downColor: "#ef4444",
-                    borderUpColor: "#10b981",
-                    borderDownColor: "#ef4444",
-                    wickUpColor: "#10b981",
-                    wickDownColor: "#ef4444",
+                    ...candleColors,
                     ema10: "#facc15",
                     ema15: "#38bdf8",
                     ma50: "#ef4444",
@@ -1030,23 +1092,19 @@
                     smcSupply: "rgba(239, 68, 68, 0.65)",
                     smcDemand: "rgba(16, 185, 129, 0.65)",
                     bepColor: "#f59e0b",
-                    slColor: "#f43f5e"
+                    slColor: "#f43f5e",
+                    customLineColor: "#38bdf8"
                 };
             }
-            // 复古象牙白 + 极简黑白空心阳线/实心阴线同款配色
             return {
                 isDark: false,
+                useMono,
                 bg: "#FAF7EE",
                 text: "#1E222D",
                 border: "#DCD7C9",
                 gridColor: "rgba(30, 34, 45, 0.08)",
                 crosshairColor: "rgba(30, 34, 45, 0.35)",
-                upColor: "#FAF7EE",
-                downColor: "#111111",
-                borderUpColor: "#111111",
-                borderDownColor: "#111111",
-                wickUpColor: "#111111",
-                wickDownColor: "#111111",
+                ...candleColors,
                 ema10: "#D97706",
                 ema15: "#2563EB",
                 ma50: "#DC2626",
@@ -1055,7 +1113,8 @@
                 smcSupply: "rgba(220, 38, 38, 0.72)",
                 smcDemand: "rgba(5, 150, 105, 0.72)",
                 bepColor: "#D97706",
-                slColor: "#E11D48"
+                slColor: "#E11D48",
+                customLineColor: "#0284c7"
             };
         }
 
@@ -1073,12 +1132,64 @@
             };
         }
 
+        function getCurrentSymKey() {
+            return tvSymbol.includes("KORU") ? "KORU" : "BTC";
+        }
+
+        function saveCustomHLinesToStorage() {
+            localStorage.setItem("quant_custom_hlines", JSON.stringify(customHorizontalLines));
+        }
+
+        function renderCustomHLineBar() {
+            const bar = document.getElementById("customHLineBar");
+            const chips = document.getElementById("customHLineChips");
+            const cancelBtn = document.getElementById("btnCancelDrawHLine");
+            const inputEl = document.getElementById("customHLineInput");
+            if (!bar || !chips) return;
+
+            const symKey = getCurrentSymKey();
+            const dec = symKey === "KORU" ? 3 : 1;
+            const list = customHorizontalLines[symKey] || [];
+
+            if (inputEl) {
+                inputEl.step = symKey === "KORU" ? "0.001" : "1";
+                inputEl.placeholder = symKey === "KORU" ? "如 7.637" : "如 74500";
+            }
+
+            if (!isDrawHLineMode && list.length === 0) {
+                bar.style.display = "none";
+                return;
+            }
+
+            bar.style.display = "flex";
+            if (cancelBtn) cancelBtn.style.display = isDrawHLineMode ? "inline-block" : "none";
+
+            let html = isDrawHLineMode
+                ? `<span style="color:var(--neon-amber); font-weight:700;">🎯 请在下方K线图任意价位点击落线，或直接输入：</span>`
+                : `<span style="color:var(--neon-cyan); font-weight:700;">📐 ${symKey} 已存水平线 (${list.length}):</span>`;
+
+            list.forEach((price, idx) => {
+                html += `<span style="display:inline-flex; align-items:center; gap:4px; background:rgba(6,182,212,0.14); border:1px solid rgba(6,182,212,0.45); color:#67e8f9; padding:2px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
+                    ${Number(price).toFixed(dec)}
+                    <button type="button" onclick="removeCustomHLine(${idx})" title="删除此水平线" style="background:none; border:none; color:#f87171; font-weight:900; cursor:pointer; padding:0 2px; font-size:11px;">✕</button>
+                </span>`;
+            });
+
+            if (list.length > 0) {
+                html += `<button type="button" class="btn-sm" onclick="clearAllCustomHLines()" style="padding:1px 6px; font-size:10px; color:#fca5a5; border-color:rgba(239,68,68,0.4);">清空</button>`;
+            }
+
+            chips.innerHTML = html;
+        }
+
         function syncChartControlButtons() {
             const isDark = tvTheme === "dark";
             const p = getChartPalette();
             const themeBtn = document.getElementById("btnTvTheme");
+            const candleBtn = document.getElementById("btnTvCandleStyle");
             const gridBtn = document.getElementById("btnTvGrid");
             const logBtn = document.getElementById("btnTvLog");
+            const drawBtn = document.getElementById("btnDrawHLine");
             const hud = document.getElementById("lwHudOverlay");
             const smcLine = document.getElementById("lwSmcLine");
             const shell = document.getElementById("tvChartShell");
@@ -1096,6 +1207,10 @@
                     themeBtn.style.color = "#111111";
                 }
             }
+            if (candleBtn) {
+                candleBtn.textContent = p.useMono ? "🕯️ K线:黑白" : "🕯️ K线:红绿";
+                candleBtn.classList.toggle("active", p.useMono);
+            }
             if (hud) {
                 if (isDark) hud.classList.remove("light-hud");
                 else hud.classList.add("light-hud");
@@ -1108,10 +1223,11 @@
                 shell.style.borderColor = isDark ? "#1a253c" : "#DCD7C9";
             }
             if (legendEl) {
+                const candleTag = p.useMono ? "空心阳线/实心阴线" : "经典绿涨红跌";
                 if (isDark) {
-                    legendEl.innerHTML = `均线三色锁定: <b style="color:#facc15;">EMA10(黄)</b> · <b style="color:#38bdf8;">EMA15(蓝)</b> · <b style="color:#f87171;">MA50(红)</b> · 破阵3.3信号 + SMC结构 (UTC+8)`;
+                    legendEl.innerHTML = `均线三色锁定: <b style="color:#facc15;">EMA10(黄)</b> · <b style="color:#38bdf8;">EMA15(蓝)</b> · <b style="color:#f87171;">MA50(红)</b> · ${candleTag} (UTC+8)`;
                 } else {
-                    legendEl.innerHTML = `象牙白复古主题: <b style="color:#D97706;">EMA10(琥珀)</b> · <b style="color:#2563EB;">EMA15(钴蓝)</b> · <b style="color:#DC2626;">MA50(朱红)</b> · 空心阳线/实心阴线 (UTC+8)`;
+                    legendEl.innerHTML = `象牙白复古主题: <b style="color:#D97706;">EMA10(琥珀)</b> · <b style="color:#2563EB;">EMA15(钴蓝)</b> · <b style="color:#DC2626;">MA50(朱红)</b> · ${candleTag} (UTC+8)`;
                 }
             }
             if (gridBtn) {
@@ -1122,9 +1238,14 @@
             if (logBtn) {
                 logBtn.classList.toggle("active", isChartLogScale);
             }
+            if (drawBtn) {
+                drawBtn.textContent = isDrawHLineMode ? "🎯 点击图面落线..." : "📏 画水平线";
+                drawBtn.classList.toggle("active", isDrawHLineMode);
+            }
+            renderCustomHLineBar();
         }
 
-        function formatBeijingTime(unixSec, includeDate = true) {
+        function formatBeijingTime(unixSec, dateOnly = false) {
             const d = new Date(unixSec * 1000);
             const parts = new Intl.DateTimeFormat("zh-CN", {
                 timeZone: "Asia/Shanghai",
@@ -1135,7 +1256,7 @@
                 hour12: false
             }).formatToParts(d);
             const getP = (t) => (parts.find(x => x.type === t) || {}).value || "00";
-            return includeDate ? `${getP("month")}/${getP("day")} ${getP("hour")}:${getP("minute")}` : `${getP("hour")}:${getP("minute")}`;
+            return dateOnly ? `${getP("month")}/${getP("day")}` : `${getP("month")}/${getP("day")} ${getP("hour")}:${getP("minute")}`;
         }
 
         function initLightweightChart() {
@@ -1167,12 +1288,12 @@
                 },
                 timeScale: {
                     borderColor: p.border,
-                    timeVisible: true,
+                    timeVisible: tvInterval !== "D" && tvInterval !== "3D",
                     secondsVisible: false,
-                    tickMarkFormatter: (time) => formatBeijingTime(time, tvInterval === "D")
+                    tickMarkFormatter: (time) => formatBeijingTime(time, tvInterval === "D" || tvInterval === "3D")
                 },
                 localization: {
-                    timeFormatter: (time) => formatBeijingTime(time, true)
+                    timeFormatter: (time) => formatBeijingTime(time, false)
                 }
             });
 
@@ -1223,6 +1344,13 @@
                 if (found) updateLwHudText(found);
             });
 
+            lwChart.subscribeClick((param) => {
+                if (!isDrawHLineMode || !param || !param.point || !lwCandleSeries) return;
+                const rawPrice = lwCandleSeries.coordinateToPrice(param.point.y);
+                if (rawPrice === null || !isFinite(rawPrice) || rawPrice <= 0) return;
+                addCustomHLineValue(rawPrice, true);
+            });
+
             if (typeof ResizeObserver !== "undefined") {
                 const ro = new ResizeObserver(() => {
                     if (lwChart && container.clientWidth > 0 && container.clientHeight > 0) {
@@ -1242,7 +1370,7 @@
             const isKoru = tvSymbol.includes("KORU");
             const dec = isKoru ? 3 : 1;
             const symName = isKoru ? "KORU-USDT-SWAP" : "BTC-USDT-SWAP";
-            const tfLabel = { "15": "15m", "60": "1H", "240": "4H", "D": "1D" }[tvInterval] || "1H";
+            const tfLabel = { "15": "15m", "60": "1H", "240": "4H", "D": "1D", "3D": "3D" }[tvInterval] || "1H";
             const chg = bar.open > 0 ? (((bar.close - bar.open) / bar.open) * 100).toFixed(2) : "0.00";
             const chgColor = bar.close >= bar.open ? "#10b981" : "#ef4444";
 
@@ -1383,13 +1511,17 @@
 
             const isKoru = tvSymbol.includes("KORU");
             const instId = isKoru ? "KORU-USDT-SWAP" : "BTC-USDT-SWAP";
-            const barMap = { "15": "15m", "60": "1H", "240": "4H", "D": "1Dutc" };
+            const barMap = { "15": "15m", "60": "1H", "240": "4H", "D": "1Dutc", "3D": "3Dutc" };
             const bar = barMap[tvInterval] || "1H";
 
             try {
-                const res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=240`, { cache: "no-store" });
-                const json = await res.json();
-                if (json?.code !== "0" || !Array.isArray(json.data) || json.data.length < 55) return;
+                let res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=240`, { cache: "no-store" });
+                let json = await res.json();
+                if ((json?.code !== "0" || !Array.isArray(json.data) || json.data.length === 0) && tvInterval === "3D") {
+                    res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=3D&limit=240`, { cache: "no-store" });
+                    json = await res.json();
+                }
+                if (json?.code !== "0" || !Array.isArray(json.data) || json.data.length < 5) return;
 
                 const rawReversed = json.data.slice().reverse();
                 const seenTimes = new Set();
@@ -1411,6 +1543,7 @@
 
                 const { enriched, markers, latestSignalText, latestSignalColor, smcState, lastSH, lastSL } = computeBreakout33AndSmc(candles);
                 lwLastDataCache = enriched;
+                lwLastSmcSnapshot = { lastSH, lastSL };
 
                 let savedRange = null;
                 if (preserveViewport) {
@@ -1433,49 +1566,7 @@
                 })));
 
                 lwCandleSeries.setMarkers(markers);
-
-                clearLwPriceLines();
-                if (lastSH) {
-                    lwPriceLines.push(lwCandleSeries.createPriceLine({
-                        price: lastSH.price,
-                        color: p.smcSupply,
-                        lineWidth: 1,
-                        lineStyle: LightweightCharts.LineStyle.Dashed,
-                        axisLabelVisible: true,
-                        title: "SMC 供给顶"
-                    }));
-                }
-                if (lastSL) {
-                    lwPriceLines.push(lwCandleSeries.createPriceLine({
-                        price: lastSL.price,
-                        color: p.smcDemand,
-                        lineWidth: 1,
-                        lineStyle: LightweightCharts.LineStyle.Dashed,
-                        axisLabelVisible: true,
-                        title: "SMC 需求底"
-                    }));
-                }
-
-                if (isKoru) {
-                    const bep = customKoruCost * 1.002;
-                    const activeSl = sandboxData.liveSl || 7.800;
-                    lwPriceLines.push(lwCandleSeries.createPriceLine({
-                        price: bep,
-                        color: p.bepColor,
-                        lineWidth: 1,
-                        lineStyle: LightweightCharts.LineStyle.Dotted,
-                        axisLabelVisible: true,
-                        title: "沙盒BEP"
-                    }));
-                    lwPriceLines.push(lwCandleSeries.createPriceLine({
-                        price: activeSl,
-                        color: p.slColor,
-                        lineWidth: 1,
-                        lineStyle: LightweightCharts.LineStyle.Dotted,
-                        axisLabelVisible: true,
-                        title: "防线SL"
-                    }));
-                }
+                renderAllLwPriceLines();
 
                 if (savedRange) {
                     lwChart.timeScale().setVisibleLogicalRange(savedRange);
@@ -1498,6 +1589,139 @@
             } catch (e) {}
         }
 
+        function renderAllLwPriceLines() {
+            if (!lwCandleSeries) return;
+            const p = getChartPalette();
+            const isKoru = tvSymbol.includes("KORU");
+            const symKey = getCurrentSymKey();
+            const { lastSH, lastSL } = lwLastSmcSnapshot;
+
+            clearLwPriceLines();
+            if (lastSH) {
+                lwPriceLines.push(lwCandleSeries.createPriceLine({
+                    price: lastSH.price,
+                    color: p.smcSupply,
+                    lineWidth: 1,
+                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                    axisLabelVisible: true,
+                    title: "SMC 供给顶"
+                }));
+            }
+            if (lastSL) {
+                lwPriceLines.push(lwCandleSeries.createPriceLine({
+                    price: lastSL.price,
+                    color: p.smcDemand,
+                    lineWidth: 1,
+                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                    axisLabelVisible: true,
+                    title: "SMC 需求底"
+                }));
+            }
+
+            if (isKoru) {
+                const bep = customKoruCost * 1.002;
+                const activeSl = sandboxData.liveSl || 7.800;
+                lwPriceLines.push(lwCandleSeries.createPriceLine({
+                    price: bep,
+                    color: p.bepColor,
+                    lineWidth: 1,
+                    lineStyle: LightweightCharts.LineStyle.Dotted,
+                    axisLabelVisible: true,
+                    title: "沙盒BEP"
+                }));
+                lwPriceLines.push(lwCandleSeries.createPriceLine({
+                    price: activeSl,
+                    color: p.slColor,
+                    lineWidth: 1,
+                    lineStyle: LightweightCharts.LineStyle.Dotted,
+                    axisLabelVisible: true,
+                    title: "防线SL"
+                }));
+            }
+
+            const userLines = customHorizontalLines[symKey] || [];
+            userLines.forEach(price => {
+                lwPriceLines.push(lwCandleSeries.createPriceLine({
+                    price: Number(price),
+                    color: p.customLineColor,
+                    lineWidth: 2,
+                    lineStyle: LightweightCharts.LineStyle.Solid,
+                    axisLabelVisible: true,
+                    title: "水平线"
+                }));
+            });
+        }
+
+        function toggleDrawHLineMode(forceState) {
+            if (chartEngineMode !== "STRAT") {
+                switchChartEngine("STRAT", document.getElementById("btnEngineStrat"));
+            }
+            isDrawHLineMode = typeof forceState === "boolean" ? forceState : !isDrawHLineMode;
+            const container = document.getElementById("lwChartContainer");
+            if (container) container.style.cursor = isDrawHLineMode ? "crosshair" : "";
+            syncChartControlButtons();
+            if (isDrawHLineMode) {
+                showToast("已开启画线模式：点击图表任意价位或直接输入价格落线");
+            }
+        }
+
+        function addCustomHLineValue(rawPrice, exitDrawMode = false) {
+            const symKey = getCurrentSymKey();
+            const dec = symKey === "KORU" ? 3 : 1;
+            const cleanPrice = parseFloat(Number(rawPrice).toFixed(dec));
+            if (!isFinite(cleanPrice) || cleanPrice <= 0) return;
+
+            const list = customHorizontalLines[symKey] || [];
+            if (!list.some(x => Math.abs(x - cleanPrice) < (symKey === "KORU" ? 0.0005 : 0.05))) {
+                list.push(cleanPrice);
+                list.sort((a, b) => b - a);
+                customHorizontalLines[symKey] = list;
+                saveCustomHLinesToStorage();
+            }
+            if (exitDrawMode) {
+                isDrawHLineMode = false;
+                const container = document.getElementById("lwChartContainer");
+                if (container) container.style.cursor = "";
+            }
+            syncChartControlButtons();
+            renderAllLwPriceLines();
+            showToast(`已永久保存 ${symKey} 水平线: ${cleanPrice.toFixed(dec)}`);
+        }
+
+        function addCustomHLineFromInput() {
+            const inputEl = document.getElementById("customHLineInput");
+            if (!inputEl) return;
+            const val = parseFloat(inputEl.value);
+            if (!isFinite(val) || val <= 0) {
+                showToast("请输入有效的目标价格");
+                return;
+            }
+            inputEl.value = "";
+            addCustomHLineValue(val, true);
+        }
+
+        function removeCustomHLine(idx) {
+            const symKey = getCurrentSymKey();
+            const list = customHorizontalLines[symKey] || [];
+            if (idx >= 0 && idx < list.length) {
+                const removed = list.splice(idx, 1)[0];
+                customHorizontalLines[symKey] = list;
+                saveCustomHLinesToStorage();
+                syncChartControlButtons();
+                renderAllLwPriceLines();
+                showToast(`已移除水平线: ${removed}`);
+            }
+        }
+
+        function clearAllCustomHLines() {
+            const symKey = getCurrentSymKey();
+            customHorizontalLines[symKey] = [];
+            saveCustomHLinesToStorage();
+            syncChartControlButtons();
+            renderAllLwPriceLines();
+            showToast(`已清空 ${symKey} 全部自定义水平线`);
+        }
+
         function renderTradingViewChart() {
             const container = document.getElementById("tvWidgetContainer");
             if (!container) return;
@@ -1513,7 +1737,13 @@
             const tvOverrides = {
                 "paneProperties.horzGridProperties.color": showHorz ? p.gridColor : "rgba(0,0,0,0)",
                 "paneProperties.vertGridProperties.color": showVert ? p.gridColor : "rgba(0,0,0,0)",
-                "mainSeriesProperties.priceAxisProperties.log": isChartLogScale
+                "mainSeriesProperties.priceAxisProperties.log": isChartLogScale,
+                "mainSeriesProperties.candleStyle.upColor": p.upColor,
+                "mainSeriesProperties.candleStyle.downColor": p.downColor,
+                "mainSeriesProperties.candleStyle.borderUpColor": p.borderUpColor,
+                "mainSeriesProperties.candleStyle.borderDownColor": p.borderDownColor,
+                "mainSeriesProperties.candleStyle.wickUpColor": p.wickUpColor,
+                "mainSeriesProperties.candleStyle.wickDownColor": p.wickDownColor
             };
 
             if (!p.isDark) {
@@ -1521,13 +1751,7 @@
                     "paneProperties.backgroundType": "solid",
                     "paneProperties.background": "#FAF7EE",
                     "scalesProperties.textColor": "#1E222D",
-                    "scalesProperties.lineColor": "#DCD7C9",
-                    "mainSeriesProperties.candleStyle.upColor": "#FAF7EE",
-                    "mainSeriesProperties.candleStyle.downColor": "#111111",
-                    "mainSeriesProperties.candleStyle.borderUpColor": "#111111",
-                    "mainSeriesProperties.candleStyle.borderDownColor": "#111111",
-                    "mainSeriesProperties.candleStyle.wickUpColor": "#111111",
-                    "mainSeriesProperties.candleStyle.wickDownColor": "#111111"
+                    "scalesProperties.lineColor": "#DCD7C9"
                 });
             }
 
@@ -1576,6 +1800,7 @@
                 tvWrap.style.display = "none";
                 fetchAndRenderStrategyChart(false);
             } else {
+                if (isDrawHLineMode) toggleDrawHLineMode(false);
                 lwWrap.style.display = "none";
                 tvWrap.style.display = "block";
                 renderTradingViewChart();
@@ -1587,6 +1812,7 @@
             document.getElementById("btnTvSymKoru").classList.remove("active");
             document.getElementById("btnTvSymBtc").classList.remove("active");
             if (btnEl) btnEl.classList.add("active");
+            renderCustomHLineBar();
 
             if (chartEngineMode === "STRAT") {
                 fetchAndRenderStrategyChart(false);
@@ -1601,6 +1827,7 @@
             if (btnEl) btnEl.classList.add("active");
 
             if (chartEngineMode === "STRAT") {
+                initLightweightChart();
                 fetchAndRenderStrategyChart(false);
             } else {
                 renderTradingViewChart();
@@ -1617,7 +1844,34 @@
             } else {
                 renderTradingViewChart();
             }
-            showToast(tvTheme === "light" ? "已切换至【复古象牙白 · 黑白K线】主题" : "已切换至【暗夜雷达】主题");
+            const p = getChartPalette();
+            showToast(tvTheme === "light"
+                ? `已切换至【复古象牙白 · ${p.useMono ? "黑白K线" : "红绿K线"}】主题`
+                : `已切换至【暗夜雷达 · ${p.useMono ? "黑白K线" : "红绿K线"}】主题`);
+        }
+
+        function toggleTvCandleStyle() {
+            const currentlyMono = isEffectiveMonoCandles();
+            candleColorStyle = currentlyMono ? "classic" : "mono";
+            localStorage.setItem("quant_candle_style", candleColorStyle);
+            syncChartControlButtons();
+
+            if (chartEngineMode === "STRAT") {
+                const p = getChartPalette();
+                if (lwCandleSeries) {
+                    lwCandleSeries.applyOptions({
+                        upColor: p.upColor,
+                        downColor: p.downColor,
+                        borderUpColor: p.borderUpColor,
+                        borderDownColor: p.borderDownColor,
+                        wickUpColor: p.wickUpColor,
+                        wickDownColor: p.wickDownColor
+                    });
+                }
+            } else {
+                renderTradingViewChart();
+            }
+            showToast(candleColorStyle === "mono" ? "已切换为【威科夫黑白空心/实心 K 线】" : "已切换为【经典绿涨红跌 K 线】");
         }
 
         function toggleTvGrid() {
