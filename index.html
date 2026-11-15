@@ -167,8 +167,39 @@
             border: 1px solid #1a253c;
             overflow: hidden;
             position: relative;
+            transition: height 0.2s ease;
         }
+        .tv-chart-shell.has-subchart { height: 620px; }
         .tv-chart-shell.collapsed { display: none; }
+        .lw-subchart-pane {
+            display: none;
+            width: 100%;
+            height: 160px;
+            flex-shrink: 0;
+            position: relative;
+            border-top: 1px solid #1e293b;
+        }
+        .lw-subchart-hud {
+            position: absolute;
+            top: 6px;
+            left: 10px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-family: monospace;
+            font-size: 11px;
+            background: rgba(10, 15, 29, 0.82);
+            padding: 3px 8px;
+            border-radius: 5px;
+            border: 1px solid rgba(36, 51, 77, 0.85);
+            backdrop-filter: blur(2px);
+        }
+        .lw-subchart-hud.light-hud {
+            background: rgba(250, 247, 238, 0.94);
+            border-color: #DCD7C9;
+        }
         .tv-fullscreen-card {
             position: fixed !important;
             inset: 0 !important;
@@ -426,6 +457,8 @@
                         <button type="button" class="btn-sm" id="btnTvGrid" onclick="toggleTvGrid()" title="切换横竖网格线">⊞ 网格:关</button>
                         <button type="button" class="btn-sm active" id="btnTvLog" onclick="toggleTvLog()" title="切换对数坐标 (Log) / 线性坐标">LOG</button>
                         <button type="button" class="btn-sm active" id="btnToggleSmcBlocks" onclick="toggleSmcBlocks()" title="显示/隐藏 SMC 供需订单块色块（粉色供给块/蓝色需求块）与 BOS/CHoCH 结构线">🧱 SMC色块</button>
+                        <button type="button" class="btn-sm" id="btnSubchartCvd" onclick="toggleSubchartMode('cvd')" title="显示/隐藏 Gimelfarb 累积成交量净差 (CVD + SMA28) 副图">📊 CVD资金流</button>
+                        <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleSubchartMode('netpos')" title="显示/隐藏 Leviathan 合约净多空持仓 (Net Longs / Net Shorts / Net Delta) 副图">⚖️ 净多空持仓</button>
                         <button type="button" class="btn-sm" id="btnToggleDrawBar" onclick="toggleDrawingToolbar()" title="展开/收起画线与测量工具箱（水平线/趋势线段/斐波那契/矩形箱体/测量尺）">✏️ 画线工具</button>
                         <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
                         <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 网页全屏</button>
@@ -488,18 +521,29 @@
                 </div>
 
                 <div class="tv-chart-shell" id="tvChartShell">
-                    <div id="lwChartWrapper" style="width:100%; height:100%; position:relative;">
-                        <div class="lw-hud-overlay" id="lwHudOverlay">
-                            <div id="lwOhlcLine" style="color:#e2e8f0; font-weight:700;">KORUUSDT.P · 1H · 正在同步 OKX K线...</div>
-                            <div id="lwMaLine">
-                                <span style="color:#facc15;">EMA10: --</span> &nbsp;
-                                <span style="color:#38bdf8;">EMA15: --</span> &nbsp;
-                                <span style="color:#f87171;">MA50: --</span>
+                    <div id="lwChartWrapper" style="width:100%; height:100%; display:flex; flex-direction:column; position:relative;">
+                        <div id="lwMainPane" style="width:100%; flex:1; min-height:0; position:relative;">
+                            <div class="lw-hud-overlay" id="lwHudOverlay">
+                                <div id="lwOhlcLine" style="color:#e2e8f0; font-weight:700;">KORUUSDT.P · 1H · 正在同步 OKX K线...</div>
+                                <div id="lwMaLine">
+                                    <span style="color:#facc15;">EMA10: --</span> &nbsp;
+                                    <span style="color:#38bdf8;">EMA15: --</span> &nbsp;
+                                    <span style="color:#f87171;">MA50: --</span>
+                                </div>
+                                <div id="lwSmcLine" style="color:#94a3b8;">SMC结构: 扫描中 | 沙盒线已投影</div>
                             </div>
-                            <div id="lwSmcLine" style="color:#94a3b8;">SMC结构: 扫描中 | 沙盒线已投影</div>
+                            <div id="lwChartContainer" style="width:100%; height:100%;"></div>
+                            <canvas id="lwDrawOverlay" style="position:absolute; inset:0; width:100%; height:100%; z-index:6; pointer-events:none;"></canvas>
                         </div>
-                        <div id="lwChartContainer" style="width:100%; height:100%;"></div>
-                        <canvas id="lwDrawOverlay" style="position:absolute; inset:0; width:100%; height:100%; z-index:6; pointer-events:none;"></canvas>
+
+                        <div id="lwSubchartPane" class="lw-subchart-pane">
+                            <div class="lw-subchart-hud" id="lwSubchartHud">
+                                <span id="lwSubchartTitle" style="font-weight:800; color:var(--neon-cyan);">📊 CVD 累积成交量净差</span>
+                                <span id="lwSubchartValues" style="color:#cbd5e1;">--</span>
+                                <span id="lwSubchartControls" style="display:inline-flex; align-items:center; gap:4px;"></span>
+                            </div>
+                            <div id="lwSubChartContainer" style="width:100%; height:100%;"></div>
+                        </div>
                     </div>
 
                     <div id="tvWidgetContainer" style="width:100%; height:100%; display:none;"></div>
@@ -1157,6 +1201,10 @@
         let isTvFullscreen = false;
         let isTvCollapsed = false;
 
+        let subchartMode = localStorage.getItem("quant_subchart_mode") || "none"; // 'none' | 'cvd' | 'netpos'
+        let cvdDailyReset = localStorage.getItem("quant_cvd_daily_reset") === "true";
+        let netposDisplayMode = localStorage.getItem("quant_netpos_mode") || "lines"; // 'lines' | 'delta' | 'rsi'
+
         let lwChart = null;
         let lwCandleSeries = null;
         let lwEma10Series = null;
@@ -1166,6 +1214,13 @@
         let lwPriceLines = [];
         let lwLastDataCache = [];
         let lwLastSmcSnapshot = { lastSH: null, lastSL: null, supplyBlocks: [], demandBlocks: [], structureLines: [], marketBias: 0 };
+
+        let lwSubChart = null;
+        let lwSubSeries1 = null;
+        let lwSubSeries2 = null;
+        let lwSubSeries3 = null;
+        let lwSubCache = [];
+        let isSyncingTimeScale = false;
 
         function isEffectiveMonoCandles() {
             if (candleColorStyle === "mono") return true;
@@ -1452,6 +1507,7 @@
             renderDrawingToolbarState();
 
             if (chartEngineMode === "STRAT") {
+                if (lwSubChart) { try { lwSubChart.remove(); } catch (e) {} lwSubChart = null; }
                 initLightweightChart();
                 fetchAndRenderStrategyChart(false);
                 renderDrawOverlay();
@@ -1675,6 +1731,24 @@
             if (drawBtn) {
                 drawBtn.classList.toggle("active", isDrawingToolbarOpen || activeDrawTool !== "none");
             }
+            const btnCvd = document.getElementById("btnSubchartCvd");
+            const btnNetPos = document.getElementById("btnSubchartNetPos");
+            const subPane = document.getElementById("lwSubchartPane");
+            const subHud = document.getElementById("lwSubchartHud");
+            const isSubActive = subchartMode !== "none" && chartEngineMode === "STRAT";
+
+            if (btnCvd) btnCvd.classList.toggle("active", subchartMode === "cvd");
+            if (btnNetPos) btnNetPos.classList.toggle("active", subchartMode === "netpos");
+            if (shell) shell.classList.toggle("has-subchart", isSubActive);
+            if (subPane) {
+                subPane.style.display = isSubActive ? "block" : "none";
+                subPane.style.background = p.bg;
+                subPane.style.borderTopColor = isDark ? "#1e293b" : "#DCD7C9";
+            }
+            if (subHud) {
+                if (isDark) subHud.classList.remove("light-hud");
+                else subHud.classList.add("light-hud");
+            }
             renderDrawingToolbarState();
         }
 
@@ -1775,6 +1849,10 @@
                 if (!param || !param.time || !lwLastDataCache.length) return;
                 const found = lwLastDataCache.find(x => x.time === param.time);
                 if (found) updateLwHudText(found);
+                if (lwSubCache.length) {
+                    const subFound = lwSubCache.find(x => x.time === param.time);
+                    if (subFound) updateSubchartHudValues(subFound);
+                }
             });
 
             lwChart.subscribeClick((param) => {
@@ -1792,8 +1870,13 @@
                 }
             });
 
-            lwChart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+            lwChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
                 renderDrawOverlay();
+                if (lwSubChart && range && !isSyncingTimeScale) {
+                    isSyncingTimeScale = true;
+                    try { lwSubChart.timeScale().setVisibleLogicalRange(range); } catch (e) {}
+                    isSyncingTimeScale = false;
+                }
             });
 
             if (typeof ResizeObserver !== "undefined") {
@@ -2331,6 +2414,9 @@
                     lwChart.timeScale().fitContent();
                 }
                 renderDrawOverlay();
+                if (subchartMode !== "none") {
+                    await renderActiveSubchart(enriched, symObj, reqInterval);
+                }
 
                 const latestBar = enriched[enriched.length - 1];
                 updateLwHudText(latestBar);
@@ -2602,11 +2688,11 @@
 
         function resizeAndRenderDrawOverlay() {
             const canvas = document.getElementById("lwDrawOverlay");
-            const wrapper = document.getElementById("lwChartWrapper");
-            if (!canvas || !wrapper) return;
+            const mainPane = document.getElementById("lwMainPane") || document.getElementById("lwChartWrapper");
+            if (!canvas || !mainPane) return;
             const dpr = window.devicePixelRatio || 1;
-            const w = wrapper.clientWidth || 600;
-            const h = wrapper.clientHeight || 460;
+            const w = mainPane.clientWidth || 600;
+            const h = mainPane.clientHeight || 460;
             if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
                 canvas.width = Math.round(w * dpr);
                 canvas.height = Math.round(h * dpr);
@@ -3072,6 +3158,513 @@
             showToast(`已永久保存 ${symKey} ${names[finished.type] || "图形"}（跨周期自动同步）`);
         }
 
+
+        // =========================================================================
+        // 副图量化引擎：【Aggregated CVD 资金流】 & 【Leviathan 合约净多空持仓】
+        // =========================================================================
+        function formatCompactVolume(val) {
+            if (val === null || val === undefined || !isFinite(val)) return "--";
+            const abs = Math.abs(val);
+            const sign = val > 0 ? "+" : (val < 0 ? "-" : "");
+            if (abs >= 1e9) return sign + (abs / 1e9).toFixed(2) + "B";
+            if (abs >= 1e6) return sign + (abs / 1e6).toFixed(2) + "M";
+            if (abs >= 1e3) return sign + (abs / 1e3).toFixed(2) + "K";
+            return sign + abs.toFixed(2);
+        }
+
+        function formatCompactUnsigned(val) {
+            if (val === null || val === undefined || !isFinite(val)) return "--";
+            const abs = Math.abs(val);
+            const sign = val < 0 ? "-" : "";
+            if (abs >= 1e9) return sign + (abs / 1e9).toFixed(2) + "B";
+            if (abs >= 1e6) return sign + (abs / 1e6).toFixed(2) + "M";
+            if (abs >= 1e3) return sign + (abs / 1e3).toFixed(2) + "K";
+            return sign + abs.toFixed(1);
+        }
+
+        function getBeijingDayKey(unixSec) {
+            return new Intl.DateTimeFormat("zh-CN", {
+                timeZone: "Asia/Shanghai",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit"
+            }).format(new Date(unixSec * 1000));
+        }
+
+        // 1. Vadim Gimelfarb Power-Balance CVD 算法 (1:1 还原 Pine Script)
+        function computeGimelfarbCvdSeries(candles, resetDaily) {
+            const n = candles.length;
+            const out = [];
+            let cumCvd = 0;
+            let prevDay = null;
+
+            for (let i = 0; i < n; i++) {
+                const c = candles[i];
+                const prevC = i > 0 ? candles[i - 1].close : c.open;
+                const dayKey = getBeijingDayKey(c.time);
+                if (resetDaily && prevDay !== null && dayKey !== prevDay) {
+                    cumCvd = 0;
+                }
+                prevDay = dayKey;
+
+                let bp = 0, sp = 0;
+                if (c.close < c.open) {
+                    bp = prevC < c.open ? Math.max(c.high - prevC, c.close - c.low) : Math.max(c.high - c.open, c.close - c.low);
+                    sp = prevC > c.open ? Math.max(prevC - c.open, c.high - c.low) : (c.high - c.low);
+                } else if (c.close > c.open) {
+                    bp = prevC > c.open ? (c.high - c.low) : Math.max(c.open - prevC, c.high - c.low);
+                    sp = prevC > c.open ? Math.max(prevC - c.low, c.high - c.close) : Math.max(c.open - c.low, c.high - c.close);
+                } else {
+                    if (c.high - c.close > c.close - c.low) {
+                        bp = prevC < c.open ? Math.max(c.high - prevC, c.close - c.low) : (c.high - c.open);
+                        sp = prevC > c.open ? Math.max(prevC - c.open, c.high - c.low) : (c.high - c.low);
+                    } else if (c.high - c.close < c.close - c.low) {
+                        bp = prevC > c.open ? (c.high - c.low) : Math.max(c.open - prevC, c.high - c.low);
+                        sp = prevC > c.open ? Math.max(prevC - c.low, c.high - c.close) : (c.open - c.low);
+                    } else {
+                        bp = prevC > c.open ? Math.max(c.high - c.open, c.close - c.low) : (prevC < c.open ? Math.max(c.open - prevC, c.high - c.low) : (c.high - c.low));
+                        sp = prevC > c.open ? Math.max(prevC - c.open, c.high - c.low) : (prevC < c.open ? Math.max(c.open - prevC, c.high - c.low) : (c.high - c.low));
+                    }
+                }
+
+                const tp = bp + sp;
+                const bpv = tp > 0 ? (bp / tp) * c.vol : c.vol * 0.5;
+                const spv = tp > 0 ? (sp / tp) * c.vol : c.vol * 0.5;
+                const delta = Math.abs(bpv) - Math.abs(spv);
+                cumCvd += delta;
+
+                let sma28 = null;
+                if (i >= 27) {
+                    let sum = 0;
+                    for (let j = i - 27; j < i; j++) sum += out[j].cvd;
+                    sum += cumCvd;
+                    sma28 = sum / 28;
+                }
+
+                out.push({
+                    mode: "cvd",
+                    time: c.time,
+                    delta,
+                    cvd: cumCvd,
+                    sma28
+                });
+            }
+            return out;
+        }
+
+        // 2. Leviathan Net Positions (Net Longs & Net Shorts) 算法 + OKX 真实合约持仓量历史
+        function computeWilderRsiArray(values, period = 14) {
+            const n = values.length;
+            const rsi = new Array(n).fill(null);
+            if (n <= period) return rsi;
+
+            let gainSum = 0, lossSum = 0;
+            for (let i = 1; i <= period; i++) {
+                const diff = values[i] - values[i - 1];
+                if (diff >= 0) gainSum += diff;
+                else lossSum -= diff;
+            }
+            let avgGain = gainSum / period;
+            let avgLoss = lossSum / period;
+            rsi[period] = avgLoss === 0 ? 100 : (100 - 100 / (1 + avgGain / avgLoss));
+
+            for (let i = period + 1; i < n; i++) {
+                const diff = values[i] - values[i - 1];
+                const g = diff > 0 ? diff : 0;
+                const l = diff < 0 ? -diff : 0;
+                avgGain = (avgGain * (period - 1) + g) / period;
+                avgLoss = (avgLoss * (period - 1) + l) / period;
+                rsi[i] = avgLoss === 0 ? 100 : (100 - 100 / (1 + avgGain / avgLoss));
+            }
+            return rsi;
+        }
+
+        async function fetchOkxOiHistoryForCandles(candles, symObj, interval) {
+            const periodMap = { "15": "15m", "60": "1H", "240": "4H", "D": "1D", "3D": "1D" };
+            const period = periodMap[interval] || "1H";
+            const instId = symObj.okxInstId || `${symObj.id}-USDT-SWAP`;
+
+            try {
+                let json = null;
+                const urls = [
+                    `https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-history?instId=${instId}&period=${period}&limit=100`,
+                    `https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-history?ccy=${symObj.id}&period=${period}&limit=100`
+                ];
+                for (const u of urls) {
+                    try {
+                        const res = await fetch(u, { cache: "no-store" });
+                        const j = await res.json();
+                        if (j?.code === "0" && Array.isArray(j.data) && j.data.length >= 5) {
+                            json = j;
+                            break;
+                        }
+                    } catch (err) {}
+                }
+                if (!json) return [];
+
+                const oiRows = json.data.slice().reverse().map(row => ({
+                    time: Math.floor(parseInt(row[0], 10) / 1000),
+                    oi: parseFloat(row[2]) || parseFloat(row[1]) || 0
+                })).filter(x => x.oi > 0);
+
+                if (oiRows.length < 5) return [];
+
+                const firstOiTime = oiRows[0].time;
+                let oiPtr = 0;
+                let prevOi = null;
+                let longsEntering = 0, longsExiting = 0;
+                let shortsEntering = 0, shortsExiting = 0;
+
+                const rawRows = candles.map(c => {
+                    if (c.time < firstOiTime) {
+                        return {
+                            mode: "netpos",
+                            time: c.time,
+                            hasOi: false,
+                            oi: null,
+                            deltaOi: 0,
+                            netLongs: 0,
+                            netShorts: 0,
+                            netDelta: 0
+                        };
+                    }
+                    while (oiPtr + 1 < oiRows.length && oiRows[oiPtr + 1].time <= c.time) {
+                        oiPtr++;
+                    }
+                    const curOi = oiRows[oiPtr].oi;
+                    const deltaOi = prevOi !== null ? (curOi - prevOi) : 0;
+                    prevOi = curOi;
+
+                    const priceUp = c.close > c.open;
+                    const priceDown = c.close < c.open;
+                    const oiUp = deltaOi > 0;
+                    const oiDown = deltaOi < 0;
+
+                    if (oiUp && priceUp) longsEntering += deltaOi;
+                    if (oiDown && priceDown) longsExiting += Math.abs(deltaOi);
+                    if (oiUp && priceDown) shortsEntering += deltaOi;
+                    if (oiDown && priceUp) shortsExiting += Math.abs(deltaOi);
+
+                    const netLongs = longsEntering - longsExiting;
+                    const netShorts = shortsEntering - shortsExiting;
+                    const netDelta = netLongs - netShorts;
+
+                    return {
+                        mode: "netpos",
+                        time: c.time,
+                        hasOi: true,
+                        oi: curOi,
+                        deltaOi,
+                        netLongs,
+                        netShorts,
+                        netDelta
+                    };
+                });
+
+                const rsiLongs = computeWilderRsiArray(rawRows.map(r => r.netLongs), 14);
+                const rsiShorts = computeWilderRsiArray(rawRows.map(r => r.netShorts), 14);
+                const rsiDelta = computeWilderRsiArray(rawRows.map(r => r.netDelta), 14);
+
+                return rawRows.map((r, idx) => ({
+                    ...r,
+                    rsiLongs: rsiLongs[idx],
+                    rsiShorts: rsiShorts[idx],
+                    rsiDelta: rsiDelta[idx]
+                }));
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function initSubChartInstance() {
+            const container = document.getElementById("lwSubChartContainer");
+            if (!container || typeof LightweightCharts === "undefined") return;
+            container.innerHTML = "";
+
+            const p = getChartPalette();
+            lwSubChart = LightweightCharts.createChart(container, {
+                width: container.clientWidth || 600,
+                height: container.clientHeight || 160,
+                layout: {
+                    background: { type: "solid", color: p.bg },
+                    textColor: p.text,
+                    fontSize: 10
+                },
+                grid: getGridOptions(),
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                    vertLine: { color: p.crosshairColor },
+                    horzLine: { color: p.crosshairColor }
+                },
+                rightPriceScale: {
+                    borderColor: p.border,
+                    scaleMargins: { top: 0.22, bottom: 0.1 }
+                },
+                timeScale: {
+                    borderColor: p.border,
+                    visible: false
+                },
+                localization: {
+                    priceFormatter: (val) => netposDisplayMode === "rsi" && subchartMode === "netpos"
+                        ? Number(val).toFixed(1)
+                        : formatCompactUnsigned(val)
+                }
+            });
+
+            if (subchartMode === "cvd") {
+                lwSubSeries3 = lwSubChart.addHistogramSeries({
+                    priceLineVisible: false,
+                    lastValueVisible: false
+                });
+                lwSubSeries1 = lwSubChart.addLineSeries({
+                    color: p.isDark ? "#38bdf8" : "#2563EB",
+                    lineWidth: 2,
+                    priceLineVisible: false,
+                    lastValueVisible: true,
+                    title: "CVD"
+                });
+                lwSubSeries2 = lwSubChart.addLineSeries({
+                    color: "#a855f7",
+                    lineWidth: 1.5,
+                    priceLineVisible: false,
+                    lastValueVisible: true,
+                    title: "SMA28"
+                });
+            } else if (subchartMode === "netpos") {
+                if (netposDisplayMode === "delta") {
+                    lwSubSeries3 = lwSubChart.addHistogramSeries({
+                        priceLineVisible: false,
+                        lastValueVisible: true,
+                        title: "NetDelta"
+                    });
+                    lwSubSeries1 = lwSubChart.addLineSeries({
+                        color: "#38bdf8",
+                        lineWidth: 1.5,
+                        priceLineVisible: false,
+                        lastValueVisible: false
+                    });
+                } else {
+                    lwSubSeries1 = lwSubChart.addLineSeries({
+                        color: "#10b981",
+                        lineWidth: 2,
+                        priceLineVisible: false,
+                        lastValueVisible: true,
+                        title: netposDisplayMode === "rsi" ? "多RSI" : "净多"
+                    });
+                    lwSubSeries2 = lwSubChart.addLineSeries({
+                        color: "#ef4444",
+                        lineWidth: 2,
+                        priceLineVisible: false,
+                        lastValueVisible: true,
+                        title: netposDisplayMode === "rsi" ? "空RSI" : "净空"
+                    });
+                    lwSubSeries3 = lwSubChart.addLineSeries({
+                        color: "#38bdf8",
+                        lineWidth: 1.5,
+                        lineStyle: LightweightCharts.LineStyle.Dashed,
+                        priceLineVisible: false,
+                        lastValueVisible: false,
+                        title: "净差"
+                    });
+                }
+            }
+
+            lwSubChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+                if (lwChart && range && !isSyncingTimeScale) {
+                    isSyncingTimeScale = true;
+                    try {
+                        lwChart.timeScale().setVisibleLogicalRange(range);
+                        renderDrawOverlay();
+                    } catch (e) {}
+                    isSyncingTimeScale = false;
+                }
+            });
+
+            lwSubChart.subscribeCrosshairMove((param) => {
+                if (!param || !param.time || !lwSubCache.length) return;
+                const subFound = lwSubCache.find(x => x.time === param.time);
+                if (subFound) updateSubchartHudValues(subFound);
+                const mainFound = lwLastDataCache.find(x => x.time === param.time);
+                if (mainFound) updateLwHudText(mainFound);
+            });
+
+            if (typeof ResizeObserver !== "undefined") {
+                const ro = new ResizeObserver(() => {
+                    if (lwSubChart && container.clientWidth > 0 && container.clientHeight > 0) {
+                        lwSubChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+                    }
+                });
+                ro.observe(container);
+            }
+        }
+
+        function updateSubchartHudValues(bar) {
+            const titleEl = document.getElementById("lwSubchartTitle");
+            const valEl = document.getElementById("lwSubchartValues");
+            const ctrlEl = document.getElementById("lwSubchartControls");
+            if (!titleEl || !valEl || !ctrlEl || !bar) return;
+
+            const isDark = tvTheme === "dark";
+            const mutedCol = isDark ? "#cbd5e1" : "#1E222D";
+            valEl.style.color = mutedCol;
+
+            if (bar.mode === "cvd") {
+                const symObj = getActiveSymbolObj();
+                titleEl.textContent = `📊 ${symObj.label} CVD 资金流`;
+                titleEl.style.color = isDark ? "#38bdf8" : "#2563EB";
+                const dCol = bar.delta >= 0 ? "#10b981" : "#ef4444";
+                valEl.innerHTML =
+                    `CVD: <b style="color:${isDark ? '#38bdf8' : '#2563EB'}">${formatCompactVolume(bar.cvd)}</b> &nbsp;` +
+                    `SMA28: <b style="color:#a855f7">${bar.sma28 !== null ? formatCompactVolume(bar.sma28) : '--'}</b> &nbsp;` +
+                    `单根Delta: <b style="color:${dCol}">${formatCompactVolume(bar.delta)}</b>`;
+                ctrlEl.innerHTML = `<button type="button" class="btn-sm ${cvdDailyReset ? 'active' : ''}" onclick="toggleCvdDailyReset()" style="padding:1px 6px; font-size:10px;">${cvdDailyReset ? '📅 日重置:开' : '📅 日重置:关'}</button>`;
+            } else if (bar.mode === "netpos") {
+                const symObj = getActiveSymbolObj();
+                titleEl.textContent = `⚖️ ${symObj.label} 合约净多空持仓`;
+                titleEl.style.color = "#10b981";
+                if (netposDisplayMode === "rsi") {
+                    valEl.innerHTML =
+                        `多RSI: <b style="color:#10b981">${bar.rsiLongs !== null ? bar.rsiLongs.toFixed(1) : '--'}</b> &nbsp;` +
+                        `空RSI: <b style="color:#ef4444">${bar.rsiShorts !== null ? bar.rsiShorts.toFixed(1) : '--'}</b> &nbsp;` +
+                        `净差RSI: <b style="color:#38bdf8">${bar.rsiDelta !== null ? bar.rsiDelta.toFixed(1) : '--'}</b>`;
+                } else {
+                    valEl.innerHTML =
+                        `净多(Longs): <b style="color:#10b981">${formatCompactVolume(bar.netLongs)}</b> &nbsp;` +
+                        `净空(Shorts): <b style="color:#ef4444">${formatCompactVolume(bar.netShorts)}</b> &nbsp;` +
+                        `净差(Delta): <b style="color:#38bdf8">${formatCompactVolume(bar.netDelta)}</b>`;
+                }
+                ctrlEl.innerHTML =
+                    `<button type="button" class="btn-sm ${netposDisplayMode === 'lines' ? 'active' : ''}" onclick="setNetposDisplayMode('lines')" style="padding:1px 5px; font-size:10px;">多空线</button>` +
+                    `<button type="button" class="btn-sm ${netposDisplayMode === 'delta' ? 'active' : ''}" onclick="setNetposDisplayMode('delta')" style="padding:1px 5px; font-size:10px;">NetDelta</button>` +
+                    `<button type="button" class="btn-sm ${netposDisplayMode === 'rsi' ? 'active' : ''}" onclick="setNetposDisplayMode('rsi')" style="padding:1px 5px; font-size:10px;">仓位RSI</button>`;
+            }
+        }
+
+        async function renderActiveSubchart(enrichedCandles, symObj, interval) {
+            if (subchartMode === "none" || chartEngineMode !== "STRAT") return;
+
+            if (subchartMode === "netpos" && symObj.market === "US") {
+                const titleEl = document.getElementById("lwSubchartTitle");
+                const valEl = document.getElementById("lwSubchartValues");
+                const ctrlEl = document.getElementById("lwSubchartControls");
+                if (titleEl) { titleEl.textContent = `⚠️ ${symObj.label} 无合约持仓量(OI)`; titleEl.style.color = "var(--neon-amber)"; }
+                if (valEl) valEl.textContent = "美股/ETF 为现货资产，仅加密货币永续合约具备持仓量 OI，可点击右侧一键切至 CVD 资金流";
+                if (ctrlEl) ctrlEl.innerHTML = `<button type="button" class="btn-sm active" onclick="toggleSubchartMode('cvd')" style="padding:1px 7px; font-size:10px;">切换至 📊 CVD资金流</button>`;
+                if (lwSubChart) {
+                    try { lwSubChart.remove(); } catch (e) {}
+                    lwSubChart = null;
+                }
+                lwSubCache = [];
+                return;
+            }
+
+            if (!lwSubChart) initSubChartInstance();
+            if (!lwSubChart) return;
+
+            if (subchartMode === "cvd") {
+                const cvdRows = computeGimelfarbCvdSeries(enrichedCandles, cvdDailyReset);
+                lwSubCache = cvdRows;
+
+                if (lwSubSeries1) lwSubSeries1.setData(cvdRows.map(r => ({ time: r.time, value: r.cvd })));
+                if (lwSubSeries2) lwSubSeries2.setData(cvdRows.map(r => r.sma28 !== null ? { time: r.time, value: r.sma28 } : { time: r.time }));
+                if (lwSubSeries3) lwSubSeries3.setData(cvdRows.map(r => ({
+                    time: r.time,
+                    value: r.delta,
+                    color: r.delta >= 0 ? "rgba(16, 185, 129, 0.38)" : "rgba(239, 68, 68, 0.38)"
+                })));
+
+                if (cvdRows.length > 0) updateSubchartHudValues(cvdRows[cvdRows.length - 1]);
+            } else if (subchartMode === "netpos") {
+                const npRows = await fetchOkxOiHistoryForCandles(enrichedCandles, symObj, interval);
+                if (!npRows.length || !npRows.some(r => r.hasOi)) {
+                    const titleEl = document.getElementById("lwSubchartTitle");
+                    const valEl = document.getElementById("lwSubchartValues");
+                    if (titleEl) { titleEl.textContent = `⚠️ ${symObj.label} 暂未拉取到历史 OI`; titleEl.style.color = "var(--neon-amber)"; }
+                    if (valEl) valEl.textContent = "OKX 暂未返回该品种历史持仓序列";
+                    return;
+                }
+                lwSubCache = npRows;
+
+                if (netposDisplayMode === "delta") {
+                    if (lwSubSeries3) lwSubSeries3.setData(npRows.map(r => r.hasOi ? ({
+                        time: r.time,
+                        value: r.netDelta,
+                        color: r.netDelta >= 0 ? "rgba(16, 185, 129, 0.65)" : "rgba(239, 68, 68, 0.65)"
+                    }) : { time: r.time }));
+                    if (lwSubSeries1) lwSubSeries1.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netDelta } : { time: r.time }));
+                } else if (netposDisplayMode === "rsi") {
+                    if (lwSubSeries1) lwSubSeries1.setData(npRows.map(r => r.rsiLongs !== null ? { time: r.time, value: r.rsiLongs } : { time: r.time }));
+                    if (lwSubSeries2) lwSubSeries2.setData(npRows.map(r => r.rsiShorts !== null ? { time: r.time, value: r.rsiShorts } : { time: r.time }));
+                    if (lwSubSeries3) lwSubSeries3.setData(npRows.map(r => r.rsiDelta !== null ? { time: r.time, value: r.rsiDelta } : { time: r.time }));
+                } else {
+                    if (lwSubSeries1) lwSubSeries1.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netLongs } : { time: r.time }));
+                    if (lwSubSeries2) lwSubSeries2.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netShorts } : { time: r.time }));
+                    if (lwSubSeries3) lwSubSeries3.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netDelta } : { time: r.time }));
+                }
+
+                const lastValid = npRows[npRows.length - 1];
+                if (lastValid) updateSubchartHudValues(lastValid);
+            }
+
+            if (lwChart) {
+                try {
+                    const mainRange = lwChart.timeScale().getVisibleLogicalRange();
+                    if (mainRange) lwSubChart.timeScale().setVisibleLogicalRange(mainRange);
+                } catch (e) {}
+            }
+        }
+
+        function toggleSubchartMode(targetMode) {
+            if (chartEngineMode !== "STRAT") {
+                switchChartEngine("STRAT", document.getElementById("btnEngineStrat"));
+            }
+            subchartMode = subchartMode === targetMode ? "none" : targetMode;
+            localStorage.setItem("quant_subchart_mode", subchartMode);
+
+            if (lwSubChart) {
+                try { lwSubChart.remove(); } catch (e) {}
+                lwSubChart = null;
+            }
+            syncChartControlButtons();
+
+            if (subchartMode !== "none") {
+                initSubChartInstance();
+                if (lwLastDataCache.length > 0) {
+                    renderActiveSubchart(lwLastDataCache, getActiveSymbolObj(), tvInterval);
+                } else {
+                    fetchAndRenderStrategyChart(true);
+                }
+                showToast(subchartMode === "cvd"
+                    ? "已开启【Gimelfarb CVD 累积成交量净差 + SMA28】副图"
+                    : "已开启【Leviathan 合约净多空持仓 (Net Longs / Shorts)】副图");
+            } else {
+                showToast("已收起底部副图面板");
+            }
+            setTimeout(resizeAndRenderDrawOverlay, 50);
+        }
+
+        function toggleCvdDailyReset() {
+            cvdDailyReset = !cvdDailyReset;
+            localStorage.setItem("quant_cvd_daily_reset", cvdDailyReset ? "true" : "false");
+            if (subchartMode === "cvd" && lwLastDataCache.length > 0) {
+                renderActiveSubchart(lwLastDataCache, getActiveSymbolObj(), tvInterval);
+            }
+            showToast(cvdDailyReset ? "CVD 已开启【每日开盘零轴重置 (UTC+8)】" : "CVD 已切换为【全波段连续累积】");
+        }
+
+        function setNetposDisplayMode(mode) {
+            netposDisplayMode = mode;
+            localStorage.setItem("quant_netpos_mode", mode);
+            if (lwSubChart) {
+                try { lwSubChart.remove(); } catch (e) {}
+                lwSubChart = null;
+            }
+            if (subchartMode === "netpos" && lwLastDataCache.length > 0) {
+                initSubChartInstance();
+                renderActiveSubchart(lwLastDataCache, getActiveSymbolObj(), tvInterval);
+            }
+        }
+
         function renderTradingViewChart() {
             const container = document.getElementById("tvWidgetContainer");
             if (!container) return;
@@ -3163,6 +3756,7 @@
             if (btnEl) btnEl.classList.add("active");
 
             if (chartEngineMode === "STRAT") {
+                if (lwSubChart) { try { lwSubChart.remove(); } catch (e) {} lwSubChart = null; }
                 initLightweightChart();
                 fetchAndRenderStrategyChart(false);
             } else {
@@ -3219,6 +3813,7 @@
 
             if (chartEngineMode === "STRAT") {
                 if (lwChart) lwChart.applyOptions({ grid: getGridOptions() });
+                if (lwSubChart) lwSubChart.applyOptions({ grid: getGridOptions() });
             } else {
                 renderTradingViewChart();
             }
