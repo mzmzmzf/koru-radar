@@ -167,14 +167,14 @@
             border: 1px solid #1a253c;
             overflow: hidden;
             position: relative;
-            transition: height 0.2s ease;
         }
-        .tv-chart-shell.has-subchart { height: 620px; }
+        .tv-chart-shell.subchart-1 { height: 605px; }
+        .tv-chart-shell.subchart-2 { height: 750px; }
         .tv-chart-shell.collapsed { display: none; }
         .lw-subchart-pane {
             display: none;
             width: 100%;
-            height: 160px;
+            height: 145px;
             flex-shrink: 0;
             position: relative;
             border-top: 1px solid #1e293b;
@@ -446,19 +446,23 @@
 
                     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                         <div class="btn-group">
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('1', this)">1m</button>
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('5', this)">5m</button>
                             <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('15', this)">15m</button>
                             <button type="button" class="btn-sm tv-tf-btn active" onclick="switchTvInterval('60', this)">1H</button>
                             <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('240', this)">4H</button>
                             <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('D', this)">1D</button>
                             <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('3D', this)">3D</button>
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('W', this)">1W</button>
+                            <button type="button" class="btn-sm tv-tf-btn" onclick="switchTvInterval('M', this)">1M</button>
                         </div>
                         <button type="button" class="btn-sm" id="btnTvTheme" onclick="toggleTvTheme()" style="border-color:var(--neon-amber); color:#fbbf24;">☀️ 象牙白</button>
                         <button type="button" class="btn-sm" id="btnTvCandleStyle" onclick="toggleTvCandleStyle()" title="切换威科夫黑白空心K线 / 经典红绿K线">🕯️ K线:红绿</button>
                         <button type="button" class="btn-sm" id="btnTvGrid" onclick="toggleTvGrid()" title="切换横竖网格线">⊞ 网格:关</button>
                         <button type="button" class="btn-sm active" id="btnTvLog" onclick="toggleTvLog()" title="切换对数坐标 (Log) / 线性坐标">LOG</button>
                         <button type="button" class="btn-sm active" id="btnToggleSmcBlocks" onclick="toggleSmcBlocks()" title="显示/隐藏 SMC 供需订单块色块（粉色供给块/蓝色需求块）与 BOS/CHoCH 结构线">🧱 SMC色块</button>
-                        <button type="button" class="btn-sm" id="btnSubchartCvd" onclick="toggleSubchartMode('cvd')" title="显示/隐藏 Gimelfarb 累积成交量净差 (CVD + SMA28) 副图">📊 CVD资金流</button>
-                        <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleSubchartMode('netpos')" title="显示/隐藏 Leviathan 合约净多空持仓 (Net Longs / Net Shorts / Net Delta) 副图">⚖️ 净多空持仓</button>
+                        <button type="button" class="btn-sm" id="btnSubchartCvd" onclick="toggleCvdSubchart()" title="独立显示/隐藏 Gimelfarb 累积成交量净差 (CVD + SMA28) 副图（可与净多空持仓同时开启）">📊 CVD资金流</button>
+                        <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleNetposSubchart()" title="独立显示/隐藏 Leviathan 合约净多空持仓 (Net Longs / Net Shorts / Net Delta) 副图（可与CVD同时开启）">⚖️ 净多空持仓</button>
                         <button type="button" class="btn-sm" id="btnToggleDrawBar" onclick="toggleDrawingToolbar()" title="展开/收起画线与测量工具箱（水平线/趋势线段/斐波那契/矩形箱体/测量尺）">✏️ 画线工具</button>
                         <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
                         <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 网页全屏</button>
@@ -538,13 +542,22 @@
                             <canvas id="lwDrawOverlay" style="position:absolute; inset:0; width:100%; height:100%; z-index:6; pointer-events:none;"></canvas>
                         </div>
 
-                        <div id="lwSubchartPane" class="lw-subchart-pane">
-                            <div class="lw-subchart-hud" id="lwSubchartHud">
-                                <span id="lwSubchartTitle" style="font-weight:800; color:var(--neon-cyan);">📊 CVD 累积成交量净差</span>
-                                <span id="lwSubchartValues" style="color:#cbd5e1;">--</span>
-                                <span id="lwSubchartControls" style="display:inline-flex; align-items:center; gap:4px;"></span>
+                        <div id="lwCvdPane" class="lw-subchart-pane">
+                            <div class="lw-subchart-hud" id="lwCvdHud">
+                                <span id="lwCvdTitle" style="font-weight:800; color:var(--neon-cyan);">📊 CVD 累积成交量净差</span>
+                                <span id="lwCvdValues" style="color:#cbd5e1;">--</span>
+                                <span id="lwCvdControls" style="display:inline-flex; align-items:center; gap:4px;"></span>
                             </div>
-                            <div id="lwSubChartContainer" style="width:100%; height:100%;"></div>
+                            <div id="lwCvdChartContainer" style="width:100%; height:100%;"></div>
+                        </div>
+
+                        <div id="lwNetposPane" class="lw-subchart-pane">
+                            <div class="lw-subchart-hud" id="lwNetposHud">
+                                <span id="lwNetposTitle" style="font-weight:800; color:#10b981;">⚖️ 合约净多空持仓</span>
+                                <span id="lwNetposValues" style="color:#cbd5e1;">--</span>
+                                <span id="lwNetposControls" style="display:inline-flex; align-items:center; gap:4px;"></span>
+                            </div>
+                            <div id="lwNetposChartContainer" style="width:100%; height:100%;"></div>
                         </div>
                     </div>
 
@@ -1205,7 +1218,13 @@
         let isTvFullscreen = false;
         let isTvCollapsed = false;
 
-        let subchartMode = localStorage.getItem("quant_subchart_mode") || "none"; // 'none' | 'cvd' | 'netpos'
+        const legacySubMode = localStorage.getItem("quant_subchart_mode") || "none";
+        let showCvdSubchart = localStorage.getItem("quant_show_cvd_subchart") !== null
+            ? localStorage.getItem("quant_show_cvd_subchart") === "true"
+            : legacySubMode === "cvd";
+        let showNetposSubchart = localStorage.getItem("quant_show_netpos_subchart") !== null
+            ? localStorage.getItem("quant_show_netpos_subchart") === "true"
+            : legacySubMode === "netpos";
         let cvdDailyReset = localStorage.getItem("quant_cvd_daily_reset") === "true";
         let netposDisplayMode = localStorage.getItem("quant_netpos_mode") || "lines"; // 'lines' | 'delta' | 'rsi'
 
@@ -1219,11 +1238,18 @@
         let lwLastDataCache = [];
         let lwLastSmcSnapshot = { lastSH: null, lastSL: null, supplyBlocks: [], demandBlocks: [], structureLines: [], marketBias: 0 };
 
-        let lwSubChart = null;
-        let lwSubSeries1 = null;
-        let lwSubSeries2 = null;
-        let lwSubSeries3 = null;
-        let lwSubCache = [];
+        let lwCvdChart = null;
+        let lwCvdLineSeries = null;
+        let lwCvdMaSeries = null;
+        let lwCvdDeltaSeries = null;
+        let lwCvdCache = [];
+
+        let lwNetposChart = null;
+        let lwNetposSeries1 = null;
+        let lwNetposSeries2 = null;
+        let lwNetposSeries3 = null;
+        let lwNetposCache = [];
+
         let isSyncingTimeScale = false;
 
         function isEffectiveMonoCandles() {
@@ -1511,7 +1537,7 @@
             renderDrawingToolbarState();
 
             if (chartEngineMode === "STRAT") {
-                if (lwSubChart) { try { lwSubChart.remove(); } catch (e) {} lwSubChart = null; }
+                destroySubChartInstances();
                 initLightweightChart();
                 fetchAndRenderStrategyChart(false);
                 renderDrawOverlay();
@@ -1816,29 +1842,41 @@
             }
             const btnCvd = document.getElementById("btnSubchartCvd");
             const btnNetPos = document.getElementById("btnSubchartNetPos");
-            const subPane = document.getElementById("lwSubchartPane");
-            const subHud = document.getElementById("lwSubchartHud");
-            const isSubActive = subchartMode !== "none" && chartEngineMode === "STRAT";
+            const cvdPane = document.getElementById("lwCvdPane");
+            const netposPane = document.getElementById("lwNetposPane");
+            const cvdHud = document.getElementById("lwCvdHud");
+            const netposHud = document.getElementById("lwNetposHud");
 
-            if (btnCvd) btnCvd.classList.toggle("active", subchartMode === "cvd");
-            if (btnNetPos) btnNetPos.classList.toggle("active", subchartMode === "netpos");
-            if (shell) shell.classList.toggle("has-subchart", isSubActive);
-            if (subPane) {
-                subPane.style.display = isSubActive ? "block" : "none";
-                subPane.style.background = p.bg;
-                subPane.style.borderTopColor = isDark ? "#1e293b" : "#DCD7C9";
+            const isStrat = chartEngineMode === "STRAT";
+            const activeCvd = showCvdSubchart && isStrat;
+            const activeNetpos = showNetposSubchart && isStrat;
+            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0);
+
+            if (btnCvd) btnCvd.classList.toggle("active", showCvdSubchart);
+            if (btnNetPos) btnNetPos.classList.toggle("active", showNetposSubchart);
+            if (shell) {
+                shell.classList.toggle("subchart-1", activeCount === 1);
+                shell.classList.toggle("subchart-2", activeCount === 2);
             }
-            if (subHud) {
-                if (isDark) subHud.classList.remove("light-hud");
-                else subHud.classList.add("light-hud");
-            }
+            [ [cvdPane, activeCvd, cvdHud], [netposPane, activeNetpos, netposHud] ].forEach(([pane, vis, hudEl]) => {
+                if (pane) {
+                    pane.style.display = vis ? "block" : "none";
+                    pane.style.background = p.bg;
+                    pane.style.borderTopColor = isDark ? "#1e293b" : "#DCD7C9";
+                }
+                if (hudEl) {
+                    if (isDark) hudEl.classList.remove("light-hud");
+                    else hudEl.classList.add("light-hud");
+                }
+            });
             renderDrawingToolbarState();
         }
 
-        function formatBeijingTime(unixSec, dateOnly = false) {
+        function formatBeijingTime(unixSec, mode = false) {
             const d = new Date(unixSec * 1000);
             const parts = new Intl.DateTimeFormat("zh-CN", {
                 timeZone: "Asia/Shanghai",
+                year: "numeric",
                 month: "2-digit",
                 day: "2-digit",
                 hour: "2-digit",
@@ -1846,7 +1884,35 @@
                 hour12: false
             }).formatToParts(d);
             const getP = (t) => (parts.find(x => x.type === t) || {}).value || "00";
-            return dateOnly ? `${getP("month")}/${getP("day")}` : `${getP("month")}/${getP("day")} ${getP("hour")}:${getP("minute")}`;
+            if (mode === "month") return `${getP("year")}/${getP("month")}`;
+            if (mode === "week") return `${getP("year").slice(-2)}/${getP("month")}/${getP("day")}`;
+            if (mode === true || mode === "date") return `${getP("month")}/${getP("day")}`;
+            return `${getP("month")}/${getP("day")} ${getP("hour")}:${getP("minute")}`;
+        }
+
+        function getTickFormatModeForInterval(tf) {
+            if (tf === "M") return "month";
+            if (tf === "W") return "week";
+            if (tf === "D" || tf === "3D") return "date";
+            return false;
+        }
+
+        function syncAllTimeScalesFrom(sourceChart, range) {
+            if (!range || isSyncingTimeScale) return;
+            isSyncingTimeScale = true;
+            try {
+                if (lwChart && sourceChart !== lwChart) {
+                    lwChart.timeScale().setVisibleLogicalRange(range);
+                    renderDrawOverlay();
+                }
+                if (lwCvdChart && sourceChart !== lwCvdChart) {
+                    lwCvdChart.timeScale().setVisibleLogicalRange(range);
+                }
+                if (lwNetposChart && sourceChart !== lwNetposChart) {
+                    lwNetposChart.timeScale().setVisibleLogicalRange(range);
+                }
+            } catch (e) {}
+            isSyncingTimeScale = false;
         }
 
         function initLightweightChart() {
@@ -1855,6 +1921,7 @@
             container.innerHTML = "";
 
             const p = getChartPalette();
+            const tickMode = getTickFormatModeForInterval(tvInterval);
             lwChart = LightweightCharts.createChart(container, {
                 width: container.clientWidth || 600,
                 height: container.clientHeight || 460,
@@ -1871,6 +1938,7 @@
                 },
                 rightPriceScale: {
                     borderColor: p.border,
+                    minimumWidth: 68,
                     mode: isChartLogScale
                         ? LightweightCharts.PriceScaleMode.Logarithmic
                         : LightweightCharts.PriceScaleMode.Normal,
@@ -1878,12 +1946,12 @@
                 },
                 timeScale: {
                     borderColor: p.border,
-                    timeVisible: tvInterval !== "D" && tvInterval !== "3D",
+                    timeVisible: !tickMode,
                     secondsVisible: false,
-                    tickMarkFormatter: (time) => formatBeijingTime(time, tvInterval === "D" || tvInterval === "3D")
+                    tickMarkFormatter: (time) => formatBeijingTime(time, tickMode)
                 },
                 localization: {
-                    timeFormatter: (time) => formatBeijingTime(time, false)
+                    timeFormatter: (time) => formatBeijingTime(time, tickMode === "month" ? "month" : (tickMode ? "week" : false))
                 }
             });
 
@@ -1932,9 +2000,13 @@
                 if (!param || !param.time || !lwLastDataCache.length) return;
                 const found = lwLastDataCache.find(x => x.time === param.time);
                 if (found) updateLwHudText(found);
-                if (lwSubCache.length) {
-                    const subFound = lwSubCache.find(x => x.time === param.time);
-                    if (subFound) updateSubchartHudValues(subFound);
+                if (lwCvdCache.length) {
+                    const cvdFound = lwCvdCache.find(x => x.time === param.time);
+                    if (cvdFound) updateCvdHudValues(cvdFound);
+                }
+                if (lwNetposCache.length) {
+                    const npFound = lwNetposCache.find(x => x.time === param.time);
+                    if (npFound) updateNetposHudValues(npFound);
                 }
             });
 
@@ -1955,11 +2027,7 @@
 
             lwChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
                 renderDrawOverlay();
-                if (lwSubChart && range && !isSyncingTimeScale) {
-                    isSyncingTimeScale = true;
-                    try { lwSubChart.timeScale().setVisibleLogicalRange(range); } catch (e) {}
-                    isSyncingTimeScale = false;
-                }
+                syncAllTimeScalesFrom(lwChart, range);
             });
 
             if (typeof ResizeObserver !== "undefined") {
@@ -1985,7 +2053,7 @@
             const symObj = getActiveSymbolObj();
             const dec = getActiveSymbolDecimals(bar.close);
             const symName = symObj.market === "OKX" ? (symObj.okxInstId || `${symObj.id}-USDT-SWAP`) : `${symObj.label} (${symObj.desc || '美股/ETF'})`;
-            const tfLabel = { "15": "15m", "60": "1H", "240": "4H", "D": "1D", "3D": "3D" }[tvInterval] || "1H";
+            const tfLabel = { "1": "1m", "5": "5m", "15": "15m", "60": "1H", "240": "4H", "D": "1D", "3D": "3D", "W": "1W", "M": "1M" }[tvInterval] || "1H";
             const chg = bar.open > 0 ? (((bar.close - bar.open) / bar.open) * 100).toFixed(2) : "0.00";
             const chgColor = bar.close >= bar.open ? "#10b981" : "#ef4444";
 
@@ -2302,7 +2370,7 @@
         }
 
         async function fetchOkxCandlesForSymbol(symObj, interval) {
-            const barMap = { "15": "15m", "60": "1H", "240": "4H", "D": "1Dutc", "3D": "3Dutc" };
+            const barMap = { "1": "1m", "5": "5m", "15": "15m", "60": "1H", "240": "4H", "D": "1Dutc", "3D": "3Dutc", "W": "1Wutc", "M": "1Mutc" };
             const bar = barMap[interval] || "1H";
             const candidates = [symObj.okxInstId || `${symObj.id}-USDT-SWAP`, `${symObj.id}-USDT`];
 
@@ -2310,8 +2378,9 @@
                 try {
                     let res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=240`, { cache: "no-store" });
                     let json = await res.json();
-                    if ((json?.code !== "0" || !Array.isArray(json.data) || json.data.length === 0) && interval === "3D") {
-                        res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=3D&limit=240`, { cache: "no-store" });
+                    if ((json?.code !== "0" || !Array.isArray(json.data) || json.data.length === 0) && bar.endsWith("utc")) {
+                        const fallbackBar = bar.replace("utc", "");
+                        res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${fallbackBar}&limit=240`, { cache: "no-store" });
                         json = await res.json();
                     }
                     if (json?.code === "0" && Array.isArray(json.data) && json.data.length >= 5) {
@@ -2341,11 +2410,15 @@
 
         async function fetchUsEquityCandlesForSymbol(ticker, interval) {
             const cfgMap = {
+                "1":   { yfInt: "1m",  yfRange: "5d",  agg: 1 },
+                "5":   { yfInt: "5m",  yfRange: "1mo", agg: 1 },
                 "15":  { yfInt: "15m", yfRange: "1mo", agg: 1 },
                 "60":  { yfInt: "60m", yfRange: "3mo", agg: 1 },
                 "240": { yfInt: "60m", yfRange: "6mo", agg: 4 },
                 "D":   { yfInt: "1d",  yfRange: "1y",  agg: 1 },
-                "3D":  { yfInt: "1d",  yfRange: "2y",  agg: 3 }
+                "3D":  { yfInt: "1d",  yfRange: "2y",  agg: 3 },
+                "W":   { yfInt: "1wk", yfRange: "5y",  agg: 1 },
+                "M":   { yfInt: "1mo", yfRange: "10y", agg: 1 }
             };
             const cfg = cfgMap[interval] || cfgMap["60"];
             const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${cfg.yfInt}&range=${cfg.yfRange}&includePrePost=false`;
@@ -2497,8 +2570,8 @@
                     lwChart.timeScale().fitContent();
                 }
                 renderDrawOverlay();
-                if (subchartMode !== "none") {
-                    await renderActiveSubchart(enriched, symObj, reqInterval);
+                if (showCvdSubchart || showNetposSubchart) {
+                    await renderActiveSubcharts(enriched, symObj, reqInterval, savedRange);
                 }
 
                 const latestBar = enriched[enriched.length - 1];
@@ -3794,8 +3867,8 @@
             const ticker = String(symObj.id || "").toUpperCase();
             let oiRows = [];
 
-            // 1. 优先从币安永续公开历史持仓接口拉取 (支持 BTC/ETH/SOL/DOGE/SUI/XRP/PEPE 等全周期 240 根精准 OI)
-            const bnPeriodMap = { "15": "15m", "60": "1h", "240": "4h", "D": "1d", "3D": "1d" };
+            // 1. 优先从币安永续公开历史持仓接口拉取 (支持 1m/5m/15m/1H/4H/1D/3D/1W/1M 全周期 240 根精准 OI)
+            const bnPeriodMap = { "1": "5m", "5": "5m", "15": "15m", "60": "1h", "240": "4h", "D": "1d", "3D": "1d", "W": "1d", "M": "1d" };
             const bnPeriod = bnPeriodMap[interval] || "1h";
             try {
                 const bnCtrl = new AbortController();
@@ -3815,7 +3888,7 @@
 
             // 2. 若为 OKX 专属品种（如 KORU）或币安无此标的，回退至 OKX Rubik 历史持仓接口（修正合法参数 + 代理兜底）
             if (oiRows.length < 5) {
-                const okxPeriodMap = { "15": "5m", "60": "1H", "240": "1H", "D": "1D", "3D": "1D" };
+                const okxPeriodMap = { "1": "5m", "5": "5m", "15": "5m", "60": "1H", "240": "1H", "D": "1D", "3D": "1D", "W": "1D", "M": "1D" };
                 const okxPeriod = okxPeriodMap[interval] || "1H";
                 const rawOkxUrl = `https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-history?ccy=${encodeURIComponent(ticker)}&period=${okxPeriod}`;
                 const candidateUrls = [
@@ -3912,15 +3985,32 @@
             }
         }
 
-        function initSubChartInstance() {
-            const container = document.getElementById("lwSubChartContainer");
+        function destroySubChartInstances() {
+            if (lwCvdChart) {
+                try { lwCvdChart.remove(); } catch (e) {}
+                lwCvdChart = null;
+                lwCvdLineSeries = null;
+                lwCvdMaSeries = null;
+                lwCvdDeltaSeries = null;
+            }
+            if (lwNetposChart) {
+                try { lwNetposChart.remove(); } catch (e) {}
+                lwNetposChart = null;
+                lwNetposSeries1 = null;
+                lwNetposSeries2 = null;
+                lwNetposSeries3 = null;
+            }
+        }
+
+        function initCvdSubChartInstance() {
+            const container = document.getElementById("lwCvdChartContainer");
             if (!container || typeof LightweightCharts === "undefined") return;
             container.innerHTML = "";
 
             const p = getChartPalette();
-            lwSubChart = LightweightCharts.createChart(container, {
+            lwCvdChart = LightweightCharts.createChart(container, {
                 width: container.clientWidth || 600,
-                height: container.clientHeight || 160,
+                height: container.clientHeight || 145,
                 layout: {
                     background: { type: "solid", color: p.bg },
                     textColor: p.text,
@@ -3934,258 +4024,383 @@
                 },
                 rightPriceScale: {
                     borderColor: p.border,
-                    scaleMargins: { top: 0.22, bottom: 0.1 }
+                    minimumWidth: 68,
+                    scaleMargins: { top: 0.24, bottom: 0.1 }
                 },
                 timeScale: {
                     borderColor: p.border,
                     visible: false
                 },
                 localization: {
-                    priceFormatter: (val) => netposDisplayMode === "rsi" && subchartMode === "netpos"
-                        ? Number(val).toFixed(1)
-                        : formatCompactUnsigned(val)
+                    priceFormatter: (val) => formatCompactUnsigned(val)
                 }
             });
 
-            if (subchartMode === "cvd") {
-                lwSubSeries3 = lwSubChart.addHistogramSeries({
-                    priceLineVisible: false,
-                    lastValueVisible: false
-                });
-                lwSubSeries1 = lwSubChart.addLineSeries({
-                    color: p.isDark ? "#38bdf8" : "#2563EB",
-                    lineWidth: 2,
-                    priceLineVisible: false,
-                    lastValueVisible: true,
-                    title: "CVD"
-                });
-                lwSubSeries2 = lwSubChart.addLineSeries({
-                    color: "#a855f7",
-                    lineWidth: 1.5,
-                    priceLineVisible: false,
-                    lastValueVisible: true,
-                    title: "SMA28"
-                });
-            } else if (subchartMode === "netpos") {
-                if (netposDisplayMode === "delta") {
-                    lwSubSeries3 = lwSubChart.addHistogramSeries({
-                        priceLineVisible: false,
-                        lastValueVisible: true,
-                        title: "NetDelta"
-                    });
-                    lwSubSeries1 = lwSubChart.addLineSeries({
-                        color: "#38bdf8",
-                        lineWidth: 1.5,
-                        priceLineVisible: false,
-                        lastValueVisible: false
-                    });
-                } else {
-                    lwSubSeries1 = lwSubChart.addLineSeries({
-                        color: "#10b981",
-                        lineWidth: 2,
-                        priceLineVisible: false,
-                        lastValueVisible: true,
-                        title: netposDisplayMode === "rsi" ? "多RSI" : "净多"
-                    });
-                    lwSubSeries2 = lwSubChart.addLineSeries({
-                        color: "#ef4444",
-                        lineWidth: 2,
-                        priceLineVisible: false,
-                        lastValueVisible: true,
-                        title: netposDisplayMode === "rsi" ? "空RSI" : "净空"
-                    });
-                    lwSubSeries3 = lwSubChart.addLineSeries({
-                        color: "#38bdf8",
-                        lineWidth: 1.5,
-                        lineStyle: LightweightCharts.LineStyle.Dashed,
-                        priceLineVisible: false,
-                        lastValueVisible: false,
-                        title: "净差"
-                    });
-                }
-            }
-
-            lwSubChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-                if (lwChart && range && !isSyncingTimeScale) {
-                    isSyncingTimeScale = true;
-                    try {
-                        lwChart.timeScale().setVisibleLogicalRange(range);
-                        renderDrawOverlay();
-                    } catch (e) {}
-                    isSyncingTimeScale = false;
-                }
+            lwCvdDeltaSeries = lwCvdChart.addHistogramSeries({
+                priceLineVisible: false,
+                lastValueVisible: false
+            });
+            lwCvdLineSeries = lwCvdChart.addLineSeries({
+                color: p.isDark ? "#38bdf8" : "#2563EB",
+                lineWidth: 2,
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: "CVD"
+            });
+            lwCvdMaSeries = lwCvdChart.addLineSeries({
+                color: "#a855f7",
+                lineWidth: 1.5,
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: "SMA28"
             });
 
-            lwSubChart.subscribeCrosshairMove((param) => {
-                if (!param || !param.time || !lwSubCache.length) return;
-                const subFound = lwSubCache.find(x => x.time === param.time);
-                if (subFound) updateSubchartHudValues(subFound);
-                const mainFound = lwLastDataCache.find(x => x.time === param.time);
-                if (mainFound) updateLwHudText(mainFound);
+            lwCvdChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+                syncAllTimeScalesFrom(lwCvdChart, range);
+            });
+
+            lwCvdChart.subscribeCrosshairMove((param) => {
+                if (!param || !param.time) return;
+                if (lwCvdCache.length) {
+                    const cvdFound = lwCvdCache.find(x => x.time === param.time);
+                    if (cvdFound) updateCvdHudValues(cvdFound);
+                }
+                if (lwNetposCache.length) {
+                    const npFound = lwNetposCache.find(x => x.time === param.time);
+                    if (npFound) updateNetposHudValues(npFound);
+                }
+                if (lwLastDataCache.length) {
+                    const mainFound = lwLastDataCache.find(x => x.time === param.time);
+                    if (mainFound) updateLwHudText(mainFound);
+                }
             });
 
             if (typeof ResizeObserver !== "undefined") {
                 const ro = new ResizeObserver(() => {
-                    if (lwSubChart && container.clientWidth > 0 && container.clientHeight > 0) {
-                        lwSubChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+                    if (lwCvdChart && container.clientWidth > 0 && container.clientHeight > 0) {
+                        lwCvdChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
                     }
                 });
                 ro.observe(container);
             }
         }
 
-        function updateSubchartHudValues(bar) {
-            const titleEl = document.getElementById("lwSubchartTitle");
-            const valEl = document.getElementById("lwSubchartValues");
-            const ctrlEl = document.getElementById("lwSubchartControls");
+        function initNetposSubChartInstance() {
+            const container = document.getElementById("lwNetposChartContainer");
+            if (!container || typeof LightweightCharts === "undefined") return;
+            container.innerHTML = "";
+
+            const p = getChartPalette();
+            lwNetposChart = LightweightCharts.createChart(container, {
+                width: container.clientWidth || 600,
+                height: container.clientHeight || 145,
+                layout: {
+                    background: { type: "solid", color: p.bg },
+                    textColor: p.text,
+                    fontSize: 10
+                },
+                grid: getGridOptions(),
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                    vertLine: { color: p.crosshairColor },
+                    horzLine: { color: p.crosshairColor }
+                },
+                rightPriceScale: {
+                    borderColor: p.border,
+                    minimumWidth: 68,
+                    scaleMargins: { top: 0.24, bottom: 0.1 }
+                },
+                timeScale: {
+                    borderColor: p.border,
+                    visible: false
+                },
+                localization: {
+                    priceFormatter: (val) => netposDisplayMode === "rsi"
+                        ? Number(val).toFixed(1)
+                        : formatCompactUnsigned(val)
+                }
+            });
+
+            if (netposDisplayMode === "delta") {
+                lwNetposSeries3 = lwNetposChart.addHistogramSeries({
+                    priceLineVisible: false,
+                    lastValueVisible: true,
+                    title: "NetDelta"
+                });
+                lwNetposSeries1 = lwNetposChart.addLineSeries({
+                    color: "#38bdf8",
+                    lineWidth: 1.5,
+                    priceLineVisible: false,
+                    lastValueVisible: false
+                });
+            } else {
+                lwNetposSeries1 = lwNetposChart.addLineSeries({
+                    color: "#10b981",
+                    lineWidth: 2,
+                    priceLineVisible: false,
+                    lastValueVisible: true,
+                    title: netposDisplayMode === "rsi" ? "多RSI" : "净多"
+                });
+                lwNetposSeries2 = lwNetposChart.addLineSeries({
+                    color: "#ef4444",
+                    lineWidth: 2,
+                    priceLineVisible: false,
+                    lastValueVisible: true,
+                    title: netposDisplayMode === "rsi" ? "空RSI" : "净空"
+                });
+                lwNetposSeries3 = lwNetposChart.addLineSeries({
+                    color: "#38bdf8",
+                    lineWidth: 1.5,
+                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                    priceLineVisible: false,
+                    lastValueVisible: false,
+                    title: "净差"
+                });
+            }
+
+            lwNetposChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+                syncAllTimeScalesFrom(lwNetposChart, range);
+            });
+
+            lwNetposChart.subscribeCrosshairMove((param) => {
+                if (!param || !param.time) return;
+                if (lwNetposCache.length) {
+                    const npFound = lwNetposCache.find(x => x.time === param.time);
+                    if (npFound) updateNetposHudValues(npFound);
+                }
+                if (lwCvdCache.length) {
+                    const cvdFound = lwCvdCache.find(x => x.time === param.time);
+                    if (cvdFound) updateCvdHudValues(cvdFound);
+                }
+                if (lwLastDataCache.length) {
+                    const mainFound = lwLastDataCache.find(x => x.time === param.time);
+                    if (mainFound) updateLwHudText(mainFound);
+                }
+            });
+
+            if (typeof ResizeObserver !== "undefined") {
+                const ro = new ResizeObserver(() => {
+                    if (lwNetposChart && container.clientWidth > 0 && container.clientHeight > 0) {
+                        lwNetposChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+                    }
+                });
+                ro.observe(container);
+            }
+        }
+
+        function updateCvdHudValues(bar) {
+            const titleEl = document.getElementById("lwCvdTitle");
+            const valEl = document.getElementById("lwCvdValues");
+            const ctrlEl = document.getElementById("lwCvdControls");
             if (!titleEl || !valEl || !ctrlEl || !bar) return;
 
             const isDark = tvTheme === "dark";
-            const mutedCol = isDark ? "#cbd5e1" : "#1E222D";
-            valEl.style.color = mutedCol;
+            valEl.style.color = isDark ? "#cbd5e1" : "#1E222D";
+            const symObj = getActiveSymbolObj();
+            titleEl.textContent = `📊 ${symObj.label} CVD 资金流`;
+            titleEl.style.color = isDark ? "#38bdf8" : "#2563EB";
+            const dCol = bar.delta >= 0 ? "#10b981" : "#ef4444";
+            valEl.innerHTML =
+                `CVD: <b style="color:${isDark ? '#38bdf8' : '#2563EB'}">${formatCompactVolume(bar.cvd)}</b> &nbsp;` +
+                `SMA28: <b style="color:#a855f7">${bar.sma28 !== null ? formatCompactVolume(bar.sma28) : '--'}</b> &nbsp;` +
+                `单根Delta: <b style="color:${dCol}">${formatCompactVolume(bar.delta)}</b>`;
+            ctrlEl.innerHTML = `<button type="button" class="btn-sm ${cvdDailyReset ? 'active' : ''}" onclick="toggleCvdDailyReset()" style="padding:1px 6px; font-size:10px;">${cvdDailyReset ? '📅 日重置:开' : '📅 日重置:关'}</button>`;
+        }
 
-            if (bar.mode === "cvd") {
-                const symObj = getActiveSymbolObj();
-                titleEl.textContent = `📊 ${symObj.label} CVD 资金流`;
-                titleEl.style.color = isDark ? "#38bdf8" : "#2563EB";
-                const dCol = bar.delta >= 0 ? "#10b981" : "#ef4444";
+        function updateNetposHudValues(bar) {
+            const titleEl = document.getElementById("lwNetposTitle");
+            const valEl = document.getElementById("lwNetposValues");
+            const ctrlEl = document.getElementById("lwNetposControls");
+            if (!titleEl || !valEl || !ctrlEl || !bar) return;
+
+            const isDark = tvTheme === "dark";
+            valEl.style.color = isDark ? "#cbd5e1" : "#1E222D";
+            const symObj = getActiveSymbolObj();
+            titleEl.textContent = `⚖️ ${symObj.label} 合约净多空持仓`;
+            titleEl.style.color = "#10b981";
+            if (netposDisplayMode === "rsi") {
                 valEl.innerHTML =
-                    `CVD: <b style="color:${isDark ? '#38bdf8' : '#2563EB'}">${formatCompactVolume(bar.cvd)}</b> &nbsp;` +
-                    `SMA28: <b style="color:#a855f7">${bar.sma28 !== null ? formatCompactVolume(bar.sma28) : '--'}</b> &nbsp;` +
-                    `单根Delta: <b style="color:${dCol}">${formatCompactVolume(bar.delta)}</b>`;
-                ctrlEl.innerHTML = `<button type="button" class="btn-sm ${cvdDailyReset ? 'active' : ''}" onclick="toggleCvdDailyReset()" style="padding:1px 6px; font-size:10px;">${cvdDailyReset ? '📅 日重置:开' : '📅 日重置:关'}</button>`;
-            } else if (bar.mode === "netpos") {
-                const symObj = getActiveSymbolObj();
-                titleEl.textContent = `⚖️ ${symObj.label} 合约净多空持仓`;
-                titleEl.style.color = "#10b981";
-                if (netposDisplayMode === "rsi") {
-                    valEl.innerHTML =
-                        `多RSI: <b style="color:#10b981">${bar.rsiLongs !== null ? bar.rsiLongs.toFixed(1) : '--'}</b> &nbsp;` +
-                        `空RSI: <b style="color:#ef4444">${bar.rsiShorts !== null ? bar.rsiShorts.toFixed(1) : '--'}</b> &nbsp;` +
-                        `净差RSI: <b style="color:#38bdf8">${bar.rsiDelta !== null ? bar.rsiDelta.toFixed(1) : '--'}</b>`;
-                } else {
-                    valEl.innerHTML =
-                        `净多(Longs): <b style="color:#10b981">${formatCompactVolume(bar.netLongs)}</b> &nbsp;` +
-                        `净空(Shorts): <b style="color:#ef4444">${formatCompactVolume(bar.netShorts)}</b> &nbsp;` +
-                        `净差(Delta): <b style="color:#38bdf8">${formatCompactVolume(bar.netDelta)}</b>`;
+                    `多RSI: <b style="color:#10b981">${bar.rsiLongs !== null ? bar.rsiLongs.toFixed(1) : '--'}</b> &nbsp;` +
+                    `空RSI: <b style="color:#ef4444">${bar.rsiShorts !== null ? bar.rsiShorts.toFixed(1) : '--'}</b> &nbsp;` +
+                    `净差RSI: <b style="color:#38bdf8">${bar.rsiDelta !== null ? bar.rsiDelta.toFixed(1) : '--'}</b>`;
+            } else {
+                valEl.innerHTML =
+                    `净多(Longs): <b style="color:#10b981">${formatCompactVolume(bar.netLongs)}</b> &nbsp;` +
+                    `净空(Shorts): <b style="color:#ef4444">${formatCompactVolume(bar.netShorts)}</b> &nbsp;` +
+                    `净差(Delta): <b style="color:#38bdf8">${formatCompactVolume(bar.netDelta)}</b>`;
+            }
+            ctrlEl.innerHTML =
+                `<button type="button" class="btn-sm ${netposDisplayMode === 'lines' ? 'active' : ''}" onclick="setNetposDisplayMode('lines')" style="padding:1px 5px; font-size:10px;">多空线</button>` +
+                `<button type="button" class="btn-sm ${netposDisplayMode === 'delta' ? 'active' : ''}" onclick="setNetposDisplayMode('delta')" style="padding:1px 5px; font-size:10px;">NetDelta</button>` +
+                `<button type="button" class="btn-sm ${netposDisplayMode === 'rsi' ? 'active' : ''}" onclick="setNetposDisplayMode('rsi')" style="padding:1px 5px; font-size:10px;">仓位RSI</button>`;
+        }
+
+        function lockMainAndSubchartRanges(targetRange) {
+            if (!targetRange) return;
+            isSyncingTimeScale = true;
+            try {
+                if (lwChart) {
+                    lwChart.timeScale().setVisibleLogicalRange(targetRange);
+                    renderDrawOverlay();
                 }
-                ctrlEl.innerHTML =
-                    `<button type="button" class="btn-sm ${netposDisplayMode === 'lines' ? 'active' : ''}" onclick="setNetposDisplayMode('lines')" style="padding:1px 5px; font-size:10px;">多空线</button>` +
-                    `<button type="button" class="btn-sm ${netposDisplayMode === 'delta' ? 'active' : ''}" onclick="setNetposDisplayMode('delta')" style="padding:1px 5px; font-size:10px;">NetDelta</button>` +
-                    `<button type="button" class="btn-sm ${netposDisplayMode === 'rsi' ? 'active' : ''}" onclick="setNetposDisplayMode('rsi')" style="padding:1px 5px; font-size:10px;">仓位RSI</button>`;
+                if (lwCvdChart) lwCvdChart.timeScale().setVisibleLogicalRange(targetRange);
+                if (lwNetposChart) lwNetposChart.timeScale().setVisibleLogicalRange(targetRange);
+            } catch (e) {}
+            isSyncingTimeScale = false;
+        }
+
+        async function renderActiveSubcharts(enrichedCandles, symObj, interval, explicitRange = null) {
+            if (chartEngineMode !== "STRAT") return;
+            const lockedRange = explicitRange || (lwChart ? lwChart.timeScale().getVisibleLogicalRange() : null);
+
+            isSyncingTimeScale = true;
+            try {
+                // 1. 渲染 CVD 资金流副图
+                if (showCvdSubchart) {
+                    if (!lwCvdChart) initCvdSubChartInstance();
+                    if (lwCvdChart) {
+                        const cvdRows = computeGimelfarbCvdSeries(enrichedCandles, cvdDailyReset);
+                        lwCvdCache = cvdRows;
+                        if (lwCvdLineSeries) lwCvdLineSeries.setData(cvdRows.map(r => ({ time: r.time, value: r.cvd })));
+                        if (lwCvdMaSeries) lwCvdMaSeries.setData(cvdRows.map(r => r.sma28 !== null ? { time: r.time, value: r.sma28 } : { time: r.time }));
+                        if (lwCvdDeltaSeries) lwCvdDeltaSeries.setData(cvdRows.map(r => ({
+                            time: r.time,
+                            value: r.delta,
+                            color: r.delta >= 0 ? "rgba(16, 185, 129, 0.38)" : "rgba(239, 68, 68, 0.38)"
+                        })));
+                        if (cvdRows.length > 0) updateCvdHudValues(cvdRows[cvdRows.length - 1]);
+                    }
+                }
+
+                // 2. 渲染合约净多空持仓副图
+                if (showNetposSubchart) {
+                    const titleEl = document.getElementById("lwNetposTitle");
+                    const valEl = document.getElementById("lwNetposValues");
+                    const ctrlEl = document.getElementById("lwNetposControls");
+
+                    if (symObj.market === "US") {
+                        if (titleEl) { titleEl.textContent = `⚠️ ${symObj.label} 无合约持仓量(OI)`; titleEl.style.color = "var(--neon-amber)"; }
+                        if (valEl) valEl.textContent = "美股/ETF 为现货资产，仅加密货币永续合约具备持仓量 OI";
+                        if (ctrlEl) ctrlEl.innerHTML = `<button type="button" class="btn-sm" onclick="toggleNetposSubchart()" style="padding:1px 7px; font-size:10px;">收起本栏 ✕</button>`;
+                        if (lwNetposChart) {
+                            try { lwNetposChart.remove(); } catch (e) {}
+                            lwNetposChart = null;
+                        }
+                        lwNetposCache = [];
+                    } else {
+                        if (!lwNetposChart) initNetposSubChartInstance();
+                        const npRows = await fetchOkxOiHistoryForCandles(enrichedCandles, symObj, interval);
+                        if (!npRows.length || !npRows.some(r => r.hasOi)) {
+                            if (titleEl) { titleEl.textContent = `⚠️ ${symObj.label} 暂未拉取到历史 OI`; titleEl.style.color = "var(--neon-amber)"; }
+                            if (valEl) valEl.textContent = "该合约暂未开放历史持仓序列";
+                            if (ctrlEl) ctrlEl.innerHTML = `<button type="button" class="btn-sm" onclick="toggleNetposSubchart()" style="padding:1px 7px; font-size:10px;">收起本栏 ✕</button>`;
+                        } else if (lwNetposChart) {
+                            lwNetposCache = npRows;
+                            if (netposDisplayMode === "delta") {
+                                if (lwNetposSeries3) lwNetposSeries3.setData(npRows.map(r => r.hasOi ? ({
+                                    time: r.time,
+                                    value: r.netDelta,
+                                    color: r.netDelta >= 0 ? "rgba(16, 185, 129, 0.65)" : "rgba(239, 68, 68, 0.65)"
+                                }) : { time: r.time }));
+                                if (lwNetposSeries1) lwNetposSeries1.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netDelta } : { time: r.time }));
+                            } else if (netposDisplayMode === "rsi") {
+                                if (lwNetposSeries1) lwNetposSeries1.setData(npRows.map(r => r.rsiLongs !== null ? { time: r.time, value: r.rsiLongs } : { time: r.time }));
+                                if (lwNetposSeries2) lwNetposSeries2.setData(npRows.map(r => r.rsiShorts !== null ? { time: r.time, value: r.rsiShorts } : { time: r.time }));
+                                if (lwNetposSeries3) lwNetposSeries3.setData(npRows.map(r => r.rsiDelta !== null ? { time: r.time, value: r.rsiDelta } : { time: r.time }));
+                            } else {
+                                if (lwNetposSeries1) lwNetposSeries1.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netLongs } : { time: r.time }));
+                                if (lwNetposSeries2) lwNetposSeries2.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netShorts } : { time: r.time }));
+                                if (lwNetposSeries3) lwNetposSeries3.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netDelta } : { time: r.time }));
+                            }
+                            const lastValid = npRows[npRows.length - 1];
+                            if (lastValid) updateNetposHudValues(lastValid);
+                        }
+                    }
+                }
+            } finally {
+                isSyncingTimeScale = false;
+            }
+
+            if (lockedRange) {
+                lockMainAndSubchartRanges(lockedRange);
+                requestAnimationFrame(() => lockMainAndSubchartRanges(lockedRange));
             }
         }
 
-        async function renderActiveSubchart(enrichedCandles, symObj, interval) {
-            if (subchartMode === "none" || chartEngineMode !== "STRAT") return;
-
-            if (subchartMode === "netpos" && symObj.market === "US") {
-                const titleEl = document.getElementById("lwSubchartTitle");
-                const valEl = document.getElementById("lwSubchartValues");
-                const ctrlEl = document.getElementById("lwSubchartControls");
-                if (titleEl) { titleEl.textContent = `⚠️ ${symObj.label} 无合约持仓量(OI)`; titleEl.style.color = "var(--neon-amber)"; }
-                if (valEl) valEl.textContent = "美股/ETF 为现货资产，仅加密货币永续合约具备持仓量 OI，可点击右侧一键切至 CVD 资金流";
-                if (ctrlEl) ctrlEl.innerHTML = `<button type="button" class="btn-sm active" onclick="toggleSubchartMode('cvd')" style="padding:1px 7px; font-size:10px;">切换至 📊 CVD资金流</button>`;
-                if (lwSubChart) {
-                    try { lwSubChart.remove(); } catch (e) {}
-                    lwSubChart = null;
-                }
-                lwSubCache = [];
-                return;
-            }
-
-            if (!lwSubChart) initSubChartInstance();
-            if (!lwSubChart) return;
-
-            if (subchartMode === "cvd") {
-                const cvdRows = computeGimelfarbCvdSeries(enrichedCandles, cvdDailyReset);
-                lwSubCache = cvdRows;
-
-                if (lwSubSeries1) lwSubSeries1.setData(cvdRows.map(r => ({ time: r.time, value: r.cvd })));
-                if (lwSubSeries2) lwSubSeries2.setData(cvdRows.map(r => r.sma28 !== null ? { time: r.time, value: r.sma28 } : { time: r.time }));
-                if (lwSubSeries3) lwSubSeries3.setData(cvdRows.map(r => ({
-                    time: r.time,
-                    value: r.delta,
-                    color: r.delta >= 0 ? "rgba(16, 185, 129, 0.38)" : "rgba(239, 68, 68, 0.38)"
-                })));
-
-                if (cvdRows.length > 0) updateSubchartHudValues(cvdRows[cvdRows.length - 1]);
-            } else if (subchartMode === "netpos") {
-                const npRows = await fetchOkxOiHistoryForCandles(enrichedCandles, symObj, interval);
-                if (!npRows.length || !npRows.some(r => r.hasOi)) {
-                    const titleEl = document.getElementById("lwSubchartTitle");
-                    const valEl = document.getElementById("lwSubchartValues");
-                    const ctrlEl = document.getElementById("lwSubchartControls");
-                    if (titleEl) { titleEl.textContent = `⚠️ ${symObj.label} 暂未拉取到历史 OI`; titleEl.style.color = "var(--neon-amber)"; }
-                    if (valEl) valEl.textContent = "该合约暂未开放历史持仓序列，可点击右侧切换至 CVD 资金流";
-                    if (ctrlEl) ctrlEl.innerHTML = `<button type="button" class="btn-sm active" onclick="toggleSubchartMode('cvd')" style="padding:1px 7px; font-size:10px;">切换至 📊 CVD资金流</button>`;
-                    return;
-                }
-                lwSubCache = npRows;
-
-                if (netposDisplayMode === "delta") {
-                    if (lwSubSeries3) lwSubSeries3.setData(npRows.map(r => r.hasOi ? ({
-                        time: r.time,
-                        value: r.netDelta,
-                        color: r.netDelta >= 0 ? "rgba(16, 185, 129, 0.65)" : "rgba(239, 68, 68, 0.65)"
-                    }) : { time: r.time }));
-                    if (lwSubSeries1) lwSubSeries1.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netDelta } : { time: r.time }));
-                } else if (netposDisplayMode === "rsi") {
-                    if (lwSubSeries1) lwSubSeries1.setData(npRows.map(r => r.rsiLongs !== null ? { time: r.time, value: r.rsiLongs } : { time: r.time }));
-                    if (lwSubSeries2) lwSubSeries2.setData(npRows.map(r => r.rsiShorts !== null ? { time: r.time, value: r.rsiShorts } : { time: r.time }));
-                    if (lwSubSeries3) lwSubSeries3.setData(npRows.map(r => r.rsiDelta !== null ? { time: r.time, value: r.rsiDelta } : { time: r.time }));
-                } else {
-                    if (lwSubSeries1) lwSubSeries1.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netLongs } : { time: r.time }));
-                    if (lwSubSeries2) lwSubSeries2.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netShorts } : { time: r.time }));
-                    if (lwSubSeries3) lwSubSeries3.setData(npRows.map(r => r.hasOi ? { time: r.time, value: r.netDelta } : { time: r.time }));
-                }
-
-                const lastValid = npRows[npRows.length - 1];
-                if (lastValid) updateSubchartHudValues(lastValid);
-            }
-
-            if (lwChart) {
-                try {
-                    const mainRange = lwChart.timeScale().getVisibleLogicalRange();
-                    if (mainRange) lwSubChart.timeScale().setVisibleLogicalRange(mainRange);
-                } catch (e) {}
-            }
-        }
-
-        function toggleSubchartMode(targetMode) {
+        async function toggleCvdSubchart() {
             if (chartEngineMode !== "STRAT") {
                 switchChartEngine("STRAT", document.getElementById("btnEngineStrat"));
             }
-            subchartMode = subchartMode === targetMode ? "none" : targetMode;
-            localStorage.setItem("quant_subchart_mode", subchartMode);
+            const lockedRange = lwChart ? lwChart.timeScale().getVisibleLogicalRange() : null;
 
-            if (lwSubChart) {
-                try { lwSubChart.remove(); } catch (e) {}
-                lwSubChart = null;
+            showCvdSubchart = !showCvdSubchart;
+            localStorage.setItem("quant_show_cvd_subchart", showCvdSubchart ? "true" : "false");
+
+            if (!showCvdSubchart && lwCvdChart) {
+                try { lwCvdChart.remove(); } catch (e) {}
+                lwCvdChart = null;
+                lwCvdLineSeries = null;
+                lwCvdMaSeries = null;
+                lwCvdDeltaSeries = null;
             }
+
             syncChartControlButtons();
+            resizeAndRenderDrawOverlay();
+            if (lockedRange) lockMainAndSubchartRanges(lockedRange);
 
-            if (subchartMode !== "none") {
-                initSubChartInstance();
+            if (showCvdSubchart) {
                 if (lwLastDataCache.length > 0) {
-                    renderActiveSubchart(lwLastDataCache, getActiveSymbolObj(), tvInterval);
+                    await renderActiveSubcharts(lwLastDataCache, getActiveSymbolObj(), tvInterval, lockedRange);
                 } else {
-                    fetchAndRenderStrategyChart(true);
+                    await fetchAndRenderStrategyChart(true);
                 }
-                showToast(subchartMode === "cvd"
-                    ? "已开启【Gimelfarb CVD 累积成交量净差 + SMA28】副图"
-                    : "已开启【Leviathan 合约净多空持仓 (Net Longs / Shorts)】副图");
+                showToast("已开启【📊 CVD 累积成交量净差】副图（保持主图原位不动）");
             } else {
-                showToast("已收起底部副图面板");
+                if (lockedRange) requestAnimationFrame(() => lockMainAndSubchartRanges(lockedRange));
+                showToast("已收起【CVD 资金流】副图");
             }
-            setTimeout(resizeAndRenderDrawOverlay, 50);
+        }
+
+        async function toggleNetposSubchart() {
+            if (chartEngineMode !== "STRAT") {
+                switchChartEngine("STRAT", document.getElementById("btnEngineStrat"));
+            }
+            const lockedRange = lwChart ? lwChart.timeScale().getVisibleLogicalRange() : null;
+
+            showNetposSubchart = !showNetposSubchart;
+            localStorage.setItem("quant_show_netpos_subchart", showNetposSubchart ? "true" : "false");
+
+            if (!showNetposSubchart && lwNetposChart) {
+                try { lwNetposChart.remove(); } catch (e) {}
+                lwNetposChart = null;
+                lwNetposSeries1 = null;
+                lwNetposSeries2 = null;
+                lwNetposSeries3 = null;
+            }
+
+            syncChartControlButtons();
+            resizeAndRenderDrawOverlay();
+            if (lockedRange) lockMainAndSubchartRanges(lockedRange);
+
+            if (showNetposSubchart) {
+                if (lwLastDataCache.length > 0) {
+                    await renderActiveSubcharts(lwLastDataCache, getActiveSymbolObj(), tvInterval, lockedRange);
+                } else {
+                    await fetchAndRenderStrategyChart(true);
+                }
+                showToast("已开启【⚖️ 合约净多空持仓】副图（保持主图原位不动）");
+            } else {
+                if (lockedRange) requestAnimationFrame(() => lockMainAndSubchartRanges(lockedRange));
+                showToast("已收起【合约净多空持仓】副图");
+            }
         }
 
         function toggleCvdDailyReset() {
             cvdDailyReset = !cvdDailyReset;
             localStorage.setItem("quant_cvd_daily_reset", cvdDailyReset ? "true" : "false");
-            if (subchartMode === "cvd" && lwLastDataCache.length > 0) {
-                renderActiveSubchart(lwLastDataCache, getActiveSymbolObj(), tvInterval);
+            if (showCvdSubchart && lwLastDataCache.length > 0) {
+                const lockedRange = lwChart ? lwChart.timeScale().getVisibleLogicalRange() : null;
+                renderActiveSubcharts(lwLastDataCache, getActiveSymbolObj(), tvInterval, lockedRange);
             }
             showToast(cvdDailyReset ? "CVD 已开启【每日开盘零轴重置 (UTC+8)】" : "CVD 已切换为【全波段连续累积】");
         }
@@ -4193,13 +4408,16 @@
         function setNetposDisplayMode(mode) {
             netposDisplayMode = mode;
             localStorage.setItem("quant_netpos_mode", mode);
-            if (lwSubChart) {
-                try { lwSubChart.remove(); } catch (e) {}
-                lwSubChart = null;
+            const lockedRange = lwChart ? lwChart.timeScale().getVisibleLogicalRange() : null;
+            if (lwNetposChart) {
+                try { lwNetposChart.remove(); } catch (e) {}
+                lwNetposChart = null;
+                lwNetposSeries1 = null;
+                lwNetposSeries2 = null;
+                lwNetposSeries3 = null;
             }
-            if (subchartMode === "netpos" && lwLastDataCache.length > 0) {
-                initSubChartInstance();
-                renderActiveSubchart(lwLastDataCache, getActiveSymbolObj(), tvInterval);
+            if (showNetposSubchart && lwLastDataCache.length > 0) {
+                renderActiveSubcharts(lwLastDataCache, getActiveSymbolObj(), tvInterval, lockedRange);
             }
         }
 
@@ -4276,8 +4494,9 @@
             const lwWrap = document.getElementById("lwChartWrapper");
             const tvWrap = document.getElementById("tvWidgetContainer");
 
+            syncChartControlButtons();
             if (mode === "STRAT") {
-                lwWrap.style.display = "block";
+                lwWrap.style.display = "flex";
                 tvWrap.style.display = "none";
                 fetchAndRenderStrategyChart(false);
             } else {
@@ -4294,7 +4513,7 @@
             if (btnEl) btnEl.classList.add("active");
 
             if (chartEngineMode === "STRAT") {
-                if (lwSubChart) { try { lwSubChart.remove(); } catch (e) {} lwSubChart = null; }
+                destroySubChartInstances();
                 initLightweightChart();
                 fetchAndRenderStrategyChart(false);
             } else {
@@ -4307,8 +4526,10 @@
             localStorage.setItem("quant_chart_theme", tvTheme);
             syncChartControlButtons();
             if (chartEngineMode === "STRAT") {
+                const lockedRange = lwChart ? lwChart.timeScale().getVisibleLogicalRange() : null;
+                destroySubChartInstances();
                 initLightweightChart();
-                fetchAndRenderStrategyChart(false);
+                fetchAndRenderStrategyChart(Boolean(lockedRange));
             } else {
                 renderTradingViewChart();
             }
@@ -4351,7 +4572,8 @@
 
             if (chartEngineMode === "STRAT") {
                 if (lwChart) lwChart.applyOptions({ grid: getGridOptions() });
-                if (lwSubChart) lwSubChart.applyOptions({ grid: getGridOptions() });
+                if (lwCvdChart) lwCvdChart.applyOptions({ grid: getGridOptions() });
+                if (lwNetposChart) lwNetposChart.applyOptions({ grid: getGridOptions() });
             } else {
                 renderTradingViewChart();
             }
@@ -5608,4 +5830,5 @@
         });
     </script>
 </body>
+<!-- Build: v4-dual-subchart-locked-view -->
 </html>
