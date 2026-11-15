@@ -495,7 +495,8 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                         <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="hline" onclick="selectDrawTool('hline')" title="点击图面或输入价格落水平支撑/阻力线">📏 水平线</button>
-                            <button type="button" class="btn-sm draw-tool-btn" data-tool="trend" onclick="selectDrawTool('trend')" title="两点拉出趋势线段/通道边线（跨周期自动对齐）">╱ 趋势线段</button>
+                            <button type="button" class="btn-sm draw-tool-btn" data-tool="trend" onclick="selectDrawTool('trend')" title="两点拉出趋势线段（画完默认解锁，可拖动圆锚或本体微调后再锁定）">╱ 趋势线段</button>
+                            <button type="button" class="btn-sm draw-tool-btn" data-tool="channel" onclick="selectDrawTool('channel')" title="三点拉出平行通道线（含50%中轨，支持解锁微调角度与通道宽度后锁定）">⫽ 平行通道</button>
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="fib" onclick="selectDrawTool('fib')" title="两点拉出斐波那契回撤（含 0.382/0.5/0.618/0.786）">🔱 斐波那契</button>
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="rect" onclick="selectDrawTool('rect')" title="框选威科夫箱体/供需区间">▭ 矩形箱体</button>
                             <span id="rectColorGroup" style="display:inline-flex; align-items:center; gap:3px; margin-left:2px; padding:2px 5px; background:rgba(8,11,18,0.6); border:1px solid var(--border-color); border-radius:4px;">
@@ -509,7 +510,8 @@
                         <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                             <input type="number" id="customHLineInput" step="any" placeholder="输入水平线价..." class="form-input" style="width:96px; padding:3px 6px; font-size:11px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); addCustomHLineFromInput();}">
                             <button type="button" class="btn-sm" onclick="addCustomHLineFromInput()" style="border-color:var(--neon-cyan); color:#67e8f9; font-weight:700;">+ 水平线</button>
-                            <button type="button" class="btn-sm" id="btnDeleteSelectedDraw" onclick="deleteSelectedDrawing()" style="display:none; border-color:var(--neon-red); color:#fca5a5; font-weight:700;">🗑️ 删除选中</button>
+                            <button type="button" class="btn-sm" id="btnToggleLockShape" onclick="toggleSelectedShapeLock()" style="display:none; background:rgba(245,158,11,0.18); border-color:var(--neon-amber); color:#fcd34d; font-weight:800;">🔒 锁定位置</button>
+                            <button type="button" class="btn-sm" id="btnDeleteSelectedDraw" onclick="deleteSelectedDrawing()" style="display:none; border-color:var(--neon-red); color:#fca5a5; font-weight:700;">🗑️ 删除</button>
                             <button type="button" class="btn-sm" id="btnCancelDrawTool" onclick="selectDrawTool('none')" style="display:none; border-color:var(--neon-amber); color:var(--neon-amber);">退出画线 (ESC)</button>
                         </div>
                     </div>
@@ -1179,10 +1181,12 @@
         let rectColorPreset = localStorage.getItem("quant_rect_preset") || "bull"; // 'bull' | 'bear' | 'neutral'
         let selectedDrawingId = null;
         let draftDrawing = null;
+        let draftStep = 0; // 0: idle, 1: awaiting p2 (2nd point), 2: awaiting p3 (channel width)
         let awaitingSecondClick = false;
         let draftDownScreen = null;
         let activeRulerMeasurement = null;
         let isChartPointerDown = false;
+        let activeHandleDrag = null; // { shapeId, handle: 'p1'|'p2'|'p3'|'body', startLogical, startPrice, origP1, origP2, origOffset }
 
         let customHorizontalLines = { KORU: [], BTC: [] };
         try {
@@ -1559,14 +1563,60 @@
             syncChartControlButtons();
         }
 
+        function isShapeUnlocked(item) {
+            return item && item.locked === false;
+        }
+
+        function getActiveEditShape() {
+            const symKey = getCurrentSymKey();
+            const list = customShapeDrawings[symKey] || [];
+            if (selectedDrawingId) {
+                const found = list.find(d => d.id === selectedDrawingId);
+                if (found) return found;
+            }
+            return list.find(d => d.locked === false) || null;
+        }
+
+        function toggleSelectedShapeLock() {
+            const target = getActiveEditShape();
+            if (!target) return;
+            target.locked = target.locked === false ? true : false;
+            selectedDrawingId = target.id;
+            saveCustomShapesToStorage();
+            syncOverlayPointerMode(null, null);
+            renderDrawingToolbarState();
+            renderDrawOverlay();
+            const names = { trend: "趋势线段", channel: "平行通道", fib: "斐波那契", rect: "矩形箱体" };
+            const label = names[target.type] || "图形";
+            showToast(target.locked
+                ? `🔒 已锁定【${label}】位置（图表平移缩放不会误触，需要微调时可随时解锁）`
+                : `🔓 已解锁【${label}】：直接拖动圆锚调端点/通道宽度，或拖动本体平移位置`);
+        }
+
+        function toggleShapeLockById(id) {
+            const symKey = getCurrentSymKey();
+            const list = customShapeDrawings[symKey] || [];
+            const target = list.find(d => d.id === id);
+            if (!target) return;
+            target.locked = target.locked === false ? true : false;
+            selectedDrawingId = target.id;
+            saveCustomShapesToStorage();
+            syncOverlayPointerMode(null, null);
+            renderDrawingToolbarState();
+            renderDrawOverlay();
+            showToast(target.locked ? "🔒 已锁定该图形位置" : "🔓 已解锁该图形，可拖动圆锚或本体微调位置");
+        }
+
         function selectDrawTool(tool) {
             if (tool !== "none" && chartEngineMode !== "STRAT") {
                 switchChartEngine("STRAT", document.getElementById("btnEngineStrat"));
             }
             activeDrawTool = tool;
             draftDrawing = null;
+            draftStep = 0;
             awaitingSecondClick = false;
             draftDownScreen = null;
+            activeHandleDrag = null;
             if (tool !== "ruler") activeRulerMeasurement = null;
             if (tool !== "none") {
                 isDrawingToolbarOpen = true;
@@ -1582,7 +1632,8 @@
 
             const tips = {
                 hline: "📏 水平线模式：点击图面任意价位或直接输入价格落线",
-                trend: "╱ 趋势线段模式：在起点点击/按下，拉至终点点击/松手（跨周期自动同步）",
+                trend: "╱ 趋势线段模式：点击/拖拽起点→终点落线，随后可直接拖动圆锚微调并锁定",
+                channel: "⫽ 平行通道模式：第1步定基准线起点→第2步定终点→第3步拉开通道宽度",
                 fib: "🔱 斐波那契模式：从波段起点拉至波段终点，自动标注 0.382 / 0.5 / 0.618 / 0.786",
                 rect: "▭ 矩形箱体模式：拖拽框选威科夫箱体或供需区（可点绿/红/蓝切换色块）",
                 ruler: "📐 测量尺模式：拖拽测量两点间的价差、涨跌幅 % 与K线根数"
@@ -1593,6 +1644,7 @@
         function renderDrawingToolbarState() {
             const bar = document.getElementById("chartDrawingToolbar");
             const hintOrChips = document.getElementById("customDrawHintOrChips");
+            const lockBtn = document.getElementById("btnToggleLockShape");
             const delSelBtn = document.getElementById("btnDeleteSelectedDraw");
             const cancelBtn = document.getElementById("btnCancelDrawTool");
             const clearAllBtn = document.getElementById("btnClearAllDraws");
@@ -1617,7 +1669,9 @@
             });
             syncRectColorDots();
 
-            const shouldShow = isDrawingToolbarOpen || activeDrawTool !== "none" || totalCount > 0 || selectedDrawingId !== null;
+            const activeEditShape = getActiveEditShape();
+            const hasAnyUnlocked = sList.some(d => d.locked === false);
+            const shouldShow = isDrawingToolbarOpen || activeDrawTool !== "none" || totalCount > 0 || selectedDrawingId !== null || hasAnyUnlocked;
             bar.style.display = shouldShow ? "flex" : "none";
             if (!shouldShow) return;
 
@@ -1625,9 +1679,32 @@
             if (delSelBtn) delSelBtn.style.display = selectedDrawingId ? "inline-block" : "none";
             if (clearAllBtn) clearAllBtn.style.display = totalCount > 0 ? "inline-block" : "none";
 
+            if (lockBtn) {
+                if (activeEditShape) {
+                    const isUnl = activeEditShape.locked === false;
+                    lockBtn.style.display = "inline-block";
+                    if (isUnl) {
+                        lockBtn.textContent = "🔒 锁定位置";
+                        lockBtn.style.background = "rgba(16, 185, 129, 0.22)";
+                        lockBtn.style.borderColor = "var(--neon-emerald)";
+                        lockBtn.style.color = "#34d399";
+                    } else {
+                        lockBtn.textContent = "🔓 解锁调整";
+                        lockBtn.style.background = "rgba(245, 158, 11, 0.18)";
+                        lockBtn.style.borderColor = "var(--neon-amber)";
+                        lockBtn.style.color = "#fcd34d";
+                    }
+                } else {
+                    lockBtn.style.display = "none";
+                }
+            }
+
             const toolGuide = {
                 hline: "🎯 点击图面任意价位落水平线，或右侧输入价格：",
-                trend: "🎯 趋势线段：点击/拖拽起点 → 终点落线（刷新永久保留）",
+                trend: "🎯 趋势线段：点击/拖拽起点 → 终点落线（落线后自动解锁，可拖动圆锚微调）",
+                channel: draftStep === 2
+                    ? "🎯 第3步（拉宽度）：上下移动光标拉开平行通道宽度，再次点击确认落线！"
+                    : "🎯 平行通道：第1步点击基准线起点 → 第2步点击基准线终点 → 第3步拉开通道宽度",
                 fib: "🎯 斐波那契：点击/拖拽波段高点 ↔ 低点自动生成回撤位",
                 rect: "🎯 矩形箱体：点击/拖拽框选价格区间（支持跨周期缩放）",
                 ruler: "🎯 测量尺：点击/拖拽任意两点查看涨跌幅 % 与K线跨度"
@@ -1636,8 +1713,10 @@
             let html = "";
             if (activeDrawTool !== "none") {
                 html += `<span style="color:var(--neon-amber); font-weight:700;">${toolGuide[activeDrawTool]}</span>`;
+            } else if (hasAnyUnlocked) {
+                html += `<span style="color:#34d399; font-weight:700;">🔓 调整模式：直接拖动圆锚调端点/通道宽，或拖线段平移 → 调好点【🔒 锁定位置】</span>`;
             } else if (totalCount === 0) {
-                html += `<span style="color:var(--text-muted);">💡 选择上方工具在主图画线（自动跨周期对齐并永久保存）；点击已画图形可选中并按 Delete 删除。</span>`;
+                html += `<span style="color:var(--text-muted);">💡 选择上方工具在主图画线（自动跨周期对齐并永久保存）；支持解锁拖拽微调后锁定。</span>`;
             } else {
                 html += `<span style="color:var(--neon-cyan); font-weight:700;">📐 ${symKey} 存档 (${totalCount}):</span>`;
             }
@@ -1651,15 +1730,19 @@
 
             const typeBadgeMap = {
                 trend: { icon: "╱", name: "线段" },
+                channel: { icon: "⫽", name: "通道" },
                 fib: { icon: "🔱", name: "斐波" },
                 rect: { icon: "▭", name: "箱体" }
             };
             sList.forEach((item) => {
                 const meta = typeBadgeMap[item.type] || { icon: "✏️", name: "图形" };
                 const isSel = item.id === selectedDrawingId;
+                const isUnl = item.locked === false;
+                const lockIcon = isUnl ? "🔓" : "🔒";
                 const pA = Number(item.p1.price).toFixed(dec);
                 const pB = Number(item.p2.price).toFixed(dec);
-                html += `<span onclick="selectSavedShape('${item.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isSel ? 'rgba(245,158,11,0.22)' : 'rgba(59,130,246,0.14)'}; border:1px solid ${isSel ? '#f59e0b' : 'rgba(59,130,246,0.45)'}; color:${isSel ? '#fcd34d' : '#93c5fd'}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
+                html += `<span onclick="selectSavedShape('${item.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isUnl ? 'rgba(16,185,129,0.18)' : (isSel ? 'rgba(245,158,11,0.22)' : 'rgba(59,130,246,0.14)')}; border:1px solid ${isUnl ? '#10b981' : (isSel ? '#f59e0b' : 'rgba(59,130,246,0.45)')}; color:${isUnl ? '#6ee7b7' : (isSel ? '#fcd34d' : '#93c5fd')}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
+                    <span onclick="event.stopPropagation(); toggleShapeLockById('${item.id}')" title="${isUnl ? '点击锁定位置' : '点击解锁微调'}" style="cursor:pointer;">${lockIcon}</span>
                     ${meta.icon} ${meta.name} ${pA}→${pB}
                     <button type="button" onclick="event.stopPropagation(); removeSavedShapeById('${item.id}')" title="删除图形" style="background:none; border:none; color:#f87171; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
                 </span>`;
@@ -2664,24 +2747,128 @@
             return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
         }
 
+        function getChannelGeometryPrices(item) {
+            const p1 = Number(item.p1.price);
+            const p2 = Number(item.p2.price);
+            const offset = Number(item.channelOffsetPrice || 0);
+            const baseMid = (p1 + p2) * 0.5;
+
+            if (isChartLogScale && baseMid > 0 && (baseMid + offset) > 0) {
+                const ratio = (baseMid + offset) / baseMid;
+                const halfRatio = Math.sqrt(ratio);
+                return {
+                    p1Par: p1 * ratio,
+                    p2Par: p2 * ratio,
+                    p1Mid: p1 * halfRatio,
+                    p2Mid: p2 * halfRatio
+                };
+            }
+            return {
+                p1Par: p1 + offset,
+                p2Par: p2 + offset,
+                p1Mid: p1 + offset * 0.5,
+                p2Mid: p2 + offset * 0.5
+            };
+        }
+
+        function getShapeControlHandlesScreen(d) {
+            const x1 = timeToOverlayX(d.p1.time);
+            const y1 = priceToOverlayY(d.p1.price);
+            const x2 = timeToOverlayX(d.p2.time);
+            const y2 = priceToOverlayY(d.p2.price);
+            if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
+
+            const handles = [
+                { key: "p1", x: x1, y: y1, price: d.p1.price },
+                { key: "p2", x: x2, y: y2, price: d.p2.price },
+                { key: "body", x: (x1 + x2) * 0.5, y: (y1 + y2) * 0.5, price: (d.p1.price + d.p2.price) * 0.5 }
+            ];
+
+            if (d.type === "channel") {
+                const cg = getChannelGeometryPrices(d);
+                const y1Par = priceToOverlayY(cg.p1Par);
+                const y2Par = priceToOverlayY(cg.p2Par);
+                if (y1Par !== null && y2Par !== null) {
+                    handles.push({
+                        key: "p3",
+                        x: (x1 + x2) * 0.5,
+                        y: (y1Par + y2Par) * 0.5,
+                        price: (cg.p1Par + cg.p2Par) * 0.5
+                    });
+                }
+            }
+            return { x1, y1, x2, y2, handles };
+        }
+
+        function hitTestUnlockedHandleOrShape(px, py) {
+            const symKey = getCurrentSymKey();
+            const list = customShapeDrawings[symKey] || [];
+            // 1. 优先命中未锁定图形的端点圆锚 / 通道宽度圆锚
+            for (let i = list.length - 1; i >= 0; i--) {
+                const d = list[i];
+                if (d.locked !== false) continue;
+                const geom = getShapeControlHandlesScreen(d);
+                if (!geom) continue;
+                for (const h of geom.handles) {
+                    const hitR = h.key === "body" ? 10 : 12;
+                    if (Math.hypot(px - h.x, py - h.y) <= hitR) {
+                        return { shape: d, handle: h.key };
+                    }
+                }
+            }
+            // 2. 其次命中未锁定图形的线段/通道/箱体本体（整根平移）
+            for (let i = list.length - 1; i >= 0; i--) {
+                const d = list[i];
+                if (d.locked !== false) continue;
+                const hit = hitTestSingleShapeBody(d, px, py);
+                if (hit) return { shape: d, handle: "body" };
+            }
+            return null;
+        }
+
+        function hitTestSingleShapeBody(d, px, py) {
+            const x1 = timeToOverlayX(d.p1.time);
+            const y1 = priceToOverlayY(d.p1.price);
+            const x2 = timeToOverlayX(d.p2.time);
+            const y2 = priceToOverlayY(d.p2.price);
+            if (x1 === null || y1 === null || x2 === null || y2 === null) return false;
+
+            if (d.type === "trend") {
+                return distToSegment(px, py, x1, y1, x2, y2) <= 10;
+            } else if (d.type === "channel") {
+                if (distToSegment(px, py, x1, y1, x2, y2) <= 10) return true;
+                const cg = getChannelGeometryPrices(d);
+                const y1Par = priceToOverlayY(cg.p1Par);
+                const y2Par = priceToOverlayY(cg.p2Par);
+                const y1Mid = priceToOverlayY(cg.p1Mid);
+                const y2Mid = priceToOverlayY(cg.p2Mid);
+                if (y1Par !== null && y2Par !== null && distToSegment(px, py, x1, y1Par, x2, y2Par) <= 10) return true;
+                if (y1Mid !== null && y2Mid !== null && distToSegment(px, py, x1, y1Mid, x2, y2Mid) <= 9) return true;
+                // 判断是否在通道多边形内部
+                if (y1Par !== null && y2Par !== null) {
+                    const minX = Math.min(x1, x2) - 4, maxX = Math.max(x1, x2) + 4;
+                    if (px >= minX && px <= maxX && Math.abs(x2 - x1) > 2) {
+                        const t = (px - x1) / (x2 - x1);
+                        const baseAtX = y1 + t * (y2 - y1);
+                        const parAtX = y1Par + t * (y2Par - y1Par);
+                        if (py >= Math.min(baseAtX, parAtX) && py <= Math.max(baseAtX, parAtX)) return true;
+                    }
+                }
+                return false;
+            } else if (d.type === "rect" || d.type === "fib") {
+                const minX = Math.min(x1, x2) - 6, maxX = Math.max(x1, x2) + 6;
+                const minY = Math.min(y1, y2) - 6, maxY = Math.max(y1, y2) + 6;
+                return px >= minX && px <= maxX && py >= minY && py <= maxY;
+            }
+            return false;
+        }
+
         function hitTestSavedShape(px, py) {
             const symKey = getCurrentSymKey();
             const list = customShapeDrawings[symKey] || [];
             for (let i = list.length - 1; i >= 0; i--) {
                 const d = list[i];
-                const x1 = timeToOverlayX(d.p1.time);
-                const y1 = priceToOverlayY(d.p1.price);
-                const x2 = timeToOverlayX(d.p2.time);
-                const y2 = priceToOverlayY(d.p2.price);
-                if (x1 === null || y1 === null || x2 === null || y2 === null) continue;
-
-                if (d.type === "trend") {
-                    if (distToSegment(px, py, x1, y1, x2, y2) <= 9) return d;
-                } else if (d.type === "rect" || d.type === "fib") {
-                    const minX = Math.min(x1, x2) - 6, maxX = Math.max(x1, x2) + 6;
-                    const minY = Math.min(y1, y2) - 6, maxY = Math.max(y1, y2) + 6;
-                    if (px >= minX && px <= maxX && py >= minY && py <= maxY) return d;
-                }
+                if (hitTestSingleShapeBody(d, px, py)) return d;
             }
             return null;
         }
@@ -2899,32 +3086,130 @@
             ctx.save();
             ctx.font = "bold 11px monospace";
 
+            const isUnlocked = item.locked === false;
+            const showHandles = isHighlighted || isUnlocked;
+
             if (item.type === "trend") {
-                const lineColor = isHighlighted ? "#f59e0b" : (isDark ? "#38bdf8" : "#0284c7");
+                const lineColor = isUnlocked ? "#10b981" : (isHighlighted ? "#f59e0b" : (isDark ? "#38bdf8" : "#0284c7"));
                 ctx.strokeStyle = lineColor;
-                ctx.lineWidth = isHighlighted ? 2.5 : 2;
+                ctx.lineWidth = showHandles ? 2.5 : 2;
                 ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
                 ctx.lineTo(x2, y2);
                 ctx.stroke();
 
-                // 端点圆锚
+                // 端点圆锚（解锁状态下显示可拖拽放大圆锚与中点平移手柄）
                 [ [x1, y1, item.p1.price], [x2, y2, item.p2.price] ].forEach(([ax, ay, ap], idx) => {
-                    ctx.fillStyle = isDark ? "#0b0f19" : "#FAF7EE";
-                    ctx.strokeStyle = lineColor;
+                    ctx.fillStyle = isUnlocked ? "#10b981" : (isDark ? "#0b0f19" : "#FAF7EE");
+                    ctx.strokeStyle = isUnlocked ? "#ffffff" : lineColor;
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.arc(ax, ay, isHighlighted ? 4.5 : 3.2, 0, Math.PI * 2);
+                    ctx.arc(ax, ay, isUnlocked ? 5.5 : (isHighlighted ? 4.5 : 3.2), 0, Math.PI * 2);
                     ctx.fill();
                     ctx.stroke();
 
-                    if (isHighlighted) {
+                    if (showHandles) {
                         const tag = Number(ap).toFixed(dec);
                         ctx.fillStyle = lineColor;
-                        ctx.fillText(tag, ax + 6, ay + (idx === 0 ? -6 : 12));
+                        ctx.fillText(tag, ax + 8, ay + (idx === 0 ? -6 : 13));
                     }
                 });
+
+                if (isUnlocked) {
+                    const mx = (x1 + x2) * 0.5, my = (y1 + y2) * 0.5;
+                    ctx.fillStyle = isDark ? "rgba(11,15,25,0.9)" : "rgba(250,247,238,0.95)";
+                    ctx.strokeStyle = "#10b981";
+                    ctx.lineWidth = 1.6;
+                    ctx.beginPath();
+                    ctx.arc(mx, my, 4.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            } else if (item.type === "channel") {
+                const baseColor = isUnlocked ? "#10b981" : (isHighlighted ? "#f59e0b" : (isDark ? "#38bdf8" : "#0284c7"));
+                const fillColor = isUnlocked
+                    ? (isDark ? "rgba(16, 185, 129, 0.12)" : "rgba(16, 185, 129, 0.13)")
+                    : (isDark ? "rgba(56, 189, 248, 0.11)" : "rgba(2, 132, 199, 0.11)");
+                const cg = getChannelGeometryPrices(item);
+                const y1Par = priceToOverlayY(cg.p1Par);
+                const y2Par = priceToOverlayY(cg.p2Par);
+                const y1Mid = priceToOverlayY(cg.p1Mid);
+                const y2Mid = priceToOverlayY(cg.p2Mid);
+
+                if (y1Par !== null && y2Par !== null) {
+                    // 1. 填充通道背景色带
+                    ctx.fillStyle = fillColor;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(x2, y2Par);
+                    ctx.lineTo(x1, y1Par);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // 2. 平行对边轨线
+                    ctx.strokeStyle = baseColor;
+                    ctx.lineWidth = showHandles ? 2.2 : 1.8;
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1Par);
+                    ctx.lineTo(x2, y2Par);
+                    ctx.stroke();
+
+                    // 3. 50% 通道中轨虚线
+                    if (y1Mid !== null && y2Mid !== null) {
+                        ctx.strokeStyle = isDark ? "rgba(148, 163, 184, 0.65)" : "rgba(71, 85, 105, 0.6)";
+                        ctx.lineWidth = 1.2;
+                        ctx.setLineDash([4, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1Mid);
+                        ctx.lineTo(x2, y2Mid);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+
+                    // 4. 平行轨端价标
+                    ctx.fillStyle = baseColor;
+                    ctx.fillText(Number(cg.p2Par).toFixed(dec), Math.min(plotW - 52, x2 + 6), y2Par + 4);
+                }
+
+                // 5. 基准主轨线
+                ctx.strokeStyle = baseColor;
+                ctx.lineWidth = showHandles ? 2.4 : 2;
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+                ctx.fillStyle = baseColor;
+                ctx.fillText(Number(item.p2.price).toFixed(dec), Math.min(plotW - 52, x2 + 6), y2 + 4);
+
+                // 6. 渲染 3 个控制圆锚：p1(基准起点)、p2(基准终点)、p3(平行轨宽度中点锚)
+                [ [x1, y1], [x2, y2] ].forEach(([ax, ay]) => {
+                    ctx.fillStyle = isUnlocked ? "#10b981" : (isDark ? "#0b0f19" : "#FAF7EE");
+                    ctx.strokeStyle = isUnlocked ? "#ffffff" : baseColor;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(ax, ay, isUnlocked ? 5.5 : (isHighlighted ? 4.2 : 3), 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                });
+
+                if (y1Par !== null && y2Par !== null) {
+                    const mxPar = (x1 + x2) * 0.5, myPar = (y1Par + y2Par) * 0.5;
+                    ctx.fillStyle = isUnlocked ? "#f59e0b" : (isDark ? "#0b0f19" : "#FAF7EE");
+                    ctx.strokeStyle = isUnlocked ? "#ffffff" : baseColor;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(mxPar, myPar, isUnlocked ? 5.5 : (isHighlighted ? 4 : 2.8), 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    if (isUnlocked) {
+                        ctx.fillStyle = "#fbbf24";
+                        ctx.fillText("↕调宽", mxPar + 7, myPar + 4);
+                    }
+                }
             } else if (item.type === "rect") {
                 const presets = {
                     bull: { fill: isDark ? "rgba(16, 185, 129, 0.14)" : "rgba(16, 185, 129, 0.15)", stroke: "#10b981" },
@@ -2937,9 +3222,20 @@
 
                 ctx.fillStyle = style.fill;
                 ctx.fillRect(left, top, rw, rh);
-                ctx.strokeStyle = isHighlighted ? "#f59e0b" : style.stroke;
-                ctx.lineWidth = isHighlighted ? 2 : 1.5;
+                ctx.strokeStyle = isUnlocked ? "#10b981" : (isHighlighted ? "#f59e0b" : style.stroke);
+                ctx.lineWidth = (isHighlighted || isUnlocked) ? 2.2 : 1.5;
                 ctx.strokeRect(left, top, rw, rh);
+                if (isUnlocked) {
+                    [ [x1, y1], [x2, y2] ].forEach(([ax, ay]) => {
+                        ctx.fillStyle = "#10b981";
+                        ctx.strokeStyle = "#ffffff";
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(ax, ay, 5.2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                    });
+                }
 
                 const hiP = Math.max(item.p1.price, item.p2.price).toFixed(dec);
                 const loP = Math.min(item.p1.price, item.p2.price).toFixed(dec);
@@ -3046,15 +3342,118 @@
             ctx.restore();
         }
 
+        function logicalToApproxTimestamp(logical) {
+            const cache = lwLastDataCache;
+            const n = cache.length;
+            if (n < 2) return Math.floor(Date.now() / 1000);
+            const idx = Math.floor(logical);
+            const frac = logical - idx;
+            if (idx < 0) {
+                const dt = Math.max(1, cache[1].time - cache[0].time);
+                return Math.round(cache[0].time + logical * dt);
+            } else if (idx >= n - 1) {
+                const dt = Math.max(1, cache[n - 1].time - cache[n - 2].time);
+                return Math.round(cache[n - 1].time + (logical - (n - 1)) * dt);
+            }
+            const span = cache[idx + 1].time - cache[idx].time;
+            return Math.round(cache[idx].time + frac * span);
+        }
+
+        function timeToApproxLogical(ts) {
+            const cache = lwLastDataCache;
+            const n = cache.length;
+            if (n < 2) return 0;
+            if (ts <= cache[0].time) {
+                const dt = Math.max(1, cache[1].time - cache[0].time);
+                return (ts - cache[0].time) / dt;
+            }
+            if (ts >= cache[n - 1].time) {
+                const dt = Math.max(1, cache[n - 1].time - cache[n - 2].time);
+                return (n - 1) + (ts - cache[n - 1].time) / dt;
+            }
+            let lo = 0, hi = n - 1;
+            while (lo + 1 < hi) {
+                const mid = (lo + hi) >> 1;
+                if (cache[mid].time <= ts) lo = mid;
+                else hi = mid;
+            }
+            const span = Math.max(1, cache[hi].time - cache[lo].time);
+            return lo + (ts - cache[lo].time) / span;
+        }
+
+        function syncOverlayPointerMode(sx, sy) {
+            const overlay = document.getElementById("lwDrawOverlay");
+            if (!overlay) return;
+
+            if (activeDrawTool !== "none" || activeHandleDrag) {
+                overlay.style.pointerEvents = "auto";
+                overlay.style.cursor = activeHandleDrag
+                    ? (activeHandleDrag.handle === "body" ? "grabbing" : "crosshair")
+                    : "crosshair";
+                return;
+            }
+
+            if (sx !== null && sy !== null) {
+                const hit = hitTestUnlockedHandleOrShape(sx, sy);
+                if (hit) {
+                    overlay.style.pointerEvents = "auto";
+                    overlay.style.cursor = hit.handle === "body" ? "grab" : (hit.handle === "p3" ? "ns-resize" : "crosshair");
+                    return;
+                }
+            }
+            overlay.style.pointerEvents = "none";
+            overlay.style.cursor = "default";
+        }
+
+        function beginUnlockedShapeDrag(hit, sx, sy, pointerId, overlay) {
+            const pt = screenToChartPoint(sx, sy);
+            if (!pt) return;
+            selectedDrawingId = hit.shape.id;
+            activeHandleDrag = {
+                shapeId: hit.shape.id,
+                handle: hit.handle,
+                startLogical: pt.logical,
+                startPrice: pt.price,
+                origP1: { ...hit.shape.p1, logical: timeToApproxLogical(hit.shape.p1.time) },
+                origP2: { ...hit.shape.p2, logical: timeToApproxLogical(hit.shape.p2.time) },
+                origOffset: Number(hit.shape.channelOffsetPrice || 0)
+            };
+            if (overlay && pointerId !== undefined) {
+                try { overlay.setPointerCapture(pointerId); } catch (err) {}
+            }
+            syncOverlayPointerMode(sx, sy);
+            renderDrawingToolbarState();
+            renderDrawOverlay();
+        }
+
         function bindDrawOverlayEvents() {
             const overlay = document.getElementById("lwDrawOverlay");
-            const wrapper = document.getElementById("lwChartWrapper");
+            const mainPane = document.getElementById("lwMainPane") || document.getElementById("lwChartWrapper");
             if (!overlay || overlay.dataset.bound === "1") return;
             overlay.dataset.bound = "1";
 
-            // 鼠标按下拖动价格轴或时间轴时，同步刷新覆盖层
-            if (wrapper) {
-                wrapper.addEventListener("pointerdown", () => {
+            // 主图容器级联动：平移/缩放刷新覆盖层 + 悬停/触摸未锁定圆锚时自动激活拖拽
+            if (mainPane) {
+                mainPane.addEventListener("pointermove", (e) => {
+                    if (activeDrawTool !== "none" || activeHandleDrag) return;
+                    const rect = overlay.getBoundingClientRect();
+                    syncOverlayPointerMode(e.clientX - rect.left, e.clientY - rect.top);
+                });
+
+                mainPane.addEventListener("pointerdown", (e) => {
+                    if (activeDrawTool === "none" && !activeHandleDrag) {
+                        const rect = overlay.getBoundingClientRect();
+                        const sx = e.clientX - rect.left;
+                        const sy = e.clientY - rect.top;
+                        const hit = hitTestUnlockedHandleOrShape(sx, sy);
+                        if (hit) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            beginUnlockedShapeDrag(hit, sx, sy, e.pointerId, overlay);
+                            return;
+                        }
+                    }
+
                     isChartPointerDown = true;
                     const tick = () => {
                         if (!isChartPointerDown) return;
@@ -3062,19 +3461,33 @@
                         requestAnimationFrame(tick);
                     };
                     requestAnimationFrame(tick);
-                });
+                }, true);
+
                 window.addEventListener("pointerup", () => {
                     isChartPointerDown = false;
                 });
             }
 
             overlay.addEventListener("pointerdown", (e) => {
-                if (activeDrawTool === "none") return;
-                e.preventDefault();
-                e.stopPropagation();
                 const rect = overlay.getBoundingClientRect();
                 const sx = e.clientX - rect.left;
                 const sy = e.clientY - rect.top;
+
+                // 1. 未锁定图形的句柄/本体拖拽调整
+                if (activeDrawTool === "none") {
+                    const hit = hitTestUnlockedHandleOrShape(sx, sy);
+                    if (hit) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        beginUnlockedShapeDrag(hit, sx, sy, e.pointerId, overlay);
+                    } else {
+                        syncOverlayPointerMode(null, null);
+                    }
+                    return;
+                }
+
+                e.preventDefault();
+                e.stopPropagation();
                 const pt = screenToChartPoint(sx, sy);
                 if (!pt) return;
 
@@ -3083,47 +3496,139 @@
                     return;
                 }
 
-                // 第二次点击确认终点（Click-Move-Click 方式）
+                // 平行通道第 3 步点击：锁定宽度并完成通道
+                if (activeDrawTool === "channel" && draftStep === 2 && draftDrawing) {
+                    const baseMid = (draftDrawing.p1.price + draftDrawing.p2.price) * 0.5;
+                    const dec = getActiveSymbolDecimals(pt.price);
+                    draftDrawing.channelOffsetPrice = parseFloat((pt.price - baseMid).toFixed(dec));
+                    finalizeCurrentDraftDrawing();
+                    return;
+                }
+
+                // 第 2 次点击确认终点（Click-Move-Click 方式）
                 if (awaitingSecondClick && draftDrawing) {
                     draftDrawing.p2 = pt;
+                    if (activeDrawTool === "channel") {
+                        draftStep = 2;
+                        awaitingSecondClick = false;
+                        draftDownScreen = null;
+                        draftDrawing.channelOffsetPrice = 0;
+                        renderDrawingToolbarState();
+                        renderDrawOverlay();
+                        showToast("请上下移动光标拉开平行通道宽度，再次点击确认！");
+                        return;
+                    }
                     finalizeCurrentDraftDrawing();
                     return;
                 }
 
                 draftDownScreen = { x: sx, y: sy };
+                draftStep = 1;
                 awaitingSecondClick = false;
                 draftDrawing = {
                     id: "d_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
                     type: activeDrawTool,
                     p1: pt,
                     p2: pt,
+                    channelOffsetPrice: 0,
+                    locked: false,
                     colorVariant: rectColorPreset
                 };
                 renderDrawOverlay();
             });
 
             overlay.addEventListener("pointermove", (e) => {
-                if (activeDrawTool === "none" || !draftDrawing) return;
                 const rect = overlay.getBoundingClientRect();
                 const sx = e.clientX - rect.left;
                 const sy = e.clientY - rect.top;
+
+                // 1. 正在拖动已画图形的圆锚或平移本体
+                if (activeHandleDrag) {
+                    const pt = screenToChartPoint(sx, sy);
+                    if (!pt) return;
+                    const symKey = getCurrentSymKey();
+                    const shape = (customShapeDrawings[symKey] || []).find(d => d.id === activeHandleDrag.shapeId);
+                    if (!shape) return;
+                    const dec = getActiveSymbolDecimals(pt.price);
+
+                    if (activeHandleDrag.handle === "p1") {
+                        shape.p1 = pt;
+                    } else if (activeHandleDrag.handle === "p2") {
+                        shape.p2 = pt;
+                    } else if (activeHandleDrag.handle === "p3" && shape.type === "channel") {
+                        const baseMid = (shape.p1.price + shape.p2.price) * 0.5;
+                        shape.channelOffsetPrice = parseFloat((pt.price - baseMid).toFixed(dec));
+                    } else if (activeHandleDrag.handle === "body") {
+                        const dLogical = pt.logical - activeHandleDrag.startLogical;
+                        const dPrice = pt.price - activeHandleDrag.startPrice;
+                        const newL1 = activeHandleDrag.origP1.logical + dLogical;
+                        const newL2 = activeHandleDrag.origP2.logical + dLogical;
+                        const newP1 = Math.max(0.000001, activeHandleDrag.origP1.price + dPrice);
+                        const newP2 = Math.max(0.000001, activeHandleDrag.origP2.price + dPrice);
+                        shape.p1 = {
+                            time: logicalToApproxTimestamp(newL1),
+                            price: parseFloat(newP1.toFixed(dec)),
+                            logical: newL1
+                        };
+                        shape.p2 = {
+                            time: logicalToApproxTimestamp(newL2),
+                            price: parseFloat(newP2.toFixed(dec)),
+                            logical: newL2
+                        };
+                    }
+                    renderDrawOverlay();
+                    return;
+                }
+
+                // 2. 正在新建草稿图形
+                if (activeDrawTool === "none" || !draftDrawing) {
+                    syncOverlayPointerMode(sx, sy);
+                    return;
+                }
                 const pt = screenToChartPoint(sx, sy);
                 if (!pt) return;
-                draftDrawing.p2 = pt;
+
+                if (activeDrawTool === "channel" && draftStep === 2) {
+                    const baseMid = (draftDrawing.p1.price + draftDrawing.p2.price) * 0.5;
+                    const dec = getActiveSymbolDecimals(pt.price);
+                    draftDrawing.channelOffsetPrice = parseFloat((pt.price - baseMid).toFixed(dec));
+                } else {
+                    draftDrawing.p2 = pt;
+                }
                 renderDrawOverlay();
             });
 
             overlay.addEventListener("pointerup", (e) => {
-                if (activeDrawTool === "none" || !draftDrawing || !draftDownScreen) return;
                 const rect = overlay.getBoundingClientRect();
                 const sx = e.clientX - rect.left;
                 const sy = e.clientY - rect.top;
+
+                if (activeHandleDrag) {
+                    try { overlay.releasePointerCapture(e.pointerId); } catch (err) {}
+                    activeHandleDrag = null;
+                    saveCustomShapesToStorage();
+                    renderDrawingToolbarState();
+                    renderDrawOverlay();
+                    syncOverlayPointerMode(sx, sy);
+                    return;
+                }
+
+                if (activeDrawTool === "none" || !draftDrawing || !draftDownScreen) return;
                 const movedDist = Math.hypot(sx - draftDownScreen.x, sy - draftDownScreen.y);
 
                 if (movedDist > 8) {
-                    // Press-Drag-Release 方式完成画线
                     const pt = screenToChartPoint(sx, sy);
                     if (pt) draftDrawing.p2 = pt;
+                    if (activeDrawTool === "channel") {
+                        // 拖拽完成基准线后，自动进入第3步或赋予默认初始通道宽度并进入解锁微调
+                        draftStep = 2;
+                        draftDownScreen = null;
+                        awaitingSecondClick = false;
+                        renderDrawingToolbarState();
+                        renderDrawOverlay();
+                        showToast("基准线已定，移动光标拉开通道宽度并点击确认！");
+                        return;
+                    }
                     finalizeCurrentDraftDrawing();
                 } else {
                     // 单击起点后等待移动并点击终点
@@ -3136,6 +3641,7 @@
             if (!draftDrawing) return;
             const finished = draftDrawing;
             draftDrawing = null;
+            draftStep = 0;
             awaitingSecondClick = false;
             draftDownScreen = null;
 
@@ -3146,16 +3652,21 @@
                 return;
             }
 
+            // 新画图形默认处于【🔓 未锁定可调整】状态，方便用户拖拽端点/宽度/整体位置后再锁定
+            finished.locked = false;
+
             const symKey = getCurrentSymKey();
             const list = customShapeDrawings[symKey] || [];
             list.push(finished);
             customShapeDrawings[symKey] = list;
             saveCustomShapesToStorage();
 
-            selectedDrawingId = finished.id;
             selectDrawTool("none");
-            const names = { trend: "趋势线段", fib: "斐波那契回撤", rect: "矩形箱体" };
-            showToast(`已永久保存 ${symKey} ${names[finished.type] || "图形"}（跨周期自动同步）`);
+            selectedDrawingId = finished.id;
+            renderDrawingToolbarState();
+            renderDrawOverlay();
+            const names = { trend: "趋势线段", channel: "平行通道", fib: "斐波那契回撤", rect: "矩形箱体" };
+            showToast(`已绘制【${names[finished.type] || "图形"}】（🔓 未锁定，可直接拖动圆锚或本体微调，调好点【🔒 锁定位置】）`);
         }
 
 
@@ -3280,32 +3791,57 @@
         }
 
         async function fetchOkxOiHistoryForCandles(candles, symObj, interval) {
-            const periodMap = { "15": "15m", "60": "1H", "240": "4H", "D": "1D", "3D": "1D" };
-            const period = periodMap[interval] || "1H";
-            const instId = symObj.okxInstId || `${symObj.id}-USDT-SWAP`;
+            const ticker = String(symObj.id || "").toUpperCase();
+            let oiRows = [];
 
+            // 1. 优先从币安永续公开历史持仓接口拉取 (支持 BTC/ETH/SOL/DOGE/SUI/XRP/PEPE 等全周期 240 根精准 OI)
+            const bnPeriodMap = { "15": "15m", "60": "1h", "240": "4h", "D": "1d", "3D": "1d" };
+            const bnPeriod = bnPeriodMap[interval] || "1h";
             try {
-                let json = null;
-                const urls = [
-                    `https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-history?instId=${instId}&period=${period}&limit=100`,
-                    `https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-history?ccy=${symObj.id}&period=${period}&limit=100`
+                const bnCtrl = new AbortController();
+                const bnTimer = setTimeout(() => bnCtrl.abort(), 3500);
+                const bnRes = await fetch(`https://fapi.binance.com/futures/data/openInterestHist?symbol=${encodeURIComponent(ticker)}USDT&period=${bnPeriod}&limit=240`, { cache: "no-store", signal: bnCtrl.signal });
+                clearTimeout(bnTimer);
+                if (bnRes.ok) {
+                    const bnData = await bnRes.json();
+                    if (Array.isArray(bnData) && bnData.length >= 5) {
+                        oiRows = bnData.map(item => ({
+                            time: Math.floor(Number(item.timestamp) / 1000),
+                            oi: parseFloat(item.sumOpenInterest) || 0
+                        })).filter(x => x.oi > 0);
+                    }
+                }
+            } catch (e) {}
+
+            // 2. 若为 OKX 专属品种（如 KORU）或币安无此标的，回退至 OKX Rubik 历史持仓接口（修正合法参数 + 代理兜底）
+            if (oiRows.length < 5) {
+                const okxPeriodMap = { "15": "5m", "60": "1H", "240": "1H", "D": "1D", "3D": "1D" };
+                const okxPeriod = okxPeriodMap[interval] || "1H";
+                const rawOkxUrl = `https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-history?ccy=${encodeURIComponent(ticker)}&period=${okxPeriod}`;
+                const candidateUrls = [
+                    rawOkxUrl,
+                    `https://corsproxy.io/?url=${encodeURIComponent(rawOkxUrl)}`,
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(rawOkxUrl)}`
                 ];
-                for (const u of urls) {
+                for (const u of candidateUrls) {
                     try {
-                        const res = await fetch(u, { cache: "no-store" });
+                        const ctrl = new AbortController();
+                        const tId = setTimeout(() => ctrl.abort(), 3500);
+                        const res = await fetch(u, { cache: "no-store", signal: ctrl.signal });
+                        clearTimeout(tId);
                         const j = await res.json();
                         if (j?.code === "0" && Array.isArray(j.data) && j.data.length >= 5) {
-                            json = j;
+                            oiRows = j.data.slice().reverse().map(row => ({
+                                time: Math.floor(parseInt(row[0], 10) / 1000),
+                                oi: parseFloat(row[2]) || parseFloat(row[1]) || 0
+                            })).filter(x => x.oi > 0);
                             break;
                         }
                     } catch (err) {}
                 }
-                if (!json) return [];
+            }
 
-                const oiRows = json.data.slice().reverse().map(row => ({
-                    time: Math.floor(parseInt(row[0], 10) / 1000),
-                    oi: parseFloat(row[2]) || parseFloat(row[1]) || 0
-                })).filter(x => x.oi > 0);
+            try {
 
                 if (oiRows.length < 5) return [];
 
@@ -3579,8 +4115,10 @@
                 if (!npRows.length || !npRows.some(r => r.hasOi)) {
                     const titleEl = document.getElementById("lwSubchartTitle");
                     const valEl = document.getElementById("lwSubchartValues");
+                    const ctrlEl = document.getElementById("lwSubchartControls");
                     if (titleEl) { titleEl.textContent = `⚠️ ${symObj.label} 暂未拉取到历史 OI`; titleEl.style.color = "var(--neon-amber)"; }
-                    if (valEl) valEl.textContent = "OKX 暂未返回该品种历史持仓序列";
+                    if (valEl) valEl.textContent = "该合约暂未开放历史持仓序列，可点击右侧切换至 CVD 资金流";
+                    if (ctrlEl) ctrlEl.innerHTML = `<button type="button" class="btn-sm active" onclick="toggleSubchartMode('cvd')" style="padding:1px 7px; font-size:10px;">切换至 📊 CVD资金流</button>`;
                     return;
                 }
                 lwSubCache = npRows;
@@ -3925,6 +4463,12 @@
                     return;
                 }
                 if (isTvFullscreen) toggleTvFullscreen();
+            } else if (e.key === "Enter" && !isInput) {
+                const editShape = getActiveEditShape();
+                if (editShape && editShape.locked === false) {
+                    e.preventDefault();
+                    toggleSelectedShapeLock();
+                }
             } else if ((e.key === "Backspace" || e.key === "Delete") && !isInput && selectedDrawingId) {
                 e.preventDefault();
                 deleteSelectedDrawing();
