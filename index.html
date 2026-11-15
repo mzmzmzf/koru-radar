@@ -6,24 +6,24 @@
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
     <style>
         :root {
-            --bg-base: #0b0f19;
-            --bg-card: #131b2e;
-            --bg-subtle: #1e293b;
-            --border-color: #24334d;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --bg-base: #131314;
+            --bg-card: #1e1f20;
+            --bg-subtle: #282a2c;
+            --border-color: #333537;
+            --text-main: #e3e3e3;
+            --text-muted: #9aa0a6;
             --neon-emerald: #10b981;
             --neon-amber: #f59e0b;
             --neon-red: #ef4444;
-            --neon-cyan: #06b6d4;
-            --neon-blue: #3b82f6;
+            --neon-cyan: #8ab4f8;
+            --neon-blue: #8ab4f8;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; }
         body { background-color: var(--bg-base); color: var(--text-main); padding-bottom: 60px; }
 
         .header-bar {
-            background-color: #080b12;
+            background-color: #131314;
             border-bottom: 1px solid var(--border-color);
             padding: 12px 16px;
             display: flex;
@@ -36,12 +36,12 @@
         .header-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; }
         .logo-icon { width: 24px; height: 24px; background: linear-gradient(135deg, #10b981, #06b6d4); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #000; }
         .header-status { font-size: 12px; display: flex; gap: 8px; align-items: center; }
-        .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid var(--border-color); background: rgba(30, 41, 59, 0.6); color: var(--text-muted); }
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid var(--border-color); background: #282a2c; color: var(--text-muted); }
         .badge.active { color: var(--neon-emerald); border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); }
 
         .terminal-tabs {
             display: flex;
-            background: #0f172a;
+            background: #131314;
             padding: 6px 12px;
             gap: 8px;
             border-bottom: 1px solid var(--border-color);
@@ -63,7 +63,7 @@
             gap: 6px;
         }
         .tab-btn.active {
-            background: linear-gradient(180deg, #1e293b, #131b2e);
+            background: linear-gradient(180deg, #282a2c, #1e1f20);
             color: #fff;
             border-color: var(--neon-emerald);
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
@@ -78,13 +78,13 @@
             gap: 6px;
             padding-bottom: 8px;
             margin-bottom: 12px;
-            border-bottom: 1px solid #1a253a;
+            border-bottom: 1px solid #282a2c;
             white-space: nowrap;
             -webkit-overflow-scrolling: touch;
         }
         .koru-subtabs::-webkit-scrollbar { display: none; }
         .subtab-btn {
-            background: #0e1726;
+            background: #1e1f20;
             border: 1px solid var(--border-color);
             color: var(--text-muted);
             padding: 6px 12px;
@@ -115,7 +115,7 @@
         }
         .card-title { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
 
-        .sub-nav { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 8px 0; color: var(--text-muted); border-bottom: 1px solid #1a2438; margin-bottom: 12px; }
+        .sub-nav { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 8px 0; color: var(--text-muted); border-bottom: 1px solid #282a2c; margin-bottom: 12px; }
         .btn-group { display: inline-flex; gap: 4px; }
         .btn-sm { background: var(--bg-subtle); border: 1px solid var(--border-color); color: #cbd5e1; padding: 3px 7px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
         .btn-sm.active { background: rgba(16, 185, 129, 0.2); border-color: var(--neon-emerald); color: #fff; font-weight: 700; }
@@ -130,8 +130,8 @@
         .metric-desc { font-size: 11px; margin-top: 4px; }
 
         .action-banner {
-            background: linear-gradient(90deg, #13273e, #0e1e32);
-            border: 1px solid #25446c;
+            background: linear-gradient(90deg, #1e1f20, #252729);
+            border: 1px solid #3c4043;
             border-radius: 8px;
             padding: 12px 14px;
             margin-bottom: 12px;
@@ -141,16 +141,16 @@
         }
         .btn-jump { background: #0284c7; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer; }
 
-        .rules-card { background: #0c1322; border-left: 3px solid var(--neon-cyan); padding: 12px; border-radius: 0 6px 6px 0; margin-top: 12px; font-size: 12px; line-height: 1.6; }
+        .rules-card { background: #1e1f20; border-left: 3px solid var(--neon-cyan); padding: 12px; border-radius: 0 6px 6px 0; margin-top: 12px; font-size: 12px; line-height: 1.6; }
         .rule-item { margin-bottom: 6px; }
         .rule-item:last-child { margin-bottom: 0; }
 
         .chart-viewport {
             width: 100%;
             height: 240px;
-            background: #0a0f1d;
+            background: #131314;
             border-radius: 6px;
-            border: 1px solid #1a253c;
+            border: 1px solid #282a2c;
             padding: 10px;
             position: relative;
             user-select: none;
@@ -162,9 +162,9 @@
         .tv-chart-shell {
             width: 100%;
             height: 460px;
-            background: #0a0f1d;
+            background: #131314;
             border-radius: 6px;
-            border: 1px solid #1a253c;
+            border: 1px solid #282a2c;
             overflow: hidden;
             position: relative;
         }
@@ -177,7 +177,7 @@
             height: 145px;
             flex-shrink: 0;
             position: relative;
-            border-top: 1px solid #1e293b;
+            border-top: 1px solid #282a2c;
         }
         .lw-subchart-hud {
             position: absolute;
@@ -190,10 +190,10 @@
             flex-wrap: wrap;
             font-family: monospace;
             font-size: 11px;
-            background: rgba(10, 15, 29, 0.82);
+            background: rgba(30, 31, 32, 0.88);
             padding: 3px 8px;
             border-radius: 5px;
-            border: 1px solid rgba(36, 51, 77, 0.85);
+            border: 1px solid rgba(60, 64, 67, 0.85);
             backdrop-filter: blur(2px);
         }
         .lw-subchart-hud.light-hud {
@@ -211,7 +211,7 @@
             border: none !important;
             display: flex !important;
             flex-direction: column !important;
-            background: #0b0f19 !important;
+            background: #131314 !important;
             padding: 10px 14px !important;
         }
         .tv-fullscreen-card .tv-chart-shell {
@@ -229,10 +229,10 @@
             font-family: monospace;
             font-size: 11px;
             line-height: 1.5;
-            background: rgba(10, 15, 29, 0.78);
+            background: rgba(30, 31, 32, 0.86);
             padding: 5px 8px;
             border-radius: 5px;
-            border: 1px solid rgba(36, 51, 77, 0.8);
+            border: 1px solid rgba(60, 64, 67, 0.85);
             backdrop-filter: blur(2px);
         }
         .lw-hud-overlay.light-hud {
@@ -241,7 +241,7 @@
         }
 
         .chart-inspect-banner {
-            background: rgba(15, 23, 42, 0.85);
+            background: #1e1f20;
             border: 1px solid var(--border-color);
             border-radius: 4px;
             padding: 4px 8px;
@@ -256,14 +256,14 @@
         .chart-inspect-banner b { color: var(--neon-cyan); }
 
         .tactical-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; margin-top: 8px; }
-        .tactical-table th { background: #0d1527; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-weight: 600; }
-        .tactical-table td { padding: 8px 10px; border-bottom: 1px solid #1a253c; font-family: monospace; }
+        .tactical-table th { background: #18191a; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-weight: 600; }
+        .tactical-table td { padding: 8px 10px; border-bottom: 1px solid #282a2c; font-family: monospace; }
         .tactical-table tr:hover { background: rgba(255, 255, 255, 0.02); }
         .row-highlight { background: rgba(16, 185, 129, 0.08); font-weight: 700; }
 
         .hud-ruling-card {
-            background: linear-gradient(135deg, #131d33, #0b1220);
-            border: 1px solid #2d416b;
+            background: linear-gradient(135deg, #232426, #1e1f20);
+            border: 1px solid #3c4043;
             border-left: 4px solid var(--neon-cyan);
             border-radius: 8px;
             padding: 12px 14px;
@@ -276,7 +276,7 @@
         .side-switch-group {
             display: flex;
             gap: 6px;
-            background: #090d16;
+            background: #131314;
             padding: 3px;
             border-radius: 6px;
             border: 1px solid var(--border-color);
@@ -298,10 +298,10 @@
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
         .form-label { font-size: 12px; color: var(--text-muted); font-weight: 600; display: flex; justify-content: space-between; }
-        .form-input { background: #090d16; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 10px; color: #fff; font-size: 14px; font-weight: 700; outline: none; }
+        .form-input { background: #131314; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 10px; color: #fff; font-size: 14px; font-weight: 700; outline: none; }
         .form-input:focus { border-color: var(--neon-cyan); }
 
-        .tier-box { background: rgba(15, 23, 42, 0.6); border: 1px dashed var(--border-color); border-radius: 6px; padding: 10px; margin-bottom: 12px; }
+        .tier-box { background: rgba(19, 19, 20, 0.65); border: 1px dashed var(--border-color); border-radius: 6px; padding: 10px; margin-bottom: 12px; }
         .tier-row { display: grid; grid-template-columns: 80px 1fr 1fr; gap: 8px; align-items: center; margin-bottom: 8px; }
         .tier-row:last-child { margin-bottom: 0; }
         .tier-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; text-align: center; font-weight: 700; }
@@ -309,7 +309,7 @@
         .tag-2 { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
         .tag-3 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
 
-        .eval-box { background: linear-gradient(180deg, #131c31, #0c1220); border: 1px solid #2d3f63; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+        .eval-box { background: linear-gradient(180deg, #232426, #1e1f20); border: 1px solid #3c4043; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
         .eval-headline { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .rr-badge { font-size: 13px; font-weight: 800; padding: 4px 10px; border-radius: 6px; }
         .rr-pass { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #10b981; }
@@ -324,7 +324,7 @@
 
         .btn-auto-layout { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--neon-emerald); color: #34d399; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
 
-        #appToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 12px; border: 1px solid var(--neon-emerald); display: none; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        #appToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #282a2c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 12px; border: 1px solid var(--neon-emerald); display: none; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -373,7 +373,7 @@
 
         <!-- 子模块 1: 核心总览 -->
         <div class="koru-subview active" id="subview-overview">
-            <div class="card" id="strategicBannerCard" style="background: linear-gradient(180deg, #132238, #111a2d); border-color: #2b456e; cursor:pointer;" onclick="switchKoruSubTabById('chart')">
+            <div class="card" id="strategicBannerCard" style="background: linear-gradient(180deg, #232426, #1e1f20); border-color: #3c4043; cursor:pointer;" onclick="switchKoruSubTabById('chart')">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div>
                         <span id="bannerRegimeBadge" style="background:rgba(16,185,129,0.15); color:#34d399; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #10b981;">🛡️ CHoCH 多头蓄势</span>
@@ -469,7 +469,7 @@
                     </div>
                 </div>
 
-                <div id="watchlistManagerDrawer" style="display:none; flex-direction:column; gap:8px; background:rgba(15, 23, 42, 0.9); border:1px solid var(--border-color); border-radius:6px; padding:9px 10px; margin-bottom:8px; font-size:11px;">
+                <div id="watchlistManagerDrawer" style="display:none; flex-direction:column; gap:8px; background:#18191a; border:1px solid var(--border-color); border-radius:6px; padding:9px 10px; margin-bottom:8px; font-size:11px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                         <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:220px;">
                             <span style="color:var(--neon-emerald); font-weight:800; white-space:nowrap;">🔍 添加自选品种:</span>
@@ -503,7 +503,7 @@
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="channel" onclick="selectDrawTool('channel')" title="三点拉出平行通道线（含50%中轨，支持解锁微调角度与通道宽度后锁定）">⫽ 平行通道</button>
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="fib" onclick="selectDrawTool('fib')" title="两点拉出斐波那契回撤（含 0.382/0.5/0.618/0.786）">🔱 斐波那契</button>
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="rect" onclick="selectDrawTool('rect')" title="框选威科夫箱体/供需区间">▭ 矩形箱体</button>
-                            <span id="rectColorGroup" style="display:inline-flex; align-items:center; gap:3px; margin-left:2px; padding:2px 5px; background:rgba(8,11,18,0.6); border:1px solid var(--border-color); border-radius:4px;">
+                            <span id="rectColorGroup" style="display:inline-flex; align-items:center; gap:3px; margin-left:2px; padding:2px 5px; background:#131314; border:1px solid var(--border-color); border-radius:4px;">
                                 <button type="button" onclick="setRectColorPreset('bull')" title="多头需求绿" style="width:12px; height:12px; border-radius:50%; background:#10b981; border:1px solid #fff; cursor:pointer;"></button>
                                 <button type="button" onclick="setRectColorPreset('bear')" title="空头供给红" style="width:12px; height:12px; border-radius:50%; background:#ef4444; border:1px solid transparent; cursor:pointer;"></button>
                                 <button type="button" onclick="setRectColorPreset('neutral')" title="威科夫箱体蓝" style="width:12px; height:12px; border-radius:50%; background:#38bdf8; border:1px solid transparent; cursor:pointer;"></button>
@@ -513,16 +513,34 @@
 
                         <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                             <input type="number" id="customHLineInput" step="any" placeholder="输入水平线价..." class="form-input" style="width:96px; padding:3px 6px; font-size:11px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); addCustomHLineFromInput();}">
-                            <button type="button" class="btn-sm" onclick="addCustomHLineFromInput()" style="border-color:var(--neon-cyan); color:#67e8f9; font-weight:700;">+ 水平线</button>
+                            <button type="button" class="btn-sm" onclick="addCustomHLineFromInput()" style="border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">+ 水平线</button>
+                            <button type="button" class="btn-sm" id="btnToggleVisibilityPanel" onclick="toggleDrawingVisibilityPanel()" style="display:none; background:rgba(138,180,248,0.16); border-color:var(--neon-cyan); color:#8ab4f8; font-weight:800;">👁️ 可见范围</button>
                             <button type="button" class="btn-sm" id="btnToggleLockShape" onclick="toggleSelectedShapeLock()" style="display:none; background:rgba(245,158,11,0.18); border-color:var(--neon-amber); color:#fcd34d; font-weight:800;">🔒 锁定位置</button>
                             <button type="button" class="btn-sm" id="btnDeleteSelectedDraw" onclick="deleteSelectedDrawing()" style="display:none; border-color:var(--neon-red); color:#fca5a5; font-weight:700;">🗑️ 删除</button>
                             <button type="button" class="btn-sm" id="btnCancelDrawTool" onclick="selectDrawTool('none')" style="display:none; border-color:var(--neon-amber); color:var(--neon-amber);">退出画线 (ESC)</button>
                         </div>
                     </div>
 
-                    <div id="customDrawStatusRow" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; border-top:1px dashed rgba(148,163,184,0.2); padding-top:5px;">
+                    <div id="drawingVisibilityPanel" style="display:none; flex-direction:column; gap:6px; background:#131314; border:1px solid #3c4043; border-radius:5px; padding:7px 9px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                            <span id="visPanelTargetLabel" style="color:#8ab4f8; font-weight:800;">👁️ 手动设置可见周期范围：</span>
+                            <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                                <button type="button" class="btn-sm" onclick="applyDrawingVisibilityPreset('current')" style="font-size:10px; padding:1px 6px;">仅当前周期</button>
+                                <button type="button" class="btn-sm" onclick="applyDrawingVisibilityPreset('lte')" style="font-size:10px; padding:1px 6px;">当前及以下</button>
+                                <button type="button" class="btn-sm" onclick="applyDrawingVisibilityPreset('gte')" style="font-size:10px; padding:1px 6px;">当前及以上</button>
+                                <button type="button" class="btn-sm" onclick="applyDrawingVisibilityPreset('all')" style="font-size:10px; padding:1px 6px;">全部周期</button>
+                                <button type="button" class="btn-sm" onclick="toggleDrawingVisibilityPanel(false)" style="font-size:10px; padding:1px 6px; color:var(--neon-emerald); border-color:var(--neon-emerald);">完成 ✓</button>
+                            </div>
+                        </div>
+                        <div id="visPanelTfButtons" style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;"></div>
+                    </div>
+
+                    <div id="customDrawStatusRow" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; border-top:1px dashed rgba(154,160,166,0.22); padding-top:5px;">
                         <div id="customDrawHintOrChips" style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;"></div>
-                        <button type="button" class="btn-sm" id="btnClearAllDraws" onclick="clearAllDrawingsForSymbol()" style="display:none; padding:1px 6px; font-size:10px; color:#fca5a5; border-color:rgba(239,68,68,0.4);">清空本品种画线</button>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <button type="button" class="btn-sm" id="btnClearCurrentTfDraws" onclick="clearCurrentTfDrawingsForSymbol()" style="display:none; padding:1px 6px; font-size:10px; color:#fca5a5; border-color:rgba(242,139,130,0.4);">清空本周期画线</button>
+                            <button type="button" class="btn-sm" id="btnClearAllDraws" onclick="clearAllDrawingsForSymbol()" style="display:none; padding:1px 6px; font-size:10px; color:var(--text-muted); border-color:#3c4043;">清空全部周期</button>
+                        </div>
                     </div>
                 </div>
 
@@ -583,7 +601,7 @@
 
         <!-- 子模块 2: 大盘逐档映射 -->
         <div class="koru-subview" id="subview-mapping">
-            <div class="card" style="background: linear-gradient(180deg, #132238, #0e1726); border: 1px solid #233b5d; margin-bottom: 12px;">
+            <div class="card" style="background: linear-gradient(180deg, #232426, #1e1f20); border: 1px solid #3c4043; margin-bottom: 12px;">
                 <div class="card-title" style="margin-bottom: 8px;">
                     <span>🎚️ KOSPI 200 动态点位推演测算器</span>
                     <span class="badge" style="color:var(--neon-cyan); border-color:#06b6d4;">3X 杠杆弹性联动</span>
@@ -616,15 +634,15 @@
                 </div>
 
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin: 12px 0 10px 0;">
-                    <div style="background:#090f1d; border:1px solid #1a273f; border-radius:6px; padding:10px;">
+                    <div style="background:#131314; border:1px solid #282a2c; border-radius:6px; padding:10px;">
                         <div style="font-size:11px; color:var(--text-muted);">母体模拟涨跌</div>
                         <div style="font-size:16px; font-weight:800;" id="simIndexPct">0.00%</div>
                     </div>
-                    <div style="background:#090f1d; border:1px solid #1a273f; border-radius:6px; padding:10px;">
+                    <div style="background:#131314; border:1px solid #282a2c; border-radius:6px; padding:10px;">
                         <div style="font-size:11px; color:var(--text-muted);">KORU 理论映射价</div>
                         <div style="font-size:16px; font-weight:800; color:var(--neon-amber);" id="simKoruPrice">-- USDT</div>
                     </div>
-                    <div style="background:#090f1d; border:1px solid #1a273f; border-radius:6px; padding:10px;">
+                    <div style="background:#131314; border:1px solid #282a2c; border-radius:6px; padding:10px;">
                         <div style="font-size:11px; color:var(--text-muted);">相对成本预期浮盈</div>
                         <div style="font-size:16px; font-weight:800; color:var(--neon-emerald);" id="simRoiVal">--%</div>
                     </div>
@@ -700,9 +718,9 @@
                                 <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
-                        <line x1="0" y1="35" x2="500" y2="35" stroke="#1e293b" stroke-dasharray="3,3"/>
-                        <line x1="0" y1="90" x2="500" y2="90" stroke="#1e293b" stroke-dasharray="3,3"/>
-                        <line x1="0" y1="145" x2="500" y2="145" stroke="#1e293b" stroke-dasharray="3,3"/>
+                        <line x1="0" y1="35" x2="500" y2="35" stroke="#282a2c" stroke-dasharray="3,3"/>
+                        <line x1="0" y1="90" x2="500" y2="90" stroke="#282a2c" stroke-dasharray="3,3"/>
+                        <line x1="0" y1="145" x2="500" y2="145" stroke="#282a2c" stroke-dasharray="3,3"/>
                         
                         <g id="chartLineGroup">
                             <polygon id="chartAreaPolygon" points="0,180 500,180" fill="url(#chartGrad)"/>
@@ -736,11 +754,11 @@
                         <span id="fxBarCurrentLabel" style="color:var(--neon-emerald); font-weight:800;">当前 1,335.04 (升值)</span>
                         <span>1,310 牛市狂欢</span>
                     </div>
-                    <div style="width:100%; height:10px; background:#1e293b; border-radius:5px; overflow:hidden; position:relative;">
+                    <div style="width:100%; height:10px; background:#282a2c; border-radius:5px; overflow:hidden; position:relative;">
                         <div id="fxBarFill" style="width:49.9%; height:100%; background:linear-gradient(90deg, #ef4444 0%, #f59e0b 40%, #10b981 100%); transition: width 0.4s ease;"></div>
                     </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); border-top:1px dashed #1a273f; padding-top:8px;">
+                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); border-top:1px dashed #333537; padding-top:8px;">
                     <span>距 1,340 生死线安全垫: <b id="fxBufferVal" style="color:var(--neon-emerald); font-family:monospace;">-4.96 韩元</b></span>
                     <span>更新频率: <b style="color:var(--neon-cyan);">60s 实时外汇直连</b></span>
                 </div>
@@ -753,19 +771,19 @@
                 </div>
 
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:10px;">
-                    <div style="background:#090f1d; border:1px solid #1a273f; border-radius:6px; padding:10px;">
+                    <div style="background:#131314; border:1px solid #282a2c; border-radius:6px; padding:10px;">
                         <div style="font-size:10px; color:var(--text-muted);">当前资金费率 (8H)</div>
                         <div style="font-size:16px; font-weight:800; color:var(--neon-emerald); font-family:monospace; margin-top:2px;" id="derivFundingRate">+0.0100%</div>
                         <div style="font-size:10px; color:var(--text-muted); margin-top:2px;" id="derivFundingDesc">情绪温和 · 无拥挤</div>
                     </div>
 
-                    <div style="background:#090f1d; border:1px solid #1a273f; border-radius:6px; padding:10px;">
+                    <div style="background:#131314; border:1px solid #282a2c; border-radius:6px; padding:10px;">
                         <div style="font-size:10px; color:var(--text-muted);">全网实时持仓 (OI)</div>
                         <div style="font-size:16px; font-weight:800; color:#60a5fa; font-family:monospace; margin-top:2px;" id="derivOiDetailVal">95.52 万</div>
                         <div style="font-size:10px; color:var(--text-muted); margin-top:2px;" id="derivOiDetailDesc">名义 $778.8 万</div>
                     </div>
 
-                    <div style="background:#090f1d; border:1px solid #1a273f; border-radius:6px; padding:10px;">
+                    <div style="background:#131314; border:1px solid #282a2c; border-radius:6px; padding:10px;">
                         <div style="font-size:10px; color:var(--text-muted);">24H 振幅位置 / 成交</div>
                         <div style="font-size:16px; font-weight:800; color:var(--neon-amber); font-family:monospace; margin-top:2px;" id="derivRangePosVal">--%</div>
                         <div style="font-size:10px; color:var(--text-muted); margin-top:2px;" id="derivVol24hDesc">24H额 $-- 万</div>
@@ -789,7 +807,7 @@
                     <span class="badge active">物理隔离架构</span>
                 </div>
 
-                <div style="background:#0a1222; border:1px solid #1e3152; border-radius:6px; padding:8px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div style="background:#131314; border:1px solid #333537; border-radius:6px; padding:8px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                     <span style="font-size:11px; font-weight:700; color:var(--neon-cyan);">🎯 总览现价开仓测算锚点：</span>
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                         <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
@@ -804,7 +822,7 @@
                 </div>
 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
-                    <div style="background:#0e1728; border:1px solid #1e3a5f; border-top:3px solid var(--neon-cyan); border-radius:6px; padding:10px;">
+                    <div style="background:#131314; border:1px solid #333537; border-top:3px solid var(--neon-cyan); border-radius:6px; padding:10px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                             <span style="font-size:12px; font-weight:800; color:#fff;">🔵 战略底仓舱 (Core)</span>
                             <span class="badge" style="color:var(--neon-cyan); border-color:#06b6d4;">基石 50%</span>
@@ -818,14 +836,14 @@
                                 <span style="color:var(--text-muted);">移动保本损:</span>
                                 <input type="number" id="coreSlPrice" step="0.001" value="8.024" class="form-input" style="width:90px; padding:3px 6px; font-size:12px;" oninput="updatePositionSandbox()">
                             </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px dashed #1a273f; padding-top:4px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px dashed #333537; padding-top:4px;">
                                 <span style="color:var(--text-muted);">底仓浮盈状态:</span>
                                 <b id="coreProfitDisplay" style="color:var(--neon-emerald); font-family:monospace;">--</b>
                             </div>
                         </div>
                     </div>
 
-                    <div style="background:#0e1728; border:1px solid #3b2a1a; border-top:3px solid var(--neon-amber); border-radius:6px; padding:10px;">
+                    <div style="background:#131314; border:1px solid #3c352e; border-top:3px solid var(--neon-amber); border-radius:6px; padding:10px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                             <span style="font-size:12px; font-weight:800; color:#fff;">🟠 战术加仓舱 (Batch 1)</span>
                             <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:3px; cursor:pointer;">
@@ -841,7 +859,7 @@
                                 <span style="color:var(--text-muted);">专属止损 (SL):</span>
                                 <input type="number" id="satSlPrice" step="0.001" value="8.080" class="form-input" style="width:90px; padding:3px 6px; font-size:12px;" oninput="updatePositionSandbox()">
                             </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px dashed #1a273f; padding-top:4px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px dashed #333537; padding-top:4px;">
                                 <span style="color:var(--text-muted);">加仓风险校验:</span>
                                 <span id="satRiskBadge" class="badge" style="font-size:10px; padding:1px 5px;">待激活</span>
                             </div>
@@ -849,23 +867,23 @@
                     </div>
                 </div>
 
-                <div style="background: linear-gradient(180deg, #131f36, #0c1424); border: 1px solid #283d63; border-radius:6px; padding:12px; margin-bottom:12px;">
+                <div style="background: linear-gradient(180deg, #232426, #18191a); border: 1px solid #3c4043; border-radius:6px; padding:12px; margin-bottom:12px;">
                     <div style="font-size:12px; font-weight:800; color:#fff; margin-bottom:8px; display:flex; justify-content:space-between;">
                         <span>🟢 全仓合成指挥台 (Blended Position)</span>
                         <span id="blendedWeightLabel" style="font-size:11px; color:var(--neon-cyan);">底仓 50% 纯单运行</span>
                     </div>
                     <div style="grid-template-columns: repeat(3, 1fr); display:grid; gap:8px;">
-                        <div style="background:#080d17; border:1px solid #1a273c; border-radius:4px; padding:8px;">
+                        <div style="background:#131314; border:1px solid #282a2c; border-radius:4px; padding:8px;">
                             <div style="font-size:10px; color:var(--text-muted);">全仓合成均价</div>
                             <div style="font-size:15px; font-weight:800; color:var(--neon-cyan);" id="cardEntryVal">8.008 USDT</div>
                             <div style="font-size:9px; color:var(--text-muted); margin-top:1px;">综合持仓成本</div>
                         </div>
-                        <div style="background:#080d17; border:1px solid #1a273c; border-radius:4px; padding:8px;">
+                        <div style="background:#131314; border:1px solid #282a2c; border-radius:4px; padding:8px;">
                             <div style="font-size:10px; color:var(--text-muted);">全仓真实保本 (BEP)</div>
                             <div style="font-size:15px; font-weight:800; color:var(--neon-amber);" id="cardBepVal">8.024 USDT</div>
                             <div style="font-size:9px; color:var(--text-muted); margin-top:1px;">含 0.2% 摩擦成本</div>
                         </div>
-                        <div style="background:#080d17; border:1px solid #1a273c; border-radius:4px; padding:8px;">
+                        <div style="background:#131314; border:1px solid #282a2c; border-radius:4px; padding:8px;">
                             <div style="font-size:10px; color:var(--text-muted);">+1R 保本推进线</div>
                             <div style="font-size:15px; font-weight:800; color:var(--neon-emerald);" id="cardTrailingTrigger">8.866 USDT</div>
                             <div style="font-size:9px; color:var(--text-muted); margin-top:1px;">触及推平全仓止损</div>
@@ -1201,18 +1219,88 @@
         let isChartPointerDown = false;
         let activeHandleDrag = null; // { shapeId, handle: 'p1'|'p2'|'p3'|'body', startLogical, startPrice, origP1, origP2, origOffset }
 
+        const ALL_TIMEFRAMES = ["1", "5", "15", "60", "240", "D", "3D", "W", "M"];
+        const TF_DISPLAY_LABELS = {
+            "1": "1m", "5": "5m", "15": "15m", "60": "1H", "240": "4H",
+            "D": "1D", "3D": "3D", "W": "1W", "M": "1M"
+        };
+        let isVisibilityEditorOpen = false;
+
+        function normalizeVisibleTfs(rawTfs, fallbackTf = "60") {
+            if (Array.isArray(rawTfs) && rawTfs.length > 0) {
+                const valid = ALL_TIMEFRAMES.filter(tf => rawTfs.includes(tf));
+                if (valid.length > 0) return valid;
+            }
+            return ALL_TIMEFRAMES.includes(fallbackTf) ? [fallbackTf] : ["60"];
+        }
+
+        function isDrawingVisibleOnCurrentTf(item) {
+            if (!item) return false;
+            const list = normalizeVisibleTfs(item.visibleTfs, item.createdTf || "60");
+            return list.includes(tvInterval);
+        }
+
+        function formatVisibleTfsSummary(visibleTfs) {
+            const list = normalizeVisibleTfs(visibleTfs, tvInterval);
+            if (list.length === ALL_TIMEFRAMES.length) return "全周期";
+            if (list.length === 1) return `仅${TF_DISPLAY_LABELS[list[0]] || list[0]}`;
+            const indices = list.map(tf => ALL_TIMEFRAMES.indexOf(tf)).sort((a, b) => a - b);
+            const isContiguous = indices.every((v, i) => i === 0 || v === indices[i - 1] + 1);
+            if (isContiguous && indices.length >= 2) {
+                return `${TF_DISPLAY_LABELS[ALL_TIMEFRAMES[indices[0]]]}~${TF_DISPLAY_LABELS[ALL_TIMEFRAMES[indices[indices.length - 1]]]}`;
+            }
+            return list.map(tf => TF_DISPLAY_LABELS[tf] || tf).join(",");
+        }
+
         let customHorizontalLines = { KORU: [], BTC: [] };
         try {
             const savedHLines = JSON.parse(localStorage.getItem("quant_custom_hlines") || "{}");
-            if (Array.isArray(savedHLines.KORU)) customHorizontalLines.KORU = savedHLines.KORU;
-            if (Array.isArray(savedHLines.BTC)) customHorizontalLines.BTC = savedHLines.BTC;
+            if (savedHLines && typeof savedHLines === "object") {
+                Object.keys(savedHLines).forEach(k => {
+                    if (Array.isArray(savedHLines[k])) {
+                        customHorizontalLines[k] = savedHLines[k].map((entry, idx) => {
+                            if (typeof entry === "number") {
+                                return {
+                                    id: `hl_m_${k}_${idx}_${Math.round(entry * 10000)}`,
+                                    price: Number(entry),
+                                    createdTf: "60",
+                                    visibleTfs: ["60"]
+                                };
+                            }
+                            if (entry && typeof entry === "object" && isFinite(Number(entry.price))) {
+                                const cTf = entry.createdTf || "60";
+                                return {
+                                    id: entry.id || `hl_${Date.now()}_${idx}`,
+                                    price: Number(entry.price),
+                                    createdTf: cTf,
+                                    visibleTfs: normalizeVisibleTfs(entry.visibleTfs, cTf)
+                                };
+                            }
+                            return null;
+                        }).filter(Boolean);
+                    }
+                });
+            }
         } catch (e) {}
 
         let customShapeDrawings = { KORU: [], BTC: [] };
         try {
             const savedShapes = JSON.parse(localStorage.getItem("quant_custom_shapes") || "{}");
-            if (Array.isArray(savedShapes.KORU)) customShapeDrawings.KORU = savedShapes.KORU;
-            if (Array.isArray(savedShapes.BTC)) customShapeDrawings.BTC = savedShapes.BTC;
+            if (savedShapes && typeof savedShapes === "object") {
+                Object.keys(savedShapes).forEach(k => {
+                    if (Array.isArray(savedShapes[k])) {
+                        customShapeDrawings[k] = savedShapes[k].map(item => {
+                            if (!item || typeof item !== "object") return null;
+                            const cTf = item.createdTf || "60";
+                            return {
+                                ...item,
+                                createdTf: cTf,
+                                visibleTfs: normalizeVisibleTfs(item.visibleTfs, cTf)
+                            };
+                        }).filter(Boolean);
+                    }
+                });
+            }
         } catch (e) {}
 
         let isTvFullscreen = false;
@@ -1265,12 +1353,12 @@
             const candleColors = useMono
                 ? (isDark
                     ? {
-                        upColor: "#0a0f1d",
-                        downColor: "#e2e8f0",
-                        borderUpColor: "#e2e8f0",
-                        borderDownColor: "#e2e8f0",
-                        wickUpColor: "#e2e8f0",
-                        wickDownColor: "#e2e8f0"
+                        upColor: "#131314",
+                        downColor: "#e3e3e3",
+                        borderUpColor: "#e3e3e3",
+                        borderDownColor: "#e3e3e3",
+                        wickUpColor: "#e3e3e3",
+                        wickDownColor: "#e3e3e3"
                     }
                     : {
                         upColor: "#FAF7EE",
@@ -1302,22 +1390,22 @@
                 return {
                     isDark: true,
                     useMono,
-                    bg: "#0a0f1d",
-                    text: "#94a3b8",
-                    border: "#1e293b",
-                    gridColor: "rgba(30, 41, 59, 0.55)",
-                    crosshairColor: "rgba(148, 163, 184, 0.4)",
+                    bg: "#131314",
+                    text: "#9aa0a6",
+                    border: "#282a2c",
+                    gridColor: "rgba(60, 64, 67, 0.42)",
+                    crosshairColor: "rgba(154, 160, 166, 0.45)",
                     ...candleColors,
                     ema10: "#facc15",
-                    ema15: "#38bdf8",
+                    ema15: "#8ab4f8",
                     ma50: "#ef4444",
-                    volUp: "rgba(16, 185, 129, 0.35)",
-                    volDown: "rgba(239, 68, 68, 0.35)",
-                    smcSupply: "rgba(239, 68, 68, 0.65)",
-                    smcDemand: "rgba(16, 185, 129, 0.65)",
-                    bepColor: "#f59e0b",
-                    slColor: "#f43f5e",
-                    customLineColor: "#38bdf8"
+                    volUp: "rgba(52, 211, 153, 0.32)",
+                    volDown: "rgba(242, 139, 130, 0.32)",
+                    smcSupply: "rgba(242, 139, 130, 0.68)",
+                    smcDemand: "rgba(52, 211, 153, 0.68)",
+                    bepColor: "#fbbf24",
+                    slColor: "#f28b82",
+                    customLineColor: "#8ab4f8"
                 };
             }
             return {
@@ -1595,12 +1683,85 @@
 
         function getActiveEditShape() {
             const symKey = getCurrentSymKey();
-            const list = customShapeDrawings[symKey] || [];
+            const list = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
             if (selectedDrawingId) {
                 const found = list.find(d => d.id === selectedDrawingId);
                 if (found) return found;
             }
             return list.find(d => d.locked === false) || null;
+        }
+
+        function getActiveTargetDrawingAny() {
+            const symKey = getCurrentSymKey();
+            const sList = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+            const hList = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+            if (selectedDrawingId) {
+                const sFound = sList.find(d => d.id === selectedDrawingId);
+                if (sFound) return { kind: "shape", item: sFound };
+                const hFound = hList.find(h => h.id === selectedDrawingId);
+                if (hFound) return { kind: "hline", item: hFound };
+            }
+            const unl = sList.find(d => d.locked === false);
+            if (unl) return { kind: "shape", item: unl };
+            return null;
+        }
+
+        function toggleDrawingVisibilityPanel(forceState) {
+            isVisibilityEditorOpen = typeof forceState === "boolean" ? forceState : !isVisibilityEditorOpen;
+            if (isVisibilityEditorOpen && !getActiveTargetDrawingAny()) {
+                const symKey = getCurrentSymKey();
+                const sVis = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+                const hVis = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+                if (sVis.length > 0) selectedDrawingId = sVis[sVis.length - 1].id;
+                else if (hVis.length > 0) selectedDrawingId = hVis[hVis.length - 1].id;
+            }
+            renderDrawingToolbarState();
+        }
+
+        function updateTargetDrawingVisibleTfs(nextTfs) {
+            const target = getActiveTargetDrawingAny();
+            if (!target) return;
+            const normalized = normalizeVisibleTfs(nextTfs, tvInterval);
+            target.item.visibleTfs = normalized;
+            if (target.kind === "shape") {
+                saveCustomShapesToStorage();
+            } else {
+                saveCustomHLinesToStorage();
+            }
+            renderAllLwPriceLines();
+            renderDrawingToolbarState();
+            renderDrawOverlay();
+            showToast(`👁️ 已更新可见周期范围：${formatVisibleTfsSummary(normalized)}`);
+        }
+
+        function toggleSingleDrawingVisibleTf(tf) {
+            const target = getActiveTargetDrawingAny();
+            if (!target) return;
+            const cur = normalizeVisibleTfs(target.item.visibleTfs, tvInterval);
+            let next;
+            if (cur.includes(tf)) {
+                if (cur.length <= 1) {
+                    showToast("⚠️ 至少需保留 1 个可见周期（如需移除请点删除）");
+                    return;
+                }
+                next = cur.filter(x => x !== tf);
+            } else {
+                next = ALL_TIMEFRAMES.filter(x => cur.includes(x) || x === tf);
+            }
+            updateTargetDrawingVisibleTfs(next);
+        }
+
+        function applyDrawingVisibilityPreset(preset) {
+            const idx = ALL_TIMEFRAMES.indexOf(tvInterval);
+            if (preset === "current") {
+                updateTargetDrawingVisibleTfs([tvInterval]);
+            } else if (preset === "lte") {
+                updateTargetDrawingVisibleTfs(idx >= 0 ? ALL_TIMEFRAMES.slice(0, idx + 1) : [tvInterval]);
+            } else if (preset === "gte") {
+                updateTargetDrawingVisibleTfs(idx >= 0 ? ALL_TIMEFRAMES.slice(idx) : [tvInterval]);
+            } else if (preset === "all") {
+                updateTargetDrawingVisibleTfs([...ALL_TIMEFRAMES]);
+            }
         }
 
         function toggleSelectedShapeLock() {
@@ -1646,6 +1807,7 @@
             if (tool !== "ruler") activeRulerMeasurement = null;
             if (tool !== "none") {
                 isDrawingToolbarOpen = true;
+                isVisibilityEditorOpen = false;
                 selectedDrawingId = null;
             }
             const overlay = document.getElementById("lwDrawOverlay");
@@ -1656,12 +1818,13 @@
             syncChartControlButtons();
             renderDrawOverlay();
 
+            const curTfName = TF_DISPLAY_LABELS[tvInterval] || tvInterval;
             const tips = {
-                hline: "📏 水平线模式：点击图面任意价位或直接输入价格落线",
-                trend: "╱ 趋势线段模式：点击/拖拽起点→终点落线，随后可直接拖动圆锚微调并锁定",
-                channel: "⫽ 平行通道模式：第1步定基准线起点→第2步定终点→第3步拉开通道宽度",
-                fib: "🔱 斐波那契模式：从波段起点拉至波段终点，自动标注 0.382 / 0.5 / 0.618 / 0.786",
-                rect: "▭ 矩形箱体模式：拖拽框选威科夫箱体或供需区（可点绿/红/蓝切换色块）",
+                hline: `📏 水平线模式（默认仅保留在 ${curTfName}，可手动调整可见周期范围）`,
+                trend: `╱ 趋势线段模式（默认仅保留在 ${curTfName}，落线后可微调并设置可见范围）`,
+                channel: `⫽ 平行通道模式（默认仅保留在 ${curTfName}）：第1步起点→第2步终点→第3步拉宽度`,
+                fib: `🔱 斐波那契模式（默认仅保留在 ${curTfName}）：从波段起点拉至终点`,
+                rect: `▭ 矩形箱体模式（默认仅保留在 ${curTfName}）：拖拽框选供需区/箱体`,
                 ruler: "📐 测量尺模式：拖拽测量两点间的价差、涨跌幅 % 与K线根数"
             };
             if (tips[tool]) showToast(tips[tool]);
@@ -1670,20 +1833,31 @@
         function renderDrawingToolbarState() {
             const bar = document.getElementById("chartDrawingToolbar");
             const hintOrChips = document.getElementById("customDrawHintOrChips");
+            const visBtn = document.getElementById("btnToggleVisibilityPanel");
+            const visPanel = document.getElementById("drawingVisibilityPanel");
+            const visTargetLabel = document.getElementById("visPanelTargetLabel");
+            const visTfButtons = document.getElementById("visPanelTfButtons");
             const lockBtn = document.getElementById("btnToggleLockShape");
             const delSelBtn = document.getElementById("btnDeleteSelectedDraw");
             const cancelBtn = document.getElementById("btnCancelDrawTool");
+            const clearTfBtn = document.getElementById("btnClearCurrentTfDraws");
             const clearAllBtn = document.getElementById("btnClearAllDraws");
             const inputEl = document.getElementById("customHLineInput");
             if (!bar || !hintOrChips) return;
 
             const symKey = getCurrentSymKey();
+            const curTfLabel = TF_DISPLAY_LABELS[tvInterval] || tvInterval;
             const dec = getActiveSymbolDecimals();
             if (!Array.isArray(customHorizontalLines[symKey])) customHorizontalLines[symKey] = [];
             if (!Array.isArray(customShapeDrawings[symKey])) customShapeDrawings[symKey] = [];
-            const hList = customHorizontalLines[symKey];
-            const sList = customShapeDrawings[symKey];
-            const totalCount = hList.length + sList.length;
+
+            const allHList = customHorizontalLines[symKey];
+            const allSList = customShapeDrawings[symKey];
+            const hList = allHList.filter(isDrawingVisibleOnCurrentTf);
+            const sList = allSList.filter(isDrawingVisibleOnCurrentTf);
+            const visibleCount = hList.length + sList.length;
+            const totalAllTfCount = allHList.length + allSList.length;
+            const hiddenOtherTfCount = Math.max(0, totalAllTfCount - visibleCount);
 
             if (inputEl) {
                 inputEl.step = "any";
@@ -1696,14 +1870,47 @@
             syncRectColorDots();
 
             const activeEditShape = getActiveEditShape();
+            const activeAny = getActiveTargetDrawingAny();
             const hasAnyUnlocked = sList.some(d => d.locked === false);
-            const shouldShow = isDrawingToolbarOpen || activeDrawTool !== "none" || totalCount > 0 || selectedDrawingId !== null || hasAnyUnlocked;
+            const shouldShow = isDrawingToolbarOpen || activeDrawTool !== "none" || totalAllTfCount > 0 || activeAny !== null || hasAnyUnlocked;
             bar.style.display = shouldShow ? "flex" : "none";
             if (!shouldShow) return;
 
             if (cancelBtn) cancelBtn.style.display = activeDrawTool !== "none" ? "inline-block" : "none";
-            if (delSelBtn) delSelBtn.style.display = selectedDrawingId ? "inline-block" : "none";
-            if (clearAllBtn) clearAllBtn.style.display = totalCount > 0 ? "inline-block" : "none";
+            if (delSelBtn) delSelBtn.style.display = activeAny ? "inline-block" : "none";
+            if (clearTfBtn) clearTfBtn.style.display = visibleCount > 0 ? "inline-block" : "none";
+            if (clearAllBtn) clearAllBtn.style.display = hiddenOtherTfCount > 0 ? "inline-block" : "none";
+
+            if (visBtn) {
+                if (activeAny) {
+                    const summary = formatVisibleTfsSummary(activeAny.item.visibleTfs);
+                    visBtn.style.display = "inline-block";
+                    visBtn.textContent = `👁️ 可见范围: ${summary}`;
+                    visBtn.classList.toggle("active", isVisibilityEditorOpen);
+                } else {
+                    visBtn.style.display = "none";
+                    isVisibilityEditorOpen = false;
+                }
+            }
+
+            if (visPanel && visTfButtons && visTargetLabel) {
+                if (isVisibilityEditorOpen && activeAny) {
+                    visPanel.style.display = "flex";
+                    const typeNames = { trend: "趋势线段", channel: "平行通道", fib: "斐波那契", rect: "矩形箱体" };
+                    const objName = activeAny.kind === "hline"
+                        ? `📏 水平线 ${Number(activeAny.item.price).toFixed(dec)}`
+                        : `${typeNames[activeAny.item.type] || "图形"} ${Number(activeAny.item.p1.price).toFixed(dec)}→${Number(activeAny.item.p2.price).toFixed(dec)}`;
+                    visTargetLabel.textContent = `👁️ 设置【${objName}】可见周期：`;
+                    const curVis = normalizeVisibleTfs(activeAny.item.visibleTfs, tvInterval);
+                    visTfButtons.innerHTML = ALL_TIMEFRAMES.map(tf => {
+                        const checked = curVis.includes(tf);
+                        const lbl = TF_DISPLAY_LABELS[tf] || tf;
+                        return `<button type="button" class="btn-sm ${checked ? 'active' : ''}" onclick="toggleSingleDrawingVisibleTf('${tf}')" style="font-size:10px; padding:2px 7px;">${checked ? '✓ ' : ''}${lbl}</button>`;
+                    }).join("");
+                } else {
+                    visPanel.style.display = "none";
+                }
+            }
 
             if (lockBtn) {
                 if (activeEditShape) {
@@ -1726,13 +1933,13 @@
             }
 
             const toolGuide = {
-                hline: "🎯 点击图面任意价位落水平线，或右侧输入价格：",
-                trend: "🎯 趋势线段：点击/拖拽起点 → 终点落线（落线后自动解锁，可拖动圆锚微调）",
+                hline: `🎯 点击图面落水平线（默认归属 ${curTfLabel} 周期），或右侧输入价格：`,
+                trend: `🎯 趋势线段（归属 ${curTfLabel}）：点击/拖拽起点 → 终点落线，可点【👁️ 可见范围】扩展周期`,
                 channel: draftStep === 2
                     ? "🎯 第3步（拉宽度）：上下移动光标拉开平行通道宽度，再次点击确认落线！"
-                    : "🎯 平行通道：第1步点击基准线起点 → 第2步点击基准线终点 → 第3步拉开通道宽度",
-                fib: "🎯 斐波那契：点击/拖拽波段高点 ↔ 低点自动生成回撤位",
-                rect: "🎯 矩形箱体：点击/拖拽框选价格区间（支持跨周期缩放）",
+                    : `🎯 平行通道（归属 ${curTfLabel}）：第1步起点 → 第2步终点 → 第3步拉开宽度`,
+                fib: `🎯 斐波那契（归属 ${curTfLabel}）：点击/拖拽波段高点 ↔ 低点自动生成回撤位`,
+                rect: `🎯 矩形箱体（归属 ${curTfLabel}）：点击/拖拽框选价格区间`,
                 ruler: "🎯 测量尺：点击/拖拽任意两点查看涨跌幅 % 与K线跨度"
             };
 
@@ -1740,17 +1947,22 @@
             if (activeDrawTool !== "none") {
                 html += `<span style="color:var(--neon-amber); font-weight:700;">${toolGuide[activeDrawTool]}</span>`;
             } else if (hasAnyUnlocked) {
-                html += `<span style="color:#34d399; font-weight:700;">🔓 调整模式：直接拖动圆锚调端点/通道宽，或拖线段平移 → 调好点【🔒 锁定位置】</span>`;
-            } else if (totalCount === 0) {
-                html += `<span style="color:var(--text-muted);">💡 选择上方工具在主图画线（自动跨周期对齐并永久保存）；支持解锁拖拽微调后锁定。</span>`;
+                html += `<span style="color:#34d399; font-weight:700;">🔓 调整模式：拖动圆锚/本体微调 → 点【👁️ 可见范围】设周期或【🔒 锁定位置】</span>`;
+            } else if (visibleCount === 0 && hiddenOtherTfCount > 0) {
+                html += `<span style="color:var(--text-muted);">📐 ${symKey} · 当前 <b>${curTfLabel}</b> 暂无画线（其他周期已保留 <b style="color:#8ab4f8;">${hiddenOtherTfCount}</b> 项，切换对应周期即可显示）</span>`;
+            } else if (visibleCount === 0) {
+                html += `<span style="color:var(--text-muted);">💡 选择上方工具在 <b>${curTfLabel}</b> 画线（默认仅保留在所画周期，点【👁️ 可见范围】可手动扩展至多周期）。</span>`;
             } else {
-                html += `<span style="color:var(--neon-cyan); font-weight:700;">📐 ${symKey} 存档 (${totalCount}):</span>`;
+                const otherTag = hiddenOtherTfCount > 0 ? ` · 另 ${hiddenOtherTfCount} 项在其他周期` : "";
+                html += `<span style="color:var(--neon-cyan); font-weight:700;">📐 ${symKey} [${curTfLabel}] (${visibleCount}${otherTag}):</span>`;
             }
 
-            hList.forEach((price, idx) => {
-                html += `<span style="display:inline-flex; align-items:center; gap:3px; background:rgba(6,182,212,0.14); border:1px solid rgba(6,182,212,0.45); color:#67e8f9; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
-                    📏 ${Number(price).toFixed(dec)}
-                    <button type="button" onclick="removeCustomHLine(${idx})" title="删除水平线" style="background:none; border:none; color:#f87171; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
+            hList.forEach((hObj) => {
+                const isSel = hObj.id === selectedDrawingId;
+                const visTag = formatVisibleTfsSummary(hObj.visibleTfs);
+                html += `<span onclick="selectSavedHLine('${hObj.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isSel ? 'rgba(245,158,11,0.22)' : 'rgba(138,180,248,0.14)'}; border:1px solid ${isSel ? '#f59e0b' : 'rgba(138,180,248,0.45)'}; color:${isSel ? '#fcd34d' : '#8ab4f8'}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
+                    📏 ${Number(hObj.price).toFixed(dec)} <span style="opacity:0.78; font-size:10px;">[${visTag}]</span>
+                    <button type="button" onclick="event.stopPropagation(); removeCustomHLineById('${hObj.id}')" title="删除水平线" style="background:none; border:none; color:#f28b82; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
                 </span>`;
             });
 
@@ -1767,10 +1979,11 @@
                 const lockIcon = isUnl ? "🔓" : "🔒";
                 const pA = Number(item.p1.price).toFixed(dec);
                 const pB = Number(item.p2.price).toFixed(dec);
-                html += `<span onclick="selectSavedShape('${item.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isUnl ? 'rgba(16,185,129,0.18)' : (isSel ? 'rgba(245,158,11,0.22)' : 'rgba(59,130,246,0.14)')}; border:1px solid ${isUnl ? '#10b981' : (isSel ? '#f59e0b' : 'rgba(59,130,246,0.45)')}; color:${isUnl ? '#6ee7b7' : (isSel ? '#fcd34d' : '#93c5fd')}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
+                const visTag = formatVisibleTfsSummary(item.visibleTfs);
+                html += `<span onclick="selectSavedShape('${item.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isUnl ? 'rgba(52,211,153,0.16)' : (isSel ? 'rgba(245,158,11,0.22)' : 'rgba(138,180,248,0.14)')}; border:1px solid ${isUnl ? '#34d399' : (isSel ? '#f59e0b' : 'rgba(138,180,248,0.45)')}; color:${isUnl ? '#6ee7b7' : (isSel ? '#fcd34d' : '#c4c7c5')}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
                     <span onclick="event.stopPropagation(); toggleShapeLockById('${item.id}')" title="${isUnl ? '点击锁定位置' : '点击解锁微调'}" style="cursor:pointer;">${lockIcon}</span>
-                    ${meta.icon} ${meta.name} ${pA}→${pB}
-                    <button type="button" onclick="event.stopPropagation(); removeSavedShapeById('${item.id}')" title="删除图形" style="background:none; border:none; color:#f87171; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
+                    ${meta.icon} ${meta.name} ${pA}→${pB} <span style="opacity:0.78; font-size:10px;">[${visTag}]</span>
+                    <button type="button" onclick="event.stopPropagation(); removeSavedShapeById('${item.id}')" title="删除图形" style="background:none; border:none; color:#f28b82; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
                 </span>`;
             });
 
@@ -2640,15 +2853,17 @@
                 }));
             }
 
-            const userLines = customHorizontalLines[symKey] || [];
-            userLines.forEach(price => {
+            const userLines = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+            userLines.forEach(hObj => {
+                const isSel = hObj.id === selectedDrawingId;
+                const visTag = formatVisibleTfsSummary(hObj.visibleTfs);
                 lwPriceLines.push(lwCandleSeries.createPriceLine({
-                    price: Number(price),
-                    color: p.customLineColor,
-                    lineWidth: 2,
+                    price: Number(hObj.price),
+                    color: isSel ? "#fbbf24" : p.customLineColor,
+                    lineWidth: isSel ? 2 : 2,
                     lineStyle: LightweightCharts.LineStyle.Solid,
                     axisLabelVisible: true,
-                    title: "水平线"
+                    title: `水平线(${visTag})`
                 }));
             });
         }
@@ -2661,9 +2876,17 @@
 
             const list = customHorizontalLines[symKey] || [];
             const tol = Math.pow(10, -dec) * 0.5;
-            if (!list.some(x => Math.abs(x - cleanPrice) < tol)) {
-                list.push(cleanPrice);
-                list.sort((a, b) => b - a);
+            const curTfLabel = TF_DISPLAY_LABELS[tvInterval] || tvInterval;
+            let createdObj = list.find(x => Math.abs(Number(x.price) - cleanPrice) < tol && isDrawingVisibleOnCurrentTf(x));
+            if (!createdObj) {
+                createdObj = {
+                    id: "hl_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+                    price: cleanPrice,
+                    createdTf: tvInterval,
+                    visibleTfs: [tvInterval]
+                };
+                list.push(createdObj);
+                list.sort((a, b) => Number(b.price) - Number(a.price));
                 customHorizontalLines[symKey] = list;
                 saveCustomHLinesToStorage();
             }
@@ -2672,8 +2895,10 @@
             } else {
                 syncChartControlButtons();
             }
+            selectedDrawingId = createdObj.id;
+            renderDrawingToolbarState();
             renderAllLwPriceLines();
-            showToast(`已永久保存 ${symKey} 水平线: ${cleanPrice.toFixed(dec)}`);
+            showToast(`已保存 ${symKey} [${curTfLabel}] 水平线: ${cleanPrice.toFixed(dec)}`);
         }
 
         function addCustomHLineFromInput() {
@@ -2688,22 +2913,37 @@
             addCustomHLineValue(val, true);
         }
 
-        function removeCustomHLine(idx) {
+        function selectSavedHLine(id) {
+            selectedDrawingId = selectedDrawingId === id ? null : id;
+            if (!selectedDrawingId) isVisibilityEditorOpen = false;
+            renderDrawingToolbarState();
+            renderAllLwPriceLines();
+            renderDrawOverlay();
+        }
+
+        function removeCustomHLineById(id) {
             const symKey = getCurrentSymKey();
             const list = customHorizontalLines[symKey] || [];
-            if (idx >= 0 && idx < list.length) {
+            const idx = list.findIndex(x => x.id === id);
+            if (idx >= 0) {
                 const removed = list.splice(idx, 1)[0];
                 customHorizontalLines[symKey] = list;
+                if (selectedDrawingId === id) {
+                    selectedDrawingId = null;
+                    isVisibilityEditorOpen = false;
+                }
                 saveCustomHLinesToStorage();
                 syncChartControlButtons();
                 renderAllLwPriceLines();
-                showToast(`已移除水平线: ${removed}`);
+                showToast(`已移除水平线: ${removed.price}`);
             }
         }
 
         function selectSavedShape(id) {
             selectedDrawingId = selectedDrawingId === id ? null : id;
+            if (!selectedDrawingId) isVisibilityEditorOpen = false;
             renderDrawingToolbarState();
+            renderAllLwPriceLines();
             renderDrawOverlay();
         }
 
@@ -2714,7 +2954,10 @@
             if (idx >= 0) {
                 list.splice(idx, 1);
                 customShapeDrawings[symKey] = list;
-                if (selectedDrawingId === id) selectedDrawingId = null;
+                if (selectedDrawingId === id) {
+                    selectedDrawingId = null;
+                    isVisibilityEditorOpen = false;
+                }
                 saveCustomShapesToStorage();
                 renderDrawingToolbarState();
                 renderDrawOverlay();
@@ -2723,9 +2966,29 @@
         }
 
         function deleteSelectedDrawing() {
-            if (selectedDrawingId) {
+            if (!selectedDrawingId) return;
+            const symKey = getCurrentSymKey();
+            if ((customHorizontalLines[symKey] || []).some(h => h.id === selectedDrawingId)) {
+                removeCustomHLineById(selectedDrawingId);
+            } else {
                 removeSavedShapeById(selectedDrawingId);
             }
+        }
+
+        function clearCurrentTfDrawingsForSymbol() {
+            const symKey = getCurrentSymKey();
+            const curTfLabel = TF_DISPLAY_LABELS[tvInterval] || tvInterval;
+            customHorizontalLines[symKey] = (customHorizontalLines[symKey] || []).filter(h => !isDrawingVisibleOnCurrentTf(h));
+            customShapeDrawings[symKey] = (customShapeDrawings[symKey] || []).filter(d => !isDrawingVisibleOnCurrentTf(d));
+            selectedDrawingId = null;
+            isVisibilityEditorOpen = false;
+            activeRulerMeasurement = null;
+            saveCustomHLinesToStorage();
+            saveCustomShapesToStorage();
+            syncChartControlButtons();
+            renderAllLwPriceLines();
+            renderDrawOverlay();
+            showToast(`已清空 ${symKey} [${curTfLabel}] 当前周期画线`);
         }
 
         function clearAllDrawingsForSymbol() {
@@ -2733,13 +2996,14 @@
             customHorizontalLines[symKey] = [];
             customShapeDrawings[symKey] = [];
             selectedDrawingId = null;
+            isVisibilityEditorOpen = false;
             activeRulerMeasurement = null;
             saveCustomHLinesToStorage();
             saveCustomShapesToStorage();
             syncChartControlButtons();
             renderAllLwPriceLines();
             renderDrawOverlay();
-            showToast(`已清空 ${symKey} 全部自定义画线`);
+            showToast(`已清空 ${symKey} 全部周期自定义画线`);
         }
 
         // --- 跨周期连续时空坐标转换引擎 (支持 Log 对数坐标与 15m/1H/4H/1D/3D 无缝映射) ---
@@ -2875,7 +3139,7 @@
 
         function hitTestUnlockedHandleOrShape(px, py) {
             const symKey = getCurrentSymKey();
-            const list = customShapeDrawings[symKey] || [];
+            const list = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
             // 1. 优先命中未锁定图形的端点圆锚 / 通道宽度圆锚
             for (let i = list.length - 1; i >= 0; i--) {
                 const d = list[i];
@@ -2938,7 +3202,7 @@
 
         function hitTestSavedShape(px, py) {
             const symKey = getCurrentSymKey();
-            const list = customShapeDrawings[symKey] || [];
+            const list = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
             for (let i = list.length - 1; i >= 0; i--) {
                 const d = list[i];
                 if (hitTestSingleShapeBody(d, px, py)) return d;
@@ -2987,7 +3251,7 @@
                 drawSmcBlocksAndStructures(ctx, dec, isDark, plotW);
             }
 
-            const savedList = customShapeDrawings[symKey] || [];
+            const savedList = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
             savedList.forEach(item => {
                 drawSingleShapeOnCanvas(ctx, item, item.id === selectedDrawingId, dec, isDark, plotW);
             });
@@ -3725,8 +3989,10 @@
                 return;
             }
 
-            // 新画图形默认处于【🔓 未锁定可调整】状态，方便用户拖拽端点/宽度/整体位置后再锁定
+            // 新画图形默认处于【🔓 未锁定可调整】状态，且默认仅在当前所画周期可见
             finished.locked = false;
+            finished.createdTf = tvInterval;
+            finished.visibleTfs = [tvInterval];
 
             const symKey = getCurrentSymKey();
             const list = customShapeDrawings[symKey] || [];
@@ -3739,7 +4005,8 @@
             renderDrawingToolbarState();
             renderDrawOverlay();
             const names = { trend: "趋势线段", channel: "平行通道", fib: "斐波那契回撤", rect: "矩形箱体" };
-            showToast(`已绘制【${names[finished.type] || "图形"}】（🔓 未锁定，可直接拖动圆锚或本体微调，调好点【🔒 锁定位置】）`);
+            const curTfLabel = TF_DISPLAY_LABELS[tvInterval] || tvInterval;
+            showToast(`已绘制【${names[finished.type] || "图形"}】（保留在 ${curTfLabel}，点【👁️ 可见范围】可设多周期，调好点【🔒 锁定位置】）`);
         }
 
 
@@ -4445,7 +4712,14 @@
                 "mainSeriesProperties.candleStyle.wickDownColor": p.wickDownColor
             };
 
-            if (!p.isDark) {
+            if (p.isDark) {
+                Object.assign(tvOverrides, {
+                    "paneProperties.backgroundType": "solid",
+                    "paneProperties.background": "#131314",
+                    "scalesProperties.textColor": "#9aa0a6",
+                    "scalesProperties.lineColor": "#282a2c"
+                });
+            } else {
                 Object.assign(tvOverrides, {
                     "paneProperties.backgroundType": "solid",
                     "paneProperties.background": "#FAF7EE",
@@ -4462,7 +4736,7 @@
                 theme: tvTheme,
                 style: "1",
                 locale: "zh_CN",
-                toolbar_bg: p.isDark ? "#0b0f19" : "#FAF7EE",
+                toolbar_bg: p.isDark ? "#131314" : "#FAF7EE",
                 enable_publishing: false,
                 hide_side_toolbar: false,
                 allow_symbol_change: true,
@@ -4511,6 +4785,13 @@
             tvInterval = tf;
             document.querySelectorAll(".tv-tf-btn").forEach(b => b.classList.remove("active"));
             if (btnEl) btnEl.classList.add("active");
+
+            const activeAny = getActiveTargetDrawingAny();
+            if (!activeAny) {
+                selectedDrawingId = null;
+                isVisibilityEditorOpen = false;
+            }
+            renderDrawingToolbarState();
 
             if (chartEngineMode === "STRAT") {
                 destroySubChartInstances();
@@ -4972,7 +5253,7 @@
             const indices = [0, Math.floor(n * 0.25), Math.floor(n * 0.5), Math.floor(n * 0.75), n - 1];
             const uniqueIndices = [...new Set(indices)];
 
-            let html = `<line x1="0" y1="${svgH}" x2="${svgW}" y2="${svgH}" stroke="#1e293b" stroke-width="1.2"/>`;
+            let html = `<line x1="0" y1="${svgH}" x2="${svgW}" y2="${svgH}" stroke="#282a2c" stroke-width="1.2"/>`;
             uniqueIndices.forEach((idx) => {
                 const item = historyList[idx];
                 const x = idx * (svgW / (n - 1));
@@ -5830,5 +6111,5 @@
         });
     </script>
 </body>
-<!-- Build: v4-dual-subchart-locked-view -->
+<!-- Build: v5-gemini-dark-tf-scoped-drawings -->
 </html>
