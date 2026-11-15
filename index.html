@@ -2159,6 +2159,8 @@
                 },
                 timeScale: {
                     borderColor: p.border,
+                    rightOffset: 28,
+                    minBarSpacing: 2,
                     timeVisible: !tickMode,
                     secondsVisible: false,
                     tickMarkFormatter: (time) => formatBeijingTime(time, tickMode)
@@ -2777,14 +2779,22 @@
                 lwCandleSeries.setMarkers(markers);
                 renderAllLwPriceLines();
 
-                if (savedRange) {
-                    lwChart.timeScale().setVisibleLogicalRange(savedRange);
-                } else if (!preserveViewport) {
-                    lwChart.timeScale().fitContent();
+                let targetViewportRange = savedRange;
+                if (!targetViewportRange && !preserveViewport) {
+                    const totalBars = enriched.length;
+                    const leftPad = Math.max(3, Math.round(totalBars * 0.02));
+                    const rightPad = Math.max(14, Math.round(totalBars * 0.28));
+                    targetViewportRange = {
+                        from: -leftPad,
+                        to: (totalBars - 1) + rightPad
+                    };
+                }
+                if (targetViewportRange) {
+                    lwChart.timeScale().setVisibleLogicalRange(targetViewportRange);
                 }
                 renderDrawOverlay();
                 if (showCvdSubchart || showNetposSubchart) {
-                    await renderActiveSubcharts(enriched, symObj, reqInterval, savedRange);
+                    await renderActiveSubcharts(enriched, symObj, reqInterval, targetViewportRange);
                 }
 
                 const latestBar = enriched[enriched.length - 1];
@@ -4296,6 +4306,8 @@
                 },
                 timeScale: {
                     borderColor: p.border,
+                    rightOffset: 28,
+                    minBarSpacing: 2,
                     visible: false
                 },
                 localization: {
@@ -4379,6 +4391,8 @@
                 },
                 timeScale: {
                     borderColor: p.border,
+                    rightOffset: 28,
+                    minBarSpacing: 2,
                     visible: false
                 },
                 localization: {
@@ -6111,5 +6125,5 @@
         });
     </script>
 </body>
-<!-- Build: v5-gemini-dark-tf-scoped-drawings -->
+<!-- Build: v6-gemini-dark-balanced-initial-viewport -->
 </html>
