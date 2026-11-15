@@ -422,6 +422,7 @@
                         <button type="button" class="btn-sm" id="btnTvCandleStyle" onclick="toggleTvCandleStyle()" title="切换威科夫黑白空心K线 / 经典红绿K线">🕯️ K线:红绿</button>
                         <button type="button" class="btn-sm" id="btnTvGrid" onclick="toggleTvGrid()" title="切换横竖网格线">⊞ 网格:关</button>
                         <button type="button" class="btn-sm active" id="btnTvLog" onclick="toggleTvLog()" title="切换对数坐标 (Log) / 线性坐标">LOG</button>
+                        <button type="button" class="btn-sm active" id="btnToggleSmcBlocks" onclick="toggleSmcBlocks()" title="显示/隐藏 SMC 供需订单块色块（粉色供给块/蓝色需求块）与 BOS/CHoCH 结构线">🧱 SMC色块</button>
                         <button type="button" class="btn-sm" id="btnToggleDrawBar" onclick="toggleDrawingToolbar()" title="展开/收起画线与测量工具箱（水平线/趋势线段/斐波那契/矩形箱体/测量尺）">✏️ 画线工具</button>
                         <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
                         <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 网页全屏</button>
@@ -1028,6 +1029,7 @@
         let candleColorStyle = localStorage.getItem("quant_candle_style") || "auto"; // 'auto' | 'mono' | 'classic'
         let chartGridMode = localStorage.getItem("quant_chart_grid") || "none"; // 'none' | 'horz' | 'both'
         let isChartLogScale = localStorage.getItem("quant_chart_log") !== "false"; // 默认开启 Log 对数坐标
+        let showSmcBlocks = localStorage.getItem("quant_smc_blocks") !== "false"; // 默认开启 SMC 供需色块与 BOS/CHoCH 结构线
         let activeDrawTool = "none"; // 'none' | 'hline' | 'trend' | 'fib' | 'rect' | 'ruler'
         let isDrawingToolbarOpen = false;
         let rectColorPreset = localStorage.getItem("quant_rect_preset") || "bull"; // 'bull' | 'bear' | 'neutral'
@@ -1063,7 +1065,7 @@
         let lwVolSeries = null;
         let lwPriceLines = [];
         let lwLastDataCache = [];
-        let lwLastSmcSnapshot = { lastSH: null, lastSL: null };
+        let lwLastSmcSnapshot = { lastSH: null, lastSL: null, supplyBlocks: [], demandBlocks: [], structureLines: [], marketBias: 0 };
 
         function isEffectiveMonoCandles() {
             if (candleColorStyle === "mono") return true;
@@ -1379,6 +1381,10 @@
             if (logBtn) {
                 logBtn.classList.toggle("active", isChartLogScale);
             }
+            const smcBlockBtn = document.getElementById("btnToggleSmcBlocks");
+            if (smcBlockBtn) {
+                smcBlockBtn.classList.toggle("active", showSmcBlocks);
+            }
             if (drawBtn) {
                 drawBtn.classList.toggle("active", isDrawingToolbarOpen || activeDrawTool !== "none");
             }
@@ -1628,36 +1634,195 @@
                 }
             }
 
+            const swingLen = 5;
             const swingHighs = [];
             const swingLows = [];
-            for (let i = 5; i < n - 5; i++) {
+            const swingHighByConfirmIdx = new Map();
+            const swingLowByConfirmIdx = new Map();
+
+            for (let i = swingLen; i < n - swingLen; i++) {
                 let isH = true, isL = true;
-                for (let j = i - 5; j <= i + 5; j++) {
+                for (let j = i - swingLen; j <= i + swingLen; j++) {
                     if (j === i) continue;
                     if (enriched[j].high >= enriched[i].high) isH = false;
                     if (enriched[j].low <= enriched[i].low) isL = false;
                 }
-                if (isH) swingHighs.push({ idx: i, time: enriched[i].time, price: enriched[i].high });
-                if (isL) swingLows.push({ idx: i, time: enriched[i].time, price: enriched[i].low });
+                if (isH) {
+                    const sh = { idx: i, time: enriched[i].time, price: enriched[i].high };
+                    swingHighs.push(sh);
+                    swingHighByConfirmIdx.set(i + swingLen, sh);
+                }
+                if (isL) {
+                    const sl = { idx: i, time: enriched[i].time, price: enriched[i].low };
+                    swingLows.push(sl);
+                    swingLowByConfirmIdx.set(i + swingLen, sl);
+                }
             }
+
+            // SMC 结构破坏 (BOS / CHoCH) 与未消化供需订单块 (Order Blocks) 追踪
+            let marketBias = 0; // 1 = 多头结构, -1 = 空头结构
+            let activeSH = null;
+            let activeSL = null;
+            let shBroken = false;
+            let slBroken = false;
+            const allSupplyBlocks = [];
+            const allDemandBlocks = [];
+            const structureLines = [];
+
+            for (let idx = swingLen * 2; idx < n; idx++) {
+                if (swingHighByConfirmIdx.has(idx)) {
+                    activeSH = swingHighByConfirmIdx.get(idx);
+                    shBroken = false;
+                }
+                if (swingLowByConfirmIdx.has(idx)) {
+                    activeSL = swingLowByConfirmIdx.get(idx);
+                    slBroken = false;
+                }
+
+                const bar = enriched[idx];
+
+                // 向上突破前波段高点 -> 产生 Bullish BOS / CHoCH + 蓝色需求块 (Demand OB)
+                if (activeSH && !shBroken && bar.close > activeSH.price) {
+                    shBroken = true;
+                    const labelType = marketBias === -1 ? "CHoCH" : "BOS";
+                    marketBias = 1;
+                    structureLines.push({
+                        type: labelType,
+                        direction: "bull",
+                        startTime: activeSH.time,
+                        endTime: bar.time,
+                        price: activeSH.price
+                    });
+
+                    // 寻找突破起涨前的最后一根阴线作为需求订单块
+                    let obBar = null;
+                    const searchStart = Math.max(0, activeSH.idx);
+                    for (let k = idx - 1; k >= searchStart; k--) {
+                        if (enriched[k].close < enriched[k].open) {
+                            obBar = enriched[k];
+                            break;
+                        }
+                    }
+                    if (!obBar) {
+                        let minLow = Infinity;
+                        for (let k = searchStart; k < idx; k++) {
+                            if (enriched[k].low < minLow) {
+                                minLow = enriched[k].low;
+                                obBar = enriched[k];
+                            }
+                        }
+                    }
+                    if (obBar) {
+                        allDemandBlocks.push({
+                            side: "demand",
+                            startTime: obBar.time,
+                            createdIdx: idx,
+                            top: obBar.high,
+                            bottom: obBar.low,
+                            mitigated: false
+                        });
+                    }
+                }
+
+                // 向下跌破前波段低点 -> 产生 Bearish BOS / CHoCH + 粉色供给块 (Supply OB)
+                if (activeSL && !slBroken && bar.close < activeSL.price) {
+                    slBroken = true;
+                    const labelType = marketBias === 1 ? "CHoCH" : "BOS";
+                    marketBias = -1;
+                    structureLines.push({
+                        type: labelType,
+                        direction: "bear",
+                        startTime: activeSL.time,
+                        endTime: bar.time,
+                        price: activeSL.price
+                    });
+
+                    // 寻找破位起跌前的最后一根阳线作为供给订单块
+                    let obBar = null;
+                    const searchStart = Math.max(0, activeSL.idx);
+                    for (let k = idx - 1; k >= searchStart; k--) {
+                        if (enriched[k].close > enriched[k].open) {
+                            obBar = enriched[k];
+                            break;
+                        }
+                    }
+                    if (!obBar) {
+                        let maxHigh = -Infinity;
+                        for (let k = searchStart; k < idx; k++) {
+                            if (enriched[k].high > maxHigh) {
+                                maxHigh = enriched[k].high;
+                                obBar = enriched[k];
+                            }
+                        }
+                    }
+                    if (obBar) {
+                        allSupplyBlocks.push({
+                            side: "supply",
+                            startTime: obBar.time,
+                            createdIdx: idx,
+                            top: obBar.high,
+                            bottom: obBar.low,
+                            mitigated: false
+                        });
+                    }
+                }
+
+                // 订单块消化检测 (Mitigation): 收盘实体吞没订单块远端边界即失效
+                for (let s = 0; s < allSupplyBlocks.length; s++) {
+                    const sb = allSupplyBlocks[s];
+                    if (!sb.mitigated && idx > sb.createdIdx && bar.close > sb.top) {
+                        sb.mitigated = true;
+                    }
+                }
+                for (let d = 0; d < allDemandBlocks.length; d++) {
+                    const db = allDemandBlocks[d];
+                    if (!db.mitigated && idx > db.createdIdx && bar.close < db.bottom) {
+                        db.mitigated = true;
+                    }
+                }
+            }
+
+            const supplyBlocks = allSupplyBlocks.filter(b => !b.mitigated).slice(-3);
+            const demandBlocks = allDemandBlocks.filter(b => !b.mitigated).slice(-3);
+            const recentStructures = structureLines.slice(-14);
 
             const lastSH = swingHighs[swingHighs.length - 1];
             const lastSL = swingLows[swingLows.length - 1];
             const lastBar = enriched[n - 1];
-            let smcState = "震荡区间整固";
+            const nearestSupply = supplyBlocks[supplyBlocks.length - 1];
+            const nearestDemand = demandBlocks[demandBlocks.length - 1];
 
-            if (lastSH && lastBar.close > lastSH.price) {
-                smcState = `CHoCH/BOS 向上突破 (${lastSH.price.toFixed(dec)})`;
-                markers.push({ time: lastBar.time, position: "aboveBar", color: "#06b6d4", shape: "circle", text: "BOS↑" });
-            } else if (lastSL && lastBar.close < lastSL.price) {
-                smcState = `CHoCH/BOS 向下破位 (${lastSL.price.toFixed(dec)})`;
-                markers.push({ time: lastBar.time, position: "belowBar", color: "#f59e0b", shape: "circle", text: "BOS↓" });
+            let smcState = "震荡区间整固";
+            if (nearestSupply && nearestDemand) {
+                smcState = `供给块 ${nearestSupply.bottom.toFixed(dec)}~${nearestSupply.top.toFixed(dec)} | 需求块 ${nearestDemand.bottom.toFixed(dec)}~${nearestDemand.top.toFixed(dec)}`;
+            } else if (nearestSupply) {
+                smcState = `上方供给阻力块: ${nearestSupply.bottom.toFixed(dec)} ~ ${nearestSupply.top.toFixed(dec)}`;
+            } else if (nearestDemand) {
+                smcState = `下方需求支撑块: ${nearestDemand.bottom.toFixed(dec)} ~ ${nearestDemand.top.toFixed(dec)}`;
             } else if (lastSH && lastSL) {
                 smcState = `SMC箱体: 强底 ${lastSL.price.toFixed(dec)} ~ 弱顶 ${lastSH.price.toFixed(dec)}`;
             }
 
+            if (lastSH && lastBar.close > lastSH.price) {
+                markers.push({ time: lastBar.time, position: "aboveBar", color: "#06b6d4", shape: "circle", text: "BOS↑" });
+            } else if (lastSL && lastBar.close < lastSL.price) {
+                markers.push({ time: lastBar.time, position: "belowBar", color: "#f59e0b", shape: "circle", text: "BOS↓" });
+            }
+
             markers.sort((a, b) => a.time - b.time);
-            return { enriched, markers, latestSignalText, latestSignalColor, smcState, lastSH, lastSL };
+            return {
+                enriched,
+                markers,
+                latestSignalText,
+                latestSignalColor,
+                smcState,
+                lastSH,
+                lastSL,
+                supplyBlocks,
+                demandBlocks,
+                structureLines: recentStructures,
+                marketBias
+            };
         }
 
         async function fetchAndRenderStrategyChart(preserveViewport = false) {
@@ -1697,9 +1862,21 @@
                     }
                 });
 
-                const { enriched, markers, latestSignalText, latestSignalColor, smcState, lastSH, lastSL } = computeBreakout33AndSmc(candles);
+                const {
+                    enriched,
+                    markers,
+                    latestSignalText,
+                    latestSignalColor,
+                    smcState,
+                    lastSH,
+                    lastSL,
+                    supplyBlocks,
+                    demandBlocks,
+                    structureLines,
+                    marketBias
+                } = computeBreakout33AndSmc(candles);
                 lwLastDataCache = enriched;
-                lwLastSmcSnapshot = { lastSH, lastSL };
+                lwLastSmcSnapshot = { lastSH, lastSL, supplyBlocks, demandBlocks, structureLines, marketBias };
 
                 let savedRange = null;
                 if (preserveViewport) {
@@ -2035,6 +2212,10 @@
             const dec = symKey === "KORU" ? 3 : 1;
             const isDark = tvTheme === "dark";
 
+            if (showSmcBlocks) {
+                drawSmcBlocksAndStructures(ctx, dec, isDark, plotW);
+            }
+
             const savedList = customShapeDrawings[symKey] || [];
             savedList.forEach(item => {
                 drawSingleShapeOnCanvas(ctx, item, item.id === selectedDrawingId, dec, isDark, plotW);
@@ -2046,6 +2227,152 @@
 
             if (activeRulerMeasurement) {
                 drawSingleShapeOnCanvas(ctx, activeRulerMeasurement, true, dec, isDark, plotW);
+            }
+
+            ctx.restore();
+        }
+
+        function drawSmcBlocksAndStructures(ctx, dec, isDark, plotW) {
+            const snap = lwLastSmcSnapshot || {};
+            const supplyBlocks = snap.supplyBlocks || [];
+            const demandBlocks = snap.demandBlocks || [];
+            const structureLines = snap.structureLines || [];
+            const lastSH = snap.lastSH;
+            const lastSL = snap.lastSL;
+            const marketBias = snap.marketBias || 0;
+
+            ctx.save();
+
+            // 1. 绘制未消化粉色供给订单块 (Supply Order Blocks)
+            supplyBlocks.forEach(ob => {
+                const xStart = timeToOverlayX(ob.startTime);
+                const yTop = priceToOverlayY(ob.top);
+                const yBot = priceToOverlayY(ob.bottom);
+                if (xStart === null || yTop === null || yBot === null) return;
+
+                const left = Math.max(0, xStart);
+                const rw = Math.max(8, plotW - left);
+                const top = Math.min(yTop, yBot);
+                const rh = Math.max(4, Math.abs(yBot - yTop));
+
+                ctx.fillStyle = isDark ? "rgba(244, 63, 94, 0.16)" : "rgba(244, 114, 114, 0.19)";
+                ctx.fillRect(left, top, rw, rh);
+
+                ctx.strokeStyle = isDark ? "rgba(251, 113, 133, 0.34)" : "rgba(225, 29, 72, 0.28)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.moveTo(left, top); ctx.lineTo(plotW, top);
+                ctx.moveTo(left, top + rh); ctx.lineTo(plotW, top + rh);
+                ctx.stroke();
+
+                if (rh >= 12) {
+                    ctx.font = "600 9px monospace";
+                    ctx.fillStyle = isDark ? "rgba(253, 164, 175, 0.8)" : "rgba(190, 18, 60, 0.72)";
+                    const lbl = `${Number(ob.bottom).toFixed(dec)}-${Number(ob.top).toFixed(dec)}`;
+                    const tw = ctx.measureText(lbl).width;
+                    ctx.fillText(lbl, Math.max(left + 4, plotW - tw - 6), top + rh / 2 + 3);
+                }
+            });
+
+            // 2. 绘制未消化蓝色需求订单块 (Demand Order Blocks)
+            demandBlocks.forEach(ob => {
+                const xStart = timeToOverlayX(ob.startTime);
+                const yTop = priceToOverlayY(ob.top);
+                const yBot = priceToOverlayY(ob.bottom);
+                if (xStart === null || yTop === null || yBot === null) return;
+
+                const left = Math.max(0, xStart);
+                const rw = Math.max(8, plotW - left);
+                const top = Math.min(yTop, yBot);
+                const rh = Math.max(4, Math.abs(yBot - yTop));
+
+                ctx.fillStyle = isDark ? "rgba(56, 189, 248, 0.16)" : "rgba(59, 130, 246, 0.18)";
+                ctx.fillRect(left, top, rw, rh);
+
+                ctx.strokeStyle = isDark ? "rgba(56, 189, 248, 0.36)" : "rgba(37, 99, 235, 0.30)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.moveTo(left, top); ctx.lineTo(plotW, top);
+                ctx.moveTo(left, top + rh); ctx.lineTo(plotW, top + rh);
+                ctx.stroke();
+
+                if (rh >= 12) {
+                    ctx.font = "600 9px monospace";
+                    ctx.fillStyle = isDark ? "rgba(125, 211, 252, 0.85)" : "rgba(29, 78, 216, 0.75)";
+                    const lbl = `${Number(ob.bottom).toFixed(dec)}-${Number(ob.top).toFixed(dec)}`;
+                    const tw = ctx.measureText(lbl).width;
+                    ctx.fillText(lbl, Math.max(left + 4, plotW - tw - 6), top + rh / 2 + 3);
+                }
+            });
+
+            // 3. 绘制 BOS / CHoCH 结构突破水平横线与中心标签
+            ctx.font = "bold 9px monospace";
+            structureLines.forEach(st => {
+                const x1 = timeToOverlayX(st.startTime);
+                const x2 = timeToOverlayX(st.endTime);
+                const y = priceToOverlayY(st.price);
+                if (x1 === null || x2 === null || y === null) return;
+                if (x2 < 0 || x1 > plotW) return;
+
+                const isBull = st.direction === "bull";
+                const color = isBull
+                    ? (isDark ? "rgba(52, 211, 153, 0.85)" : "rgba(5, 150, 105, 0.85)")
+                    : (isDark ? "rgba(248, 113, 113, 0.85)" : "rgba(220, 38, 38, 0.85)");
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+                ctx.setLineDash(st.type === "CHoCH" ? [3, 2] : []);
+                ctx.beginPath();
+                ctx.moveTo(Math.max(0, x1), y);
+                ctx.lineTo(Math.min(plotW, x2), y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                const midX = (Math.max(0, x1) + Math.min(plotW, x2)) / 2;
+                const tw = ctx.measureText(st.type).width;
+                ctx.fillStyle = color;
+                ctx.fillText(st.type, midX - tw / 2, isBull ? y - 3 : y + 10);
+            });
+
+            // 4. 绘制当前波段极值结构线 (Strong High / Weak High & Strong Low / Weak Low)
+            ctx.font = "600 9px monospace";
+            if (lastSH) {
+                const xH = timeToOverlayX(lastSH.time);
+                const yH = priceToOverlayY(lastSH.price);
+                if (xH !== null && yH !== null && xH < plotW) {
+                    const highLabel = marketBias === -1 ? "Strong High" : "Weak High";
+                    ctx.strokeStyle = isDark ? "rgba(248, 113, 113, 0.45)" : "rgba(220, 38, 38, 0.42)";
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.moveTo(Math.max(0, xH), yH);
+                    ctx.lineTo(plotW, yH);
+                    ctx.stroke();
+
+                    ctx.fillStyle = isDark ? "rgba(252, 165, 165, 0.85)" : "rgba(185, 28, 28, 0.8)";
+                    const tw = ctx.measureText(highLabel).width;
+                    ctx.fillText(highLabel, plotW - tw - 6, yH - 3);
+                }
+            }
+            if (lastSL) {
+                const xL = timeToOverlayX(lastSL.time);
+                const yL = priceToOverlayY(lastSL.price);
+                if (xL !== null && yL !== null && xL < plotW) {
+                    const lowLabel = marketBias === 1 ? "Strong Low" : "Weak Low";
+                    ctx.strokeStyle = isDark ? "rgba(52, 211, 153, 0.45)" : "rgba(5, 150, 105, 0.42)";
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.moveTo(Math.max(0, xL), yL);
+                    ctx.lineTo(plotW, yL);
+                    ctx.stroke();
+
+                    ctx.fillStyle = isDark ? "rgba(110, 231, 183, 0.85)" : "rgba(4, 120, 87, 0.8)";
+                    const tw = ctx.measureText(lowLabel).width;
+                    ctx.fillText(lowLabel, plotW - tw - 6, yL + 10);
+                }
             }
 
             ctx.restore();
@@ -2507,6 +2834,19 @@
                 renderTradingViewChart();
             }
             showToast(isChartLogScale ? "已开启对数坐标 (Log Scale)" : "已切换为常规线性坐标 (Linear)");
+        }
+
+        function toggleSmcBlocks() {
+            showSmcBlocks = !showSmcBlocks;
+            localStorage.setItem("quant_smc_blocks", showSmcBlocks ? "true" : "false");
+            syncChartControlButtons();
+
+            if (chartEngineMode === "STRAT") {
+                renderDrawOverlay();
+            }
+            showToast(showSmcBlocks
+                ? "已显示 SMC 供需订单块（粉色供给块 / 蓝色需求块）与 BOS/CHoCH 结构线"
+                : "已隐藏 SMC 色块，切换为极简裸 K 线与均线视图");
         }
 
         function toggleTvCollapse() {
