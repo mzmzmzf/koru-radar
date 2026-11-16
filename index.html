@@ -1725,7 +1725,8 @@
                                     id: entry.id || `hl_${Date.now()}_${idx}`,
                                     price: Number(entry.price),
                                     createdTf: cTf,
-                                    visibleTfs: normalizeVisibleTfs(entry.visibleTfs, cTf)
+                                    visibleTfs: normalizeVisibleTfs(entry.visibleTfs, cTf),
+                                    locked: entry.locked === false ? false : true
                                 };
                             }
                             return null;
@@ -2135,12 +2136,15 @@
 
         function getActiveEditShape() {
             const symKey = getCurrentSymKey();
-            const list = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+            const sList = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+            const hList = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
             if (selectedDrawingId) {
-                const found = list.find(d => d.id === selectedDrawingId);
-                if (found) return found;
+                const sFound = sList.find(d => d.id === selectedDrawingId);
+                if (sFound) return sFound;
+                const hFound = hList.find(h => h.id === selectedDrawingId);
+                if (hFound) return hFound;
             }
-            return list.find(d => d.locked === false) || null;
+            return sList.find(d => d.locked === false) || hList.find(h => h.locked === false) || null;
         }
 
         function getActiveTargetDrawingAny() {
@@ -2153,8 +2157,10 @@
                 const hFound = hList.find(h => h.id === selectedDrawingId);
                 if (hFound) return { kind: "hline", item: hFound };
             }
-            const unl = sList.find(d => d.locked === false);
-            if (unl) return { kind: "shape", item: unl };
+            const unlShape = sList.find(d => d.locked === false);
+            if (unlShape) return { kind: "shape", item: unlShape };
+            const unlHline = hList.find(h => h.locked === false);
+            if (unlHline) return { kind: "hline", item: unlHline };
             return null;
         }
 
@@ -2219,17 +2225,47 @@
         function toggleSelectedShapeLock() {
             const target = getActiveEditShape();
             if (!target) return;
+            const symKey = getCurrentSymKey();
+            const isHLine = (customHorizontalLines[symKey] || []).some(h => h.id === target.id);
             target.locked = target.locked === false ? true : false;
             selectedDrawingId = target.id;
-            saveCustomShapesToStorage();
+            if (isHLine) {
+                saveCustomHLinesToStorage();
+                renderAllLwPriceLines();
+            } else {
+                saveCustomShapesToStorage();
+            }
             syncOverlayPointerMode(null, null);
             renderDrawingToolbarState();
             renderDrawOverlay();
+            if (isHLine) {
+                showToast(target.locked
+                    ? "🔒 已锁定【水平线】位置（图表平移缩放不会误触，点线体或锁图标可随时解锁）"
+                    : "🔓 已解锁【水平线】：直接按住水平线或中间圆锚上下拖动即可调整价位！");
+                return;
+            }
             const names = { trend: "趋势线段", channel: "平行通道", fib: "斐波那契", rect: "矩形箱体" };
             const label = names[target.type] || "图形";
             showToast(target.locked
                 ? `🔒 已锁定【${label}】位置（图表平移缩放不会误触，需要微调时可随时解锁）`
                 : `🔓 已解锁【${label}】：直接拖动圆锚调端点/通道宽度，或拖动本体平移位置`);
+        }
+
+        function toggleHLineLockById(id) {
+            const symKey = getCurrentSymKey();
+            const list = customHorizontalLines[symKey] || [];
+            const target = list.find(h => h.id === id);
+            if (!target) return;
+            target.locked = target.locked === false ? true : false;
+            selectedDrawingId = target.id;
+            saveCustomHLinesToStorage();
+            syncOverlayPointerMode(null, null);
+            renderAllLwPriceLines();
+            renderDrawingToolbarState();
+            renderDrawOverlay();
+            showToast(target.locked
+                ? "🔒 已锁定该水平线位置"
+                : "🔓 已解锁该水平线：直接在图上按住水平线上下拖动即可调整价位！");
         }
 
         function toggleShapeLockById(id) {
@@ -2323,7 +2359,7 @@
 
             const activeEditShape = getActiveEditShape();
             const activeAny = getActiveTargetDrawingAny();
-            const hasAnyUnlocked = sList.some(d => d.locked === false);
+            const hasAnyUnlocked = sList.some(d => d.locked === false) || hList.some(h => h.locked === false);
             const shouldShow = isDrawingToolbarOpen || activeDrawTool !== "none" || totalAllTfCount > 0 || activeAny !== null || hasAnyUnlocked;
             bar.style.display = shouldShow ? "flex" : "none";
             if (!shouldShow) return;
@@ -2411,8 +2447,11 @@
 
             hList.forEach((hObj) => {
                 const isSel = hObj.id === selectedDrawingId;
+                const isUnl = hObj.locked === false;
+                const lockIcon = isUnl ? "🔓" : "🔒";
                 const visTag = formatVisibleTfsSummary(hObj.visibleTfs);
-                html += `<span onclick="selectSavedHLine('${hObj.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isSel ? 'rgba(245,158,11,0.22)' : 'rgba(138,180,248,0.14)'}; border:1px solid ${isSel ? '#f59e0b' : 'rgba(138,180,248,0.45)'}; color:${isSel ? '#fcd34d' : '#8ab4f8'}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
+                html += `<span onclick="selectSavedHLine('${hObj.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isUnl ? 'rgba(52,211,153,0.16)' : (isSel ? 'rgba(245,158,11,0.22)' : 'rgba(138,180,248,0.14)')}; border:1px solid ${isUnl ? '#34d399' : (isSel ? '#f59e0b' : 'rgba(138,180,248,0.45)')}; color:${isUnl ? '#6ee7b7' : (isSel ? '#fcd34d' : '#8ab4f8')}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
+                    <span onclick="event.stopPropagation(); toggleHLineLockById('${hObj.id}')" title="${isUnl ? '点击锁定水平线位置' : '点击解锁上下拖动微调'}" style="cursor:pointer;">${lockIcon}</span>
                     📏 ${Number(hObj.price).toFixed(dec)} <span style="opacity:0.78; font-size:10px;">[${visTag}]</span>
                     <button type="button" onclick="event.stopPropagation(); removeCustomHLineById('${hObj.id}')" title="删除水平线" style="background:none; border:none; color:#f28b82; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
                 </span>`;
@@ -2685,6 +2724,7 @@
                 if (nextSel !== selectedDrawingId) {
                     selectedDrawingId = nextSel;
                     renderDrawingToolbarState();
+                    renderAllLwPriceLines();
                     renderDrawOverlay();
                 }
             });
@@ -3356,14 +3396,15 @@
             const userLines = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
             userLines.forEach(hObj => {
                 const isSel = hObj.id === selectedDrawingId;
+                const isUnl = hObj.locked === false;
                 const visTag = formatVisibleTfsSummary(hObj.visibleTfs);
                 lwPriceLines.push(lwCandleSeries.createPriceLine({
                     price: Number(hObj.price),
-                    color: isSel ? "#fbbf24" : p.customLineColor,
-                    lineWidth: isSel ? 2 : 2,
+                    color: isUnl ? "#10b981" : (isSel ? "#fbbf24" : p.customLineColor),
+                    lineWidth: 2,
                     lineStyle: LightweightCharts.LineStyle.Solid,
                     axisLabelVisible: true,
-                    title: `水平线(${visTag})`
+                    title: `${isUnl ? "🔓可拖·" : ""}水平线(${visTag})`
                 }));
             });
         }
@@ -3383,11 +3424,15 @@
                     id: "hl_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
                     price: cleanPrice,
                     createdTf: tvInterval,
-                    visibleTfs: [tvInterval]
+                    visibleTfs: [tvInterval],
+                    locked: false
                 };
                 list.push(createdObj);
                 list.sort((a, b) => Number(b.price) - Number(a.price));
                 customHorizontalLines[symKey] = list;
+                saveCustomHLinesToStorage();
+            } else {
+                createdObj.locked = false;
                 saveCustomHLinesToStorage();
             }
             if (exitDrawMode) {
@@ -3398,7 +3443,8 @@
             selectedDrawingId = createdObj.id;
             renderDrawingToolbarState();
             renderAllLwPriceLines();
-            showToast(`已保存 ${symKey} [${curTfLabel}] 水平线: ${cleanPrice.toFixed(dec)}`);
+            renderDrawOverlay();
+            showToast(`已绘制 ${symKey} [${curTfLabel}] 水平线: ${cleanPrice.toFixed(dec)}（🔓 可直接上下拖动微调，调好点【🔒 锁定位置】）`);
         }
 
         function addCustomHLineFromInput() {
@@ -3639,8 +3685,19 @@
 
         function hitTestUnlockedHandleOrShape(px, py) {
             const symKey = getCurrentSymKey();
+            // 0. 优先命中未锁定的水平线（支持鼠标/手指直接按住水平线上下拖动）
+            const hList = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+            for (let i = hList.length - 1; i >= 0; i--) {
+                const hItem = hList[i];
+                if (hItem.locked !== false) continue;
+                const hy = priceToOverlayY(hItem.price);
+                if (hy !== null && Math.abs(py - hy) <= 13) {
+                    return { shape: hItem, handle: "hline", kind: "hline" };
+                }
+            }
+
             const list = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
-            // 1. 优先命中未锁定图形的端点圆锚 / 通道宽度圆锚
+            // 1. 其次命中未锁定图形的端点圆锚 / 通道宽度圆锚
             for (let i = list.length - 1; i >= 0; i--) {
                 const d = list[i];
                 if (d.locked !== false) continue;
@@ -3649,16 +3706,16 @@
                 for (const h of geom.handles) {
                     const hitR = h.key === "body" ? 10 : 12;
                     if (Math.hypot(px - h.x, py - h.y) <= hitR) {
-                        return { shape: d, handle: h.key };
+                        return { shape: d, handle: h.key, kind: "shape" };
                     }
                 }
             }
-            // 2. 其次命中未锁定图形的线段/通道/箱体本体（整根平移）
+            // 2. 再次命中未锁定图形的线段/通道/箱体本体（整根平移）
             for (let i = list.length - 1; i >= 0; i--) {
                 const d = list[i];
                 if (d.locked !== false) continue;
                 const hit = hitTestSingleShapeBody(d, px, py);
-                if (hit) return { shape: d, handle: "body" };
+                if (hit) return { shape: d, handle: "body", kind: "shape" };
             }
             return null;
         }
@@ -3702,6 +3759,12 @@
 
         function hitTestSavedShape(px, py) {
             const symKey = getCurrentSymKey();
+            const hList = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+            for (let i = hList.length - 1; i >= 0; i--) {
+                const hItem = hList[i];
+                const hy = priceToOverlayY(hItem.price);
+                if (hy !== null && Math.abs(py - hy) <= 11) return hItem;
+            }
             const list = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
             for (let i = list.length - 1; i >= 0; i--) {
                 const d = list[i];
@@ -3750,6 +3813,42 @@
             if (showSmcBlocks) {
                 drawSmcBlocksAndStructures(ctx, dec, isDark, plotW);
             }
+
+            // 渲染未锁定水平线的可拖拽控制手柄指示条（方便鼠标与手指精准定位上下拖动）
+            const visibleHLines = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+            visibleHLines.forEach(hItem => {
+                if (hItem.locked !== false) return;
+                const hy = priceToOverlayY(hItem.price);
+                if (hy === null || hy < 0 || hy > h - 24) return;
+                ctx.save();
+                const midX = plotW * 0.5;
+                // 左右圆锚点
+                [Math.max(24, plotW * 0.22), midX, Math.min(plotW - 24, plotW * 0.78)].forEach((cx, idx) => {
+                    ctx.fillStyle = "#10b981";
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(cx, hy, idx === 1 ? 6 : 4.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                });
+                // 中央拖拽提示胶囊
+                const badgeText = `↕ 拖动调价 ${Number(hItem.price).toFixed(dec)}`;
+                ctx.font = "bold 10px monospace";
+                const tw = ctx.measureText(badgeText).width;
+                const bw = tw + 14;
+                const bh = 18;
+                const bx = midX - bw * 0.5;
+                const by = hy > 26 ? (hy - bh - 6) : (hy + 7);
+                ctx.fillStyle = isDark ? "rgba(19, 19, 20, 0.92)" : "rgba(250, 247, 238, 0.96)";
+                ctx.strokeStyle = "#10b981";
+                ctx.lineWidth = 1.4;
+                ctx.fillRect(bx, by, bw, bh);
+                ctx.strokeRect(bx, by, bw, bh);
+                ctx.fillStyle = isDark ? "#34d399" : "#059669";
+                ctx.fillText(badgeText, bx + 7, by + 12.5);
+                ctx.restore();
+            });
 
             const savedList = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
             savedList.forEach(item => {
@@ -4225,7 +4324,7 @@
             if (activeDrawTool !== "none" || activeHandleDrag) {
                 overlay.style.pointerEvents = "auto";
                 overlay.style.cursor = activeHandleDrag
-                    ? (activeHandleDrag.handle === "body" ? "grabbing" : "crosshair")
+                    ? (activeHandleDrag.handle === "hline" ? "ns-resize" : (activeHandleDrag.handle === "body" ? "grabbing" : "crosshair"))
                     : "crosshair";
                 return;
             }
@@ -4234,7 +4333,7 @@
                 const hit = hitTestUnlockedHandleOrShape(sx, sy);
                 if (hit) {
                     overlay.style.pointerEvents = "auto";
-                    overlay.style.cursor = hit.handle === "body" ? "grab" : (hit.handle === "p3" ? "ns-resize" : "crosshair");
+                    overlay.style.cursor = (hit.handle === "hline" || hit.handle === "p3") ? "ns-resize" : (hit.handle === "body" ? "grab" : "crosshair");
                     return;
                 }
             }
@@ -4246,15 +4345,26 @@
             const pt = screenToChartPoint(sx, sy);
             if (!pt) return;
             selectedDrawingId = hit.shape.id;
-            activeHandleDrag = {
-                shapeId: hit.shape.id,
-                handle: hit.handle,
-                startLogical: pt.logical,
-                startPrice: pt.price,
-                origP1: { ...hit.shape.p1, logical: timeToApproxLogical(hit.shape.p1.time) },
-                origP2: { ...hit.shape.p2, logical: timeToApproxLogical(hit.shape.p2.time) },
-                origOffset: Number(hit.shape.channelOffsetPrice || 0)
-            };
+            if (hit.kind === "hline" || hit.handle === "hline") {
+                activeHandleDrag = {
+                    shapeId: hit.shape.id,
+                    kind: "hline",
+                    handle: "hline",
+                    startPrice: pt.price,
+                    origPrice: Number(hit.shape.price)
+                };
+            } else {
+                activeHandleDrag = {
+                    shapeId: hit.shape.id,
+                    kind: "shape",
+                    handle: hit.handle,
+                    startLogical: pt.logical,
+                    startPrice: pt.price,
+                    origP1: { ...hit.shape.p1, logical: timeToApproxLogical(hit.shape.p1.time) },
+                    origP2: { ...hit.shape.p2, logical: timeToApproxLogical(hit.shape.p2.time) },
+                    origOffset: Number(hit.shape.channelOffsetPrice || 0)
+                };
+            }
             if (overlay && pointerId !== undefined) {
                 try { overlay.setPointerCapture(pointerId); } catch (err) {}
             }
@@ -4379,14 +4489,24 @@
                 const sx = e.clientX - rect.left;
                 const sy = e.clientY - rect.top;
 
-                // 1. 正在拖动已画图形的圆锚或平移本体
+                // 1. 正在拖动已画图形的圆锚、水平线或平移本体
                 if (activeHandleDrag) {
                     const pt = screenToChartPoint(sx, sy);
                     if (!pt) return;
                     const symKey = getCurrentSymKey();
+                    const dec = getActiveSymbolDecimals(pt.price);
+
+                    if (activeHandleDrag.kind === "hline" || activeHandleDrag.handle === "hline") {
+                        const hObj = (customHorizontalLines[symKey] || []).find(h => h.id === activeHandleDrag.shapeId);
+                        if (!hObj) return;
+                        hObj.price = parseFloat(Math.max(0.000001, pt.price).toFixed(dec));
+                        renderAllLwPriceLines();
+                        renderDrawOverlay();
+                        return;
+                    }
+
                     const shape = (customShapeDrawings[symKey] || []).find(d => d.id === activeHandleDrag.shapeId);
                     if (!shape) return;
-                    const dec = getActiveSymbolDecimals(pt.price);
 
                     if (activeHandleDrag.handle === "p1") {
                         shape.p1 = pt;
@@ -4441,9 +4561,19 @@
                 const sy = e.clientY - rect.top;
 
                 if (activeHandleDrag) {
+                    const wasHLine = activeHandleDrag.kind === "hline" || activeHandleDrag.handle === "hline";
                     try { overlay.releasePointerCapture(e.pointerId); } catch (err) {}
                     activeHandleDrag = null;
-                    saveCustomShapesToStorage();
+                    if (wasHLine) {
+                        const symKey = getCurrentSymKey();
+                        if (Array.isArray(customHorizontalLines[symKey])) {
+                            customHorizontalLines[symKey].sort((a, b) => Number(b.price) - Number(a.price));
+                        }
+                        saveCustomHLinesToStorage();
+                        renderAllLwPriceLines();
+                    } else {
+                        saveCustomShapesToStorage();
+                    }
                     renderDrawingToolbarState();
                     renderDrawOverlay();
                     syncOverlayPointerMode(sx, sy);
@@ -7098,5 +7228,5 @@
         });
     </script>
 </body>
-<!-- Build: v9.1-hotfix-csv-split-regex -->
+<!-- Build: v9.2-draggable-adjustable-horizontal-lines -->
 </html>
