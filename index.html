@@ -847,13 +847,23 @@
             <div class="card">
                 <div class="card-title" style="flex-wrap:wrap; gap:8px;">
                     <div>
-                        <span id="chartTitleMain">📈 KOSPI 200 整体市值变动走势</span>
+                        <span id="chartTitleMain">📈 KOSPI 200 整体市值变动走势 (半年)</span>
                         <span id="chartTitleMeta" style="font-family:monospace; color:var(--neon-cyan); font-weight:800; margin-left:6px;">--</span>
                     </div>
-                    <div style="display:flex; gap:6px; align-items:center;">
-                        <button class="btn-sm active" id="btnChartLine" onclick="switchChartType('line')">📈 折线</button>
-                        <button class="btn-sm" id="btnChartBar" onclick="switchChartType('bar')">📊 柱状</button>
-                        <button class="btn-sm" id="btnChartZoom" onclick="toggleChartZoom()" style="border-color:var(--neon-cyan); color:#67e8f9;">🔍 放大图表</button>
+                    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                        <div class="btn-group">
+                            <button type="button" class="btn-sm kospi-span-btn active" id="btnKospiSpan6M" onclick="switchKospiChartSpan('6M', this)">半年 (6M)</button>
+                            <button type="button" class="btn-sm kospi-span-btn" id="btnKospiSpan3M" onclick="switchKospiChartSpan('3M', this)">近3月</button>
+                            <button type="button" class="btn-sm kospi-span-btn" id="btnKospiSpan1M" onclick="switchKospiChartSpan('1M', this)">近1月</button>
+                        </div>
+                        <div class="btn-group">
+                            <button type="button" class="btn-sm active" id="btnChartLine" onclick="switchChartType('line')">📈 折线</button>
+                            <button type="button" class="btn-sm" id="btnChartBar" onclick="switchChartType('bar')">📊 柱状</button>
+                        </div>
+                        <input type="file" id="kospiCsvFileInput" accept=".csv" style="display:none;" onchange="handleLocalKospiCsvUpload(event)">
+                        <button type="button" class="btn-sm" onclick="document.getElementById('kospiCsvFileInput').click()" style="border-color:var(--neon-emerald); color:#34d399; font-weight:700;" title="直接导入 KRX 下载的 data_4256_xxx.csv 秒级更新半年走势">📂 导入CSV</button>
+                        <button type="button" class="btn-sm" onclick="fetchKospiHistoryData(true)" title="强制跳过缓存刷新 data/kospi_history.json">🔄 刷新</button>
+                        <button type="button" class="btn-sm" id="btnChartZoom" onclick="toggleChartZoom()" style="border-color:var(--neon-cyan); color:#67e8f9;">🔍 放大</button>
                     </div>
                 </div>
 
@@ -5960,8 +5970,31 @@
             navigator.clipboard.writeText(text).then(() => showToast(`已复制: ${text}`)).catch(() => showToast("复制受限，请手动输入"));
         }
 
-        // 2. 动态 SVG 折线图与柱状图
+        // 2. 动态 SVG 折线图与柱状图（默认半年 6M 周期，防柱体重叠 + 支持本地/远端 CSV 自动解析）
         let chartPointsCache = [];
+        let fullKospiHistoryCache = DEFAULT_KOSPI_HISTORY.slice();
+        let kospiChartSpan = localStorage.getItem("quant_kospi_chart_span") || "6M"; // '6M' | '3M' | '1M'
+
+        function sliceKospiHistoryBySpan(list, span) {
+            if (!Array.isArray(list) || list.length === 0) return [];
+            const maxBarsMap = { "6M": 135, "3M": 66, "1M": 24 };
+            const limit = maxBarsMap[span] || 135;
+            return list.length > limit ? list.slice(-limit) : list.slice();
+        }
+
+        function switchKospiChartSpan(span, btnEl) {
+            kospiChartSpan = span;
+            localStorage.setItem("quant_kospi_chart_span", span);
+            document.querySelectorAll(".kospi-span-btn").forEach(b => b.classList.remove("active"));
+            if (btnEl) {
+                btnEl.classList.add("active");
+            } else {
+                const targetBtn = document.getElementById(`btnKospiSpan${span}`);
+                if (targetBtn) targetBtn.classList.add("active");
+            }
+            const sliced = sliceKospiHistoryBySpan(fullKospiHistoryCache, kospiChartSpan);
+            renderDynamicKospiChart(sliced);
+        }
 
         function renderDynamicKospiChart(historyList) {
             if (!historyList || historyList.length === 0) return;
@@ -5971,13 +6004,14 @@
             const caps = historyList.map(item => item.cap);
             const minCap = Math.min(...caps), maxCap = Math.max(...caps);
             const capRange = maxCap - minCap || 1;
-            const n = historyList.length, stepX = svgW / (n - 1);
+            const n = historyList.length;
+            const stepX = n > 1 ? (svgW / (n - 1)) : svgW;
 
             let polylinePoints = [], minIdx = 0, minCoords = { x: 0, y: 0 }, latestCoords = { x: 0, y: 0 };
             chartPointsCache = [];
 
             caps.forEach((cap, i) => {
-                const x = i * stepX;
+                const x = n > 1 ? (i * stepX) : (svgW * 0.5);
                 const y = svgH - paddingY - ((cap - minCap) / capRange) * (svgH - paddingY * 2);
                 polylinePoints.push(`${x.toFixed(1)},${y.toFixed(1)}`);
                 chartPointsCache.push({ x, y, item: historyList[i] });
@@ -6000,22 +6034,24 @@
             if (markerGroup) {
                 const diffColor = diff >= 0 ? "#34d399" : "#f87171";
                 const minMarkerHtml = minIdx !== n - 1
-                    ? `<circle cx="${minCoords.x.toFixed(1)}" cy="${minCoords.y.toFixed(1)}" r="4" fill="#ef4444"/>
-                       <text x="${Math.max(10, minCoords.x - 30).toFixed(1)}" y="${(minCoords.y - 8).toFixed(1)}" fill="#f87171" font-size="10">${minItem.date} 底 ${minItem.cap.toFixed(0)}</text>`
+                    ? `<circle cx="${minCoords.x.toFixed(1)}" cy="${minCoords.y.toFixed(1)}" r="3.8" fill="#ef4444"/>
+                       <text x="${Math.max(10, Math.min(svgW - 95, minCoords.x - 28)).toFixed(1)}" y="${(minCoords.y - 8).toFixed(1)}" fill="#f87171" font-size="10">${minItem.date} 底 ${minItem.cap.toFixed(0)}</text>`
                     : "";
                 markerGroup.innerHTML = `
                     ${minMarkerHtml}
-                    <circle cx="${latestCoords.x.toFixed(1)}" cy="${latestCoords.y.toFixed(1)}" r="5" fill="${diff >= 0 ? '#10b981' : '#ef4444'}"/>
-                    <text x="${(svgW - 75).toFixed(1)}" y="${(latestCoords.y - 10).toFixed(1)}" fill="${diffColor}" font-size="10" font-weight="bold">${diff >= 0 ? '+' : ''}${diff}万亿</text>
+                    <circle cx="${latestCoords.x.toFixed(1)}" cy="${latestCoords.y.toFixed(1)}" r="4.5" fill="${diff >= 0 ? '#10b981' : '#ef4444'}"/>
+                    <text x="${(svgW - 78).toFixed(1)}" y="${Math.max(14, latestCoords.y - 10).toFixed(1)}" fill="${diffColor}" font-size="10" font-weight="bold">${diff >= 0 ? '+' : ''}${diff}万亿</text>
                 `;
             }
 
             renderChartXAxis(historyList, svgW, svgH);
 
+            const spanLabels = { "6M": "半年", "3M": "近3月", "1M": "近1月" };
+            const spanTag = spanLabels[kospiChartSpan] || "半年";
             const titleMeta = document.getElementById("chartTitleMeta");
-            if (titleMeta) titleMeta.textContent = `最新: ${latest.cap.toFixed(2)} 万亿韩元`;
+            if (titleMeta) titleMeta.textContent = `最新: ${latest.cap.toFixed(2)} 万亿韩元 (${n}个交易日)`;
             const titleMain = document.getElementById("chartTitleMain");
-            if (titleMain) titleMain.textContent = `📈 KOSPI 200 整体市值变动走势 (${historyList[0].date} - ${latest.date})`;
+            if (titleMain) titleMain.textContent = `📈 KOSPI 200 整体市值变动走势 [${spanTag}] (${historyList[0].date} - ${latest.date})`;
 
             const inspectDateText = document.getElementById("inspectDateText");
             const inspectValText = document.getElementById("inspectValText");
@@ -6034,19 +6070,21 @@
             if (!axisGroup || !historyList || historyList.length === 0) return;
 
             const n = historyList.length;
-            const indices = [0, Math.floor(n * 0.25), Math.floor(n * 0.5), Math.floor(n * 0.75), n - 1];
+            const ratios = n >= 50 ? [0, 0.2, 0.4, 0.6, 0.8, 1] : [0, 0.25, 0.5, 0.75, 1];
+            const indices = ratios.map(r => Math.min(n - 1, Math.max(0, Math.round((n - 1) * r))));
             const uniqueIndices = [...new Set(indices)];
 
             let html = `<line x1="0" y1="${svgH}" x2="${svgW}" y2="${svgH}" stroke="#282a2c" stroke-width="1.2"/>`;
             uniqueIndices.forEach((idx) => {
                 const item = historyList[idx];
-                const x = idx * (svgW / (n - 1));
+                const x = n > 1 ? idx * (svgW / (n - 1)) : (svgW * 0.5);
                 let anchor = "middle", textX = x;
                 if (idx === 0) { anchor = "start"; textX = 2; }
                 else if (idx === n - 1) { anchor = "end"; textX = svgW - 2; }
+                const shortDate = String(item.date || "").replace(/^20\d{2}\//, "");
                 html += `
                     <line x1="${x.toFixed(1)}" y1="${svgH}" x2="${x.toFixed(1)}" y2="${svgH + 4}" stroke="#334155" stroke-width="1"/>
-                    <text x="${textX.toFixed(1)}" y="${svgH + 18}" fill="#64748b" font-size="10" font-family="monospace" text-anchor="${anchor}">${item.date}</text>
+                    <text x="${textX.toFixed(1)}" y="${svgH + 18}" fill="#64748b" font-size="10" font-family="monospace" text-anchor="${anchor}">${shortDate}</text>
                 `;
             });
             axisGroup.innerHTML = html;
@@ -6099,25 +6137,173 @@
             });
         }
 
-        async function fetchKospiHistoryData() {
+        function parseKrxCsvTextToHistory(csvText, fallbackDateStr = "") {
+            const lines = csvText.split(/?
+/).map(l => l.trim()).filter(Boolean);
+            if (lines.length < 2) return [];
+
+            const parseCsvRow = (row) => {
+                const out = [];
+                let cur = "", inQuotes = false;
+                for (let i = 0; i < row.length; i++) {
+                    const ch = row[i];
+                    if (ch === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (ch === ',' && !inQuotes) {
+                        out.push(cur.trim());
+                        cur = "";
+                    } else {
+                        cur += ch;
+                    }
+                }
+                out.push(cur.trim());
+                return out;
+            };
+
+            const headers = parseCsvRow(lines[0]).map(h => h.replace(/^"|"$/g, "").trim());
+            const dateIdx = headers.findIndex(h => h.includes("일자") || h.includes("날짜") || h.toLowerCase().includes("date"));
+            const closeIdx = headers.findIndex(h => h === "종가" || h.includes("현재가") || h.includes("지수") || h.toLowerCase().includes("close"));
+            const capIdx = headers.findIndex(h => h.includes("상장시가총액") || h.includes("시가총액") || h.toLowerCase().includes("cap"));
+
+            const toNum = (s) => parseFloat(String(s || "").replace(/,/g, "").replace(/"/g, "").trim());
+            const normalizeCapTrillion = (rawCap) => {
+                if (!isFinite(rawCap) || rawCap <= 0) return 0;
+                if (rawCap > 1e11) return rawCap / 1e12;      // 单位: 원 -> 조원 (万亿韩元)
+                if (rawCap > 1e5) return rawCap / 1e6;        // 单位: 백만원 -> 조원
+                if (rawCap > 1e2) return rawCap;              // 单位: 조원
+                return rawCap;
+            };
+
+            // 模式 A: KRX 历史指数趋势表 (如 data_4256_20261116.csv，包含多日 일자 + 종가 + 상장시가총액)
+            if (dateIdx !== -1 && capIdx !== -1) {
+                const parsed = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = parseCsvRow(lines[i]);
+                    const rawDate = (cols[dateIdx] || "").replace(/"/g, "").trim();
+                    const m = rawDate.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+                    if (!m) continue;
+                    const sortKey = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+                    const labelDate = `${m[2].padStart(2, "0")}/${m[3].padStart(2, "0")}`;
+                    const capVal = normalizeCapTrillion(toNum(cols[capIdx]));
+                    const ptVal = closeIdx !== -1 ? toNum(cols[closeIdx]) : 0;
+                    if (capVal > 100) {
+                        parsed.push({
+                            sortKey,
+                            date: labelDate,
+                            cap: parseFloat(capVal.toFixed(2)),
+                            point: isFinite(ptVal) && ptVal > 0 ? parseFloat(ptVal.toFixed(2)) : undefined
+                        });
+                    }
+                }
+                if (parsed.length > 0) {
+                    parsed.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+                    return parsed.map(({ date, cap, point }) => point ? { date, cap, point } : { date, cap });
+                }
+            }
+
+            // 模式 B: KRX 单日成分股快照表 (如 data_0359_20261116.csv，汇总所有成分股 상장시가총액)
+            if (capIdx !== -1 && dateIdx === -1) {
+                let sumCap = 0;
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = parseCsvRow(lines[i]);
+                    const v = toNum(cols[capIdx]);
+                    if (isFinite(v) && v > 0) sumCap += v;
+                }
+                const capTrillion = normalizeCapTrillion(sumCap);
+                if (capTrillion > 100) {
+                    const m = fallbackDateStr.match(/(\d{4})(\d{2})(\d{2})/);
+                    const dStr = m ? `${m[2]}/${m[3]}` : formatBeijingTime(Math.floor(Date.now() / 1000), "date");
+                    const merged = fullKospiHistoryCache.filter(x => x.date !== dStr);
+                    merged.push({ date: dStr, cap: parseFloat(capTrillion.toFixed(2)), point: BASE_KOSPI_ANCHOR });
+                    return merged;
+                }
+            }
+            return [];
+        }
+
+        function handleLocalKospiCsvUpload(evt) {
+            const file = evt.target && evt.target.files && evt.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const buf = reader.result;
+                let text = new TextDecoder("utf-8").decode(buf);
+                let parsed = parseKrxCsvTextToHistory(text, file.name);
+                if (!parsed.length) {
+                    try {
+                        text = new TextDecoder("euc-kr").decode(buf);
+                        parsed = parseKrxCsvTextToHistory(text, file.name);
+                    } catch (e) {}
+                }
+                evt.target.value = "";
+                if (parsed.length > 0) {
+                    fullKospiHistoryCache = parsed;
+                    localStorage.setItem("quant_kospi_history_cache", JSON.stringify(parsed));
+                    const latest = parsed[parsed.length - 1];
+                    if (latest && latest.point) {
+                        BASE_KOSPI_ANCHOR = latest.point;
+                        initKospiSliderRange(BASE_KOSPI_ANCHOR);
+                    }
+                    switchKospiChartSpan(kospiChartSpan);
+                    renderMappingTable();
+                    showToast(`✅ 已成功解析 ${file.name}（共 ${parsed.length} 个交易日，最新 ${latest.date}）`);
+                } else {
+                    showToast("⚠️ 未能识别该 CSV 列结构，请确认文件包含 일자/종가/상장시가총액 字段");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function applyLoadedKospiHistory(data) {
+            if (!Array.isArray(data) || data.length === 0) return;
+            fullKospiHistoryCache = data;
+            const latest = data[data.length - 1];
+            if (latest && latest.point) {
+                BASE_KOSPI_ANCHOR = latest.point;
+                initKospiSliderRange(BASE_KOSPI_ANCHOR);
+            }
+            switchKospiChartSpan(kospiChartSpan);
+            renderMappingTable();
+        }
+
+        async function fetchKospiHistoryData(forceRefresh = false) {
+            document.querySelectorAll(".kospi-span-btn").forEach(b => b.classList.remove("active"));
+            const activeSpanBtn = document.getElementById(`btnKospiSpan${kospiChartSpan}`);
+            if (activeSpanBtn) activeSpanBtn.classList.add("active");
+
+            let localCached = null;
             try {
-                const res = await fetch("data/kospi_history.json", { cache: "no-store" });
+                const rawCached = JSON.parse(localStorage.getItem("quant_kospi_history_cache") || "null");
+                if (Array.isArray(rawCached) && rawCached.length > 0) {
+                    localCached = rawCached;
+                }
+            } catch (e) {}
+
+            try {
+                const res = await fetch(`data/kospi_history.json?t=${Date.now()}`, { cache: "no-store" });
                 if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        const latest = data[data.length - 1];
-                        if (latest && latest.point) {
-                            BASE_KOSPI_ANCHOR = latest.point;
-                            initKospiSliderRange(BASE_KOSPI_ANCHOR);
+                    const remoteData = await res.json();
+                    if (Array.isArray(remoteData) && remoteData.length > 0) {
+                        const remoteLatest = remoteData[remoteData.length - 1]?.date || "";
+                        const localLatest = localCached ? (localCached[localCached.length - 1]?.date || "") : "";
+                        const chosen = (localCached && localCached.length >= remoteData.length && localLatest > remoteLatest)
+                            ? localCached
+                            : remoteData;
+                        applyLoadedKospiHistory(chosen);
+                        if (forceRefresh) {
+                            showToast(`已同步最新历史数据（最新日期: ${chosen[chosen.length - 1].date}，共 ${chosen.length} 日）`);
                         }
-                        renderDynamicKospiChart(data);
-                        renderMappingTable();
                         return;
                     }
                 }
             } catch (e) {}
-            renderDynamicKospiChart(DEFAULT_KOSPI_HISTORY);
-            renderMappingTable();
+
+            if (localCached) {
+                applyLoadedKospiHistory(localCached);
+                if (forceRefresh) showToast("已加载本地导入的 KOSPI 历史数据");
+                return;
+            }
+            applyLoadedKospiHistory(DEFAULT_KOSPI_HISTORY);
         }
 
         function renderSvgBars() {
@@ -6125,7 +6311,8 @@
             if (!barGroup || !currentKospiHistory || currentKospiHistory.length === 0) return;
 
             const n = currentKospiHistory.length, svgW = 500, svgH = 175, paddingY = 20;
-            const slotW = svgW / n, barW = Math.max(5, slotW * 0.65);
+            const slotW = svgW / n;
+            const barW = Math.max(1.8, Math.min(18, slotW * 0.72));
             const caps = currentKospiHistory.map(x => x.cap);
             const minCap = Math.min(...caps), maxCap = Math.max(...caps);
             const capRange = maxCap - minCap || 1;
@@ -6143,16 +6330,16 @@
                     color = item.cap >= prevC ? "#10b981" : "#f59e0b";
                 }
 
-                html += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${normalizedH.toFixed(1)}" rx="2" fill="${color}" opacity="0.85"></rect>`;
+                html += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${normalizedH.toFixed(1)}" rx="${barW >= 4 ? 2 : 0.8}" fill="${color}" opacity="0.88"></rect>`;
                 if (idx === minIdx && idx !== n - 1) {
-                    html += `<text x="${(x + barW/2).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="#f87171" font-size="9" text-anchor="middle">${item.date}底</text>`;
+                    html += `<text x="${Math.max(24, Math.min(svgW - 40, x + barW/2)).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="#f87171" font-size="9" text-anchor="middle">${item.date}底</text>`;
                 }
                 if (idx === n - 1) {
                     const prevCap = idx > 0 ? currentKospiHistory[idx - 1].cap : item.cap;
                     const deltaCap = (item.cap - prevCap).toFixed(1);
                     const deltaColor = deltaCap >= 0 ? "#34d399" : "#f87171";
                     const deltaPrefix = deltaCap >= 0 ? "+" : "";
-                    html += `<text x="${(x + barW/2 - 6).toFixed(1)}" y="${(y - 6).toFixed(1)}" fill="${deltaColor}" font-size="9" font-weight="bold" text-anchor="middle">${deltaPrefix}${deltaCap}万亿</text>`;
+                    html += `<text x="${Math.min(svgW - 2, x + barW).toFixed(1)}" y="${Math.max(12, y - 6).toFixed(1)}" fill="${deltaColor}" font-size="9" font-weight="bold" text-anchor="end">${deltaPrefix}${deltaCap}万亿</text>`;
                 }
             });
             barGroup.innerHTML = html;
@@ -6912,5 +7099,5 @@
         });
     </script>
 </body>
-<!-- Build: v8-mobile-native-fullscreen-and-pane-resizers -->
+<!-- Build: v9-6month-kospi-history-and-csv-parser -->
 </html>
