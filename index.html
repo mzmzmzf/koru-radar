@@ -325,6 +325,45 @@
             border-color: #DCD7C9;
         }
 
+        /* 右侧价格轴：现价 + K线收盘倒计时双行标签 (仿 TradingView 原生风格) */
+        .lw-price-countdown-badge {
+            position: absolute;
+            right: 0;
+            top: 0;
+            min-width: 68px;
+            padding: 3px 6px;
+            border-radius: 3px 0 0 3px;
+            background: #089981;
+            color: #ffffff;
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.25;
+            font-weight: 800;
+            text-align: left;
+            z-index: 9;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+            transform: translateY(-50%);
+            transition: background-color 0.15s ease;
+        }
+        .lw-price-countdown-badge.is-down {
+            background: #f23645;
+        }
+        .lw-price-countdown-badge .cd-price {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: -0.2px;
+        }
+        .lw-price-countdown-badge .cd-timer {
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            opacity: 0.9;
+            margin-top: 1px;
+        }
+
         .chart-inspect-banner {
             background: #1e1f20;
             border: 1px solid var(--border-color);
@@ -872,6 +911,10 @@
                             </div>
                             <div id="lwChartContainer" style="width:100%; height:100%;"></div>
                             <canvas id="lwDrawOverlay" style="position:absolute; inset:0; width:100%; height:100%; z-index:6; pointer-events:none;"></canvas>
+                            <div id="lwPriceCountdownBadge" class="lw-price-countdown-badge">
+                                <span class="cd-price" id="lwCdPriceText">--</span>
+                                <span class="cd-timer" id="lwCdTimerText">--:--</span>
+                            </div>
                         </div>
 
                         <div id="resizerMainToFirstSub" class="lw-pane-resizer" title="上下拖动调节主图与副图高度">
@@ -3001,7 +3044,9 @@
                 borderUpColor: p.borderUpColor,
                 borderDownColor: p.borderDownColor,
                 wickUpColor: p.wickUpColor,
-                wickDownColor: p.wickDownColor
+                wickDownColor: p.wickDownColor,
+                lastValueVisible: false,
+                priceLineVisible: true
             });
 
             lwEma10Series = lwChart.addLineSeries({
@@ -4332,6 +4377,7 @@
             }
 
             ctx.restore();
+            updatePriceCountdownBadge();
         }
 
         function drawSmcBlocksAndStructures(ctx, dec, isDark, plotW) {
@@ -4881,6 +4927,10 @@
                 window.addEventListener("pointerup", () => {
                     isChartPointerDown = false;
                 });
+
+                mainPane.addEventListener("wheel", () => {
+                    requestAnimationFrame(() => renderDrawOverlay());
+                }, { passive: true });
             }
 
             overlay.addEventListener("pointerdown", (e) => {
@@ -8073,6 +8123,117 @@
             }
         }
 
+
+        function computeBarCloseCountdownText(tf, symObj) {
+            const nowSec = Math.floor(Date.now() / 1000);
+            const tfSecMap = {
+                "1": 60,
+                "5": 300,
+                "15": 900,
+                "60": 3600,
+                "240": 14400,
+                "D": 86400,
+                "3D": 259200,
+                "W": 604800
+            };
+
+            // 美股休市提示（非交易时段不误导显示倒计时，除非处于盘前/正股/盘后）
+            if (symObj && symObj.market === "US") {
+                const ny = getZonedClockParts(new Date(), "America/New_York");
+                const isMarketHours = !ny.isWeekend && ny.mins >= 4 * 60 && ny.mins < 20 * 60;
+                if (!isMarketHours) {
+                    return "美股休市";
+                }
+            }
+
+            let remSec = 0;
+            if (tf === "M") {
+                const d = new Date();
+                const nextMonthUtc = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0);
+                remSec = Math.max(0, Math.floor(nextMonthUtc / 1000) - nowSec);
+            } else if (tf === "W") {
+                // 交易所周线按周一 00:00 UTC 结算
+                const day = new Date().getUTCDay(); // 0=Sun..6=Sat
+                const daysUntilMon = day === 0 ? 1 : (8 - day);
+                const now = new Date();
+                const nextMonUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntilMon, 0, 0, 0);
+                remSec = Math.max(0, Math.floor(nextMonUtc / 1000) - nowSec);
+            } else {
+                const period = tfSecMap[tf] || 3600;
+                if (Array.isArray(lwLastDataCache) && lwLastDataCache.length > 0) {
+                    const lastT = Number(lwLastDataCache[lwLastDataCache.length - 1].time);
+                    if (isFinite(lastT) && lastT > 0) {
+                        let targetEnd = lastT + period;
+                        if (targetEnd <= nowSec) {
+                            const elapsed = nowSec - lastT;
+                            const steps = Math.floor(elapsed / period) + 1;
+                            targetEnd = lastT + steps * period;
+                        }
+                        remSec = Math.max(0, targetEnd - nowSec);
+                    } else {
+                        remSec = period - (nowSec % period);
+                    }
+                } else {
+                    remSec = period - (nowSec % period);
+                }
+            }
+
+            const days = Math.floor(remSec / 86400);
+            const hrs = Math.floor((remSec % 86400) / 3600);
+            const mins = Math.floor((remSec % 3600) / 60);
+            const secs = remSec % 60;
+
+            if (days >= 1) {
+                return `${days}d ${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+            }
+            if (hrs >= 1) {
+                return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+            }
+            return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+        }
+
+        function updatePriceCountdownBadge() {
+            const badge = document.getElementById("lwPriceCountdownBadge");
+            const priceEl = document.getElementById("lwCdPriceText");
+            const timerEl = document.getElementById("lwCdTimerText");
+            const mainPane = document.getElementById("lwMainPane");
+            if (!badge || !priceEl || !timerEl || !mainPane) return;
+
+            if (chartEngineMode !== "STRAT" || isTvCollapsed || !lwChart || !lwCandleSeries || !lwLastDataCache || lwLastDataCache.length === 0) {
+                badge.style.display = "none";
+                return;
+            }
+
+            const lastBar = lwLastDataCache[lwLastDataCache.length - 1];
+            const y = lwCandleSeries.priceToCoordinate(lastBar.close);
+            const maxH = mainPane.clientHeight || 440;
+            if (y === null || !isFinite(y) || y < 14 || y > maxH - 36) {
+                badge.style.display = "none";
+                return;
+            }
+
+            let axisW = 68;
+            try {
+                const w = lwChart.priceScale("right").width();
+                if (w && w >= 56) axisW = Math.round(w);
+            } catch (e) {}
+
+            const dec = getActiveSymbolDecimals(lastBar.close);
+            const symObj = getActiveSymbolObj();
+            const isDown = lastBar.close < lastBar.open;
+
+            priceEl.textContent = Number(lastBar.close).toLocaleString("en-US", {
+                minimumFractionDigits: dec,
+                maximumFractionDigits: dec
+            });
+            timerEl.textContent = computeBarCloseCountdownText(tvInterval, symObj);
+
+            badge.style.width = `${axisW}px`;
+            badge.style.top = `${y.toFixed(1)}px`;
+            badge.classList.toggle("is-down", isDown);
+            badge.style.display = "block";
+        }
+
         window.addEventListener('DOMContentLoaded', async () => {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -8093,9 +8254,13 @@
             syncChartControlButtons();
             applyCustomChartHeights();
 
-            // 启动全球交易时段与 ICT Killzone 实时时钟
+            // 启动全球交易时段与 ICT Killzone 实时时钟 + 右侧价格轴K线收盘倒计时
             updateGlobalSessionClocks();
-            setInterval(updateGlobalSessionClocks, 1000);
+            updatePriceCountdownBadge();
+            setInterval(() => {
+                updateGlobalSessionClocks();
+                updatePriceCountdownBadge();
+            }, 1000);
 
             // 异步无阻塞加载图表引擎并拉取首屏K线
             fetchAndRenderStrategyChart(false);
@@ -8115,5 +8280,5 @@
         });
     </script>
 </body>
-<!-- Build: v9.6-workbench-clocks-killzone-sweeps-mtf-plan -->
+<!-- Build: v9.7-right-axis-price-bar-countdown -->
 </html>
