@@ -3156,6 +3156,127 @@
             return await fetchCryptoCompareFallbackCandles(symObj.id, interval);
         }
 
+        function parseYahooChartPayload(json, aggStep = 1) {
+            const result = json?.chart?.result?.[0];
+            if (!result || !Array.isArray(result.timestamp) || !result.indicators?.quote?.[0]) return [];
+            const tsArr = result.timestamp;
+            const q = result.indicators.quote[0];
+            const seenTimes = new Set();
+            const rawCandles = [];
+
+            for (let i = 0; i < tsArr.length; i++) {
+                const t = tsArr[i];
+                const o = q.open?.[i], h = q.high?.[i], l = q.low?.[i], c = q.close?.[i];
+                if (t == null || o == null || h == null || l == null || c == null) continue;
+                if (!seenTimes.has(t)) {
+                    seenTimes.add(t);
+                    rawCandles.push({
+                        time: Number(t),
+                        open: Number(o),
+                        high: Number(h),
+                        low: Number(l),
+                        close: Number(c),
+                        vol: Number(q.volume?.[i]) || 0
+                    });
+                }
+            }
+            if (rawCandles.length < 5) return [];
+            return aggregateCandlesByStep(rawCandles, aggStep).slice(-240);
+        }
+
+        function fetchSinaUsKlineJsonp(ticker, interval) {
+            return new Promise((resolve) => {
+                // 新浪财经美股直连数据源：国内三网免翻墙毫秒级直出，支持 5m/15m/1H/4H/日/周/月线
+                const sym = String(ticker || "").toLowerCase().replace(/[^a-z0-9.]/g, "");
+                if (!sym) return resolve([]);
+
+                const isDailyOrAbove = ["D", "3D", "W", "M"].includes(interval);
+                const scaleMap = { "1": "5", "5": "5", "15": "15", "60": "60", "240": "60" };
+                const aggMap   = { "1": 1,   "5": 1,   "15": 1,    "60": 1,    "240": 4,   "D": 1, "3D": 3, "W": 5, "M": 21 };
+                const aggStep = aggMap[interval] || 1;
+                const dataLen = Math.min(960, 245 * aggStep);
+
+                const cbName = "_sinaUsCb_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+                const script = document.createElement("script");
+                let settled = false;
+
+                const cleanup = () => {
+                    try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                };
+
+                const timer = setTimeout(() => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    resolve([]);
+                }, 4500);
+
+                window[cbName] = (payload) => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    cleanup();
+
+                    try {
+                        let rows = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
+                        if (!rows.length) return resolve([]);
+                        const parsed = [];
+                        const seen = new Set();
+
+                        rows.forEach(item => {
+                            const rawD = item.day || item.d || item.date;
+                            if (!rawD) return;
+                            // 新浪美股时间为美东时间 (America/New_York)，转换为标准 Unix 秒时间戳（自动对齐 UTC+8 看盘坐标）
+                            const m = String(rawD).match(/(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+                            if (!m) return;
+                            const yr = Number(m[1]), mo = Number(m[2]), dy = Number(m[3]);
+                            const hr = m[4] !== undefined ? Number(m[4]) : 16;
+                            const mi = m[5] !== undefined ? Number(m[5]) : 0;
+                            const sc = m[6] !== undefined ? Number(m[6]) : 0;
+                            // 美东夏令时 EDT = UTC-4, 冬令时 EST = UTC-5
+                            const isDst = (mo > 3 && mo < 11) || (mo === 3 && dy >= 8) || (mo === 11 && dy <= 7);
+                            const utcOffsetHours = isDst ? 4 : 5;
+                            const ts = Math.floor(Date.UTC(yr, mo - 1, dy, hr + utcOffsetHours, mi, sc) / 1000);
+
+                            const o = parseFloat(item.open ?? item.o);
+                            const h = parseFloat(item.high ?? item.h);
+                            const l = parseFloat(item.low ?? item.l);
+                            const c = parseFloat(item.close ?? item.c);
+                            const v = parseFloat(item.volume ?? item.v) || 0;
+                            if (!isFinite(o) || !isFinite(h) || !isFinite(l) || !isFinite(c) || c <= 0) return;
+                            if (!seen.has(ts)) {
+                                seen.add(ts);
+                                parsed.push({ time: ts, open: o, high: h, low: l, close: c, vol: v });
+                            }
+                        });
+
+                        parsed.sort((a, b) => a.time - b.time);
+                        if (parsed.length < 5) return resolve([]);
+                        resolve(aggregateCandlesByStep(parsed, aggStep).slice(-240));
+                    } catch (e) {
+                        resolve([]);
+                    }
+                };
+
+                script.onerror = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    cleanup();
+                    resolve([]);
+                };
+
+                if (isDailyOrAbove) {
+                    script.src = `https://finance.sina.com.cn/staticdata/api/jsonp_v2.php/window.${cbName}=/US_MinKService.getDailyK?symbol=${encodeURIComponent(sym)}&___qn=3`;
+                } else {
+                    const scale = scaleMap[interval] || "60";
+                    script.src = `https://finance.sina.com.cn/staticdata/api/jsonp_v2.php/window.${cbName}=/US_MinKService.getMinK?symbol=${encodeURIComponent(sym)}&type=${scale}&___qn=3&datalen=${dataLen}`;
+                }
+                document.head.appendChild(script);
+            });
+        }
+
         async function fetchUsEquityCandlesForSymbol(ticker, interval) {
             const cfgMap = {
                 "1":   { yfInt: "1m",  yfRange: "5d",  agg: 1 },
@@ -3171,44 +3292,41 @@
             const cfg = cfgMap[interval] || cfgMap["60"];
             const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${cfg.yfInt}&range=${cfg.yfRange}&includePrePost=false`;
 
-            const extraProxyUrls = [
-                `https://corsproxy.io/?url=${encodeURIComponent(yfUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`,
-                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yfUrl)}`
-            ];
+            // 1. 若已配置自定义中继，优先走自定义中继请求 Yahoo Finance 原始高清全周期 K 线
+            const customRelay = getCustomRelayBase();
+            if (customRelay) {
+                try {
+                    const json = await fetchJsonWithTimeout(buildRelayTargetUrl(customRelay, yfUrl), 4000);
+                    const candles = parseYahooChartPayload(json, cfg.agg);
+                    if (candles.length >= 5) return candles;
+                } catch (e) {}
+            }
 
-            try {
-                const { data: json } = await smartFetchJson(yfUrl, { timeoutMs: 4200, extraUrls: extraProxyUrls });
-                const result = json?.chart?.result?.[0];
-                if (result && Array.isArray(result.timestamp) && result.indicators?.quote?.[0]) {
-                    const tsArr = result.timestamp;
-                    const q = result.indicators.quote[0];
-                    const seenTimes = new Set();
-                    const rawCandles = [];
-
-                    for (let i = 0; i < tsArr.length; i++) {
-                        const t = tsArr[i];
-                        const o = q.open?.[i], h = q.high?.[i], l = q.low?.[i], c = q.close?.[i];
-                        if (t == null || o == null || h == null || l == null || c == null) continue;
-                        if (!seenTimes.has(t)) {
-                            seenTimes.add(t);
-                            rawCandles.push({
-                                time: t,
-                                open: Number(o),
-                                high: Number(h),
-                                low: Number(l),
-                                close: Number(c),
-                                vol: Number(q.volume?.[i]) || 0
-                            });
-                        }
-                    }
-
-                    if (rawCandles.length >= 5) {
-                        const aggCandles = aggregateCandlesByStep(rawCandles, cfg.agg);
-                        return aggCandles.slice(-240);
-                    }
+            // 2. 并行竞速：新浪财经美股直连接口（免翻墙秒开） vs Yahoo Finance 多镜像代理
+            const sinaPromise = fetchSinaUsKlineJsonp(ticker, interval);
+            const yahooProxyPromise = (async () => {
+                const candidateUrls = [
+                    `https://corsproxy.io/?url=${encodeURIComponent(yfUrl)}`,
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`,
+                    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yfUrl)}`,
+                    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${cfg.yfInt}&range=${cfg.yfRange}&includePrePost=false`
+                ];
+                for (const u of candidateUrls) {
+                    try {
+                        const json = await fetchJsonWithTimeout(u, 3200);
+                        const candles = parseYahooChartPayload(json, cfg.agg);
+                        if (candles.length >= 5) return candles;
+                    } catch (e) {}
                 }
-            } catch (e) {}
+                return [];
+            })();
+
+            const sinaCandles = await sinaPromise;
+            if (sinaCandles && sinaCandles.length >= 5) return sinaCandles;
+
+            const yfCandles = await yahooProxyPromise;
+            if (yfCandles && yfCandles.length >= 5) return yfCandles;
+
             return [];
         }
 
@@ -7232,5 +7350,5 @@
         });
     </script>
 </body>
-<!-- Build: v9.3-pwa-manifest-and-sw-registration -->
+<!-- Build: v9.4-dual-engine-us-equity-sina-yahoo-feed -->
 </html>
