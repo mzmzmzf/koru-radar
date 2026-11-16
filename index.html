@@ -2,7 +2,13 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="量化作战终端">
+    <meta name="theme-color" content="#131314">
+    <link rel="manifest" href='data:application/manifest+json,{"name":"跨市场量化作战终端","short_name":"量化终端","start_url":".","display":"standalone","background_color":"#131314","theme_color":"#131314"}'>
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
     <style>
         :root {
@@ -179,6 +185,72 @@
             position: relative;
             border-top: 1px solid #282a2c;
         }
+        .lw-pane-resizer {
+            display: none;
+            width: 100%;
+            height: 14px;
+            flex-shrink: 0;
+            background: #18191a;
+            border-top: 1px solid #282a2c;
+            border-bottom: 1px solid #282a2c;
+            cursor: row-resize;
+            touch-action: none;
+            user-select: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            position: relative;
+            z-index: 12;
+            transition: background 0.15s;
+        }
+        .lw-pane-resizer:hover,
+        .lw-pane-resizer.dragging {
+            background: rgba(138, 180, 248, 0.16);
+        }
+        .lw-pane-resizer .resizer-pill {
+            width: 34px;
+            height: 3px;
+            border-radius: 2px;
+            background: #5f6368;
+            transition: background 0.15s, width 0.15s;
+        }
+        .lw-pane-resizer:hover .resizer-pill,
+        .lw-pane-resizer.dragging .resizer-pill {
+            width: 52px;
+            background: #8ab4f8;
+        }
+        .lw-pane-resizer .resizer-label {
+            font-size: 9px;
+            font-family: monospace;
+            color: #9aa0a6;
+            pointer-events: none;
+        }
+        .chart-bottom-resizer {
+            width: 100%;
+            height: 16px;
+            background: #18191a;
+            border: 1px solid #282a2c;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            cursor: row-resize;
+            touch-action: none;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            color: #9aa0a6;
+            font-size: 10px;
+            font-family: monospace;
+        }
+        .chart-bottom-resizer:hover,
+        .chart-bottom-resizer.dragging {
+            background: rgba(138, 180, 248, 0.14);
+            color: #8ab4f8;
+        }
+        .tv-fullscreen-card .chart-bottom-resizer {
+            display: none !important;
+        }
         .lw-subchart-hud {
             position: absolute;
             top: 6px;
@@ -205,6 +277,7 @@
             inset: 0 !important;
             width: 100vw !important;
             height: 100vh !important;
+            height: 100dvh !important;
             z-index: 9999 !important;
             margin: 0 !important;
             border-radius: 0 !important;
@@ -212,11 +285,23 @@
             display: flex !important;
             flex-direction: column !important;
             background: #131314 !important;
-            padding: 10px 14px !important;
+            padding: max(6px, env(safe-area-inset-top)) 10px max(6px, env(safe-area-inset-bottom)) 10px !important;
+        }
+        .tv-fullscreen-card .card-title {
+            margin-bottom: 4px !important;
+            gap: 4px !important;
+        }
+        .tv-fullscreen-card .btn-sm {
+            padding: 2px 6px !important;
+            font-size: 10px !important;
+        }
+        .tv-fullscreen-card.compact-header #tvSubHintBar {
+            display: none !important;
         }
         .tv-fullscreen-card .tv-chart-shell {
             flex: 1 !important;
             height: auto !important;
+            min-height: 0 !important;
             display: block !important;
         }
 
@@ -337,6 +422,7 @@
         <div class="header-status">
             <span class="badge" id="latencyBadge">-- ms</span>
             <button type="button" class="badge" id="btnRelayConfig" onclick="toggleRelayDrawer()" style="cursor:pointer; border-color:var(--neon-cyan); color:var(--neon-cyan);" title="配置 Cloudflare 自定义域名中继节点，实现国内免翻墙秒开全量行情与K线">🌐 中继路由</button>
+            <button type="button" class="badge" id="btnPageImmersiveFs" onclick="togglePageNativeFullscreen()" style="cursor:pointer; border-color:var(--neon-emerald); color:#34d399;" title="调用系统真全屏隐藏手机浏览器标签栏与地址栏">⛶ 整页全屏</button>
             <span class="badge active" id="terminalStatus">● 智能路由初始化</span>
         </div>
     </header>
@@ -485,8 +571,38 @@
                         <button type="button" class="btn-sm" id="btnSubchartCvd" onclick="toggleCvdSubchart()" title="独立显示/隐藏 Gimelfarb 累积成交量净差 (CVD + SMA28) 副图（可与净多空持仓同时开启）">📊 CVD资金流</button>
                         <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleNetposSubchart()" title="独立显示/隐藏 Leviathan 合约净多空持仓 (Net Longs / Net Shorts / Net Delta) 副图（可与CVD同时开启）">⚖️ 净多空持仓</button>
                         <button type="button" class="btn-sm" id="btnToggleDrawBar" onclick="toggleDrawingToolbar()" title="展开/收起画线与测量工具箱（水平线/趋势线段/斐波那契/矩形箱体/测量尺）">✏️ 画线工具</button>
+                        <button type="button" class="btn-sm" id="btnToggleHeightBar" onclick="toggleHeightControlBar()" title="手动调节主图与副图高度（也支持直接上下拖动分隔条）">📐 调高度</button>
                         <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
-                        <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 网页全屏</button>
+                        <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 全屏看盘</button>
+                    </div>
+                </div>
+
+                <div id="chartHeightControlBar" style="display:none; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; background:#18191a; border:1px solid var(--border-color); border-radius:6px; padding:6px 10px; margin-bottom:8px; font-size:11px;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="color:var(--neon-cyan); font-weight:800;">📐 高度调节:</span>
+                        <span id="ctrlGroupMainHeight" style="display:inline-flex; align-items:center; gap:4px;">
+                            <span style="color:var(--text-muted);">主图:</span>
+                            <button type="button" class="btn-sm" onclick="adjustMainChartHeight(-40)" style="padding:1px 7px; font-weight:800;">－</button>
+                            <b id="lblMainChartHeight" style="font-family:monospace; color:#fff; min-width:44px; text-align:center;">460px</b>
+                            <button type="button" class="btn-sm" onclick="adjustMainChartHeight(40)" style="padding:1px 7px; font-weight:800;">＋</button>
+                        </span>
+                        <span id="ctrlGroupCvdHeight" style="display:none; align-items:center; gap:4px;">
+                            <span style="color:var(--text-muted);">CVD副图:</span>
+                            <button type="button" class="btn-sm" onclick="adjustSubchartHeight('cvd', -25)" style="padding:1px 7px; font-weight:800;">－</button>
+                            <b id="lblCvdChartHeight" style="font-family:monospace; color:#8ab4f8; min-width:44px; text-align:center;">145px</b>
+                            <button type="button" class="btn-sm" onclick="adjustSubchartHeight('cvd', 25)" style="padding:1px 7px; font-weight:800;">＋</button>
+                        </span>
+                        <span id="ctrlGroupNetposHeight" style="display:none; align-items:center; gap:4px;">
+                            <span style="color:var(--text-muted);">持仓副图:</span>
+                            <button type="button" class="btn-sm" onclick="adjustSubchartHeight('netpos', -25)" style="padding:1px 7px; font-weight:800;">－</button>
+                            <b id="lblNetposChartHeight" style="font-family:monospace; color:#34d399; min-width:44px; text-align:center;">145px</b>
+                            <button type="button" class="btn-sm" onclick="adjustSubchartHeight('netpos', 25)" style="padding:1px 7px; font-weight:800;">＋</button>
+                        </span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                        <button type="button" class="btn-sm" id="btnToggleCompactFsHeader" onclick="toggleCompactFullscreenHeader()" style="font-size:10px; padding:2px 7px;" title="全屏时折叠多余提示行，释放手机纵向空间">📱 精简顶栏</button>
+                        <button type="button" class="btn-sm" onclick="resetChartHeightsToDefault()" style="font-size:10px; padding:2px 7px; color:var(--neon-amber); border-color:rgba(245,158,11,0.4);">恢复默认</button>
+                        <button type="button" class="btn-sm" onclick="toggleHeightControlBar(false)" style="font-size:10px; padding:2px 7px; color:var(--text-muted);">收起 ✕</button>
                     </div>
                 </div>
 
@@ -581,6 +697,12 @@
                             <canvas id="lwDrawOverlay" style="position:absolute; inset:0; width:100%; height:100%; z-index:6; pointer-events:none;"></canvas>
                         </div>
 
+                        <div id="resizerMainToFirstSub" class="lw-pane-resizer" title="上下拖动调节主图与副图高度">
+                            <span class="resizer-pill"></span>
+                            <span class="resizer-label">↕ 拖动调主/副图高度</span>
+                            <span class="resizer-pill"></span>
+                        </div>
+
                         <div id="lwCvdPane" class="lw-subchart-pane">
                             <div class="lw-subchart-hud" id="lwCvdHud">
                                 <span id="lwCvdTitle" style="font-weight:800; color:var(--neon-cyan);">📊 CVD 累积成交量净差</span>
@@ -588,6 +710,12 @@
                                 <span id="lwCvdControls" style="display:inline-flex; align-items:center; gap:4px;"></span>
                             </div>
                             <div id="lwCvdChartContainer" style="width:100%; height:100%;"></div>
+                        </div>
+
+                        <div id="resizerCvdToNetpos" class="lw-pane-resizer" title="上下拖动调节 CVD 与持仓副图高度">
+                            <span class="resizer-pill"></span>
+                            <span class="resizer-label">↕ 拖动调副图高度</span>
+                            <span class="resizer-pill"></span>
                         </div>
 
                         <div id="lwNetposPane" class="lw-subchart-pane">
@@ -601,6 +729,9 @@
                     </div>
 
                     <div id="tvWidgetContainer" style="width:100%; height:100%; display:none;"></div>
+                </div>
+                <div id="resizerChartBottom" class="chart-bottom-resizer" title="上下拖动调节看盘窗口总高度">
+                    <span>━━ ↕ 拖动拉高/压缩看盘窗口 ━━</span>
                 </div>
             </div>
 
@@ -2378,21 +2509,18 @@
 
             if (btnCvd) btnCvd.classList.toggle("active", showCvdSubchart);
             if (btnNetPos) btnNetPos.classList.toggle("active", showNetposSubchart);
-            if (shell) {
-                shell.classList.toggle("subchart-1", activeCount === 1);
-                shell.classList.toggle("subchart-2", activeCount === 2);
-            }
             [ [cvdPane, activeCvd, cvdHud], [netposPane, activeNetpos, netposHud] ].forEach(([pane, vis, hudEl]) => {
                 if (pane) {
                     pane.style.display = vis ? "block" : "none";
                     pane.style.background = p.bg;
-                    pane.style.borderTopColor = isDark ? "#1e293b" : "#DCD7C9";
+                    pane.style.borderTopColor = isDark ? "#282a2c" : "#DCD7C9";
                 }
                 if (hudEl) {
                     if (isDark) hudEl.classList.remove("light-hud");
                     else hudEl.classList.add("light-hud");
                 }
             });
+            applyCustomChartHeights();
             renderDrawingToolbarState();
         }
 
@@ -5255,6 +5383,311 @@
                 : "已隐藏 SMC 色块，切换为极简裸 K 线与均线视图");
         }
 
+        // =========================================================================
+        // 主图 / 副图手动高度调节引擎（支持触摸拖拽分隔条 + 快捷按钮）与真全屏模式
+        // =========================================================================
+        let customMainChartHeight = Math.max(240, Math.min(860, parseInt(localStorage.getItem("quant_main_chart_h") || "440", 10) || 440));
+        let customCvdChartHeight = Math.max(70, Math.min(340, parseInt(localStorage.getItem("quant_cvd_chart_h") || "140", 10) || 140));
+        let customNetposChartHeight = Math.max(70, Math.min(340, parseInt(localStorage.getItem("quant_netpos_chart_h") || "140", 10) || 140));
+        let isHeightControlBarOpen = false;
+        let isCompactFsHeader = localStorage.getItem("quant_compact_fs_header") !== "false";
+
+        function toggleHeightControlBar(forceState) {
+            isHeightControlBarOpen = typeof forceState === "boolean" ? forceState : !isHeightControlBarOpen;
+            applyCustomChartHeights();
+        }
+
+        function toggleCompactFullscreenHeader() {
+            isCompactFsHeader = !isCompactFsHeader;
+            localStorage.setItem("quant_compact_fs_header", isCompactFsHeader ? "true" : "false");
+            applyCustomChartHeights();
+            showToast(isCompactFsHeader ? "已开启全屏精简顶栏（最大化K线高度）" : "已恢复显示全屏提示栏");
+        }
+
+        function adjustMainChartHeight(delta) {
+            if (isTvFullscreen) {
+                showToast("全屏状态下主图自动填满剩余屏幕，可调整副图高度或拖动分隔条");
+                return;
+            }
+            customMainChartHeight = Math.max(240, Math.min(860, customMainChartHeight + delta));
+            localStorage.setItem("quant_main_chart_h", String(customMainChartHeight));
+            applyCustomChartHeights();
+        }
+
+        function adjustSubchartHeight(which, delta) {
+            if (which === "cvd") {
+                customCvdChartHeight = Math.max(70, Math.min(340, customCvdChartHeight + delta));
+                localStorage.setItem("quant_cvd_chart_h", String(customCvdChartHeight));
+            } else {
+                customNetposChartHeight = Math.max(70, Math.min(340, customNetposChartHeight + delta));
+                localStorage.setItem("quant_netpos_chart_h", String(customNetposChartHeight));
+            }
+            applyCustomChartHeights();
+        }
+
+        function resetChartHeightsToDefault() {
+            customMainChartHeight = 440;
+            customCvdChartHeight = 140;
+            customNetposChartHeight = 140;
+            localStorage.setItem("quant_main_chart_h", "440");
+            localStorage.setItem("quant_cvd_chart_h", "140");
+            localStorage.setItem("quant_netpos_chart_h", "140");
+            applyCustomChartHeights();
+            showToast("已恢复主图与副图默认高度");
+        }
+
+        function applyCustomChartHeights() {
+            const shell = document.getElementById("tvChartShell");
+            const card = document.getElementById("tvChartCard");
+            const cvdPane = document.getElementById("lwCvdPane");
+            const netposPane = document.getElementById("lwNetposPane");
+            const resMainSub = document.getElementById("resizerMainToFirstSub");
+            const resCvdNet = document.getElementById("resizerCvdToNetpos");
+            const resBottom = document.getElementById("resizerChartBottom");
+            const hBar = document.getElementById("chartHeightControlBar");
+            const btnHBar = document.getElementById("btnToggleHeightBar");
+
+            const isStrat = chartEngineMode === "STRAT";
+            const activeCvd = showCvdSubchart && isStrat;
+            const activeNetpos = showNetposSubchart && isStrat;
+            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0);
+
+            if (cvdPane) cvdPane.style.height = `${customCvdChartHeight}px`;
+            if (netposPane) netposPane.style.height = `${customNetposChartHeight}px`;
+
+            if (resMainSub) resMainSub.style.display = activeCount >= 1 ? "flex" : "none";
+            if (resCvdNet) resCvdNet.style.display = activeCount === 2 ? "flex" : "none";
+            if (resBottom) resBottom.style.display = (!isTvCollapsed && !isTvFullscreen) ? "flex" : "none";
+
+            if (shell && !isTvCollapsed) {
+                shell.classList.remove("subchart-1", "subchart-2");
+                if (!isTvFullscreen) {
+                    const splitterExtra = activeCount * 14;
+                    const totalH = customMainChartHeight
+                        + (activeCvd ? customCvdChartHeight : 0)
+                        + (activeNetpos ? customNetposChartHeight : 0)
+                        + splitterExtra;
+                    shell.style.height = `${totalH}px`;
+                } else {
+                    shell.style.height = "";
+                }
+            }
+
+            if (card) {
+                card.classList.toggle("compact-header", isTvFullscreen && isCompactFsHeader);
+            }
+
+            if (btnHBar) btnHBar.classList.toggle("active", isHeightControlBarOpen);
+            if (hBar) {
+                hBar.style.display = isHeightControlBarOpen ? "flex" : "none";
+                const gMain = document.getElementById("ctrlGroupMainHeight");
+                const gCvd = document.getElementById("ctrlGroupCvdHeight");
+                const gNet = document.getElementById("ctrlGroupNetposHeight");
+                const lblMain = document.getElementById("lblMainChartHeight");
+                const lblCvd = document.getElementById("lblCvdChartHeight");
+                const lblNet = document.getElementById("lblNetposChartHeight");
+                const btnCompact = document.getElementById("btnToggleCompactFsHeader");
+
+                if (gMain) gMain.style.display = isTvFullscreen ? "none" : "inline-flex";
+                if (gCvd) gCvd.style.display = activeCvd ? "inline-flex" : "none";
+                if (gNet) gNet.style.display = activeNetpos ? "inline-flex" : "none";
+                if (lblMain) lblMain.textContent = `${customMainChartHeight}px`;
+                if (lblCvd) lblCvd.textContent = `${customCvdChartHeight}px`;
+                if (lblNet) lblNet.textContent = `${customNetposChartHeight}px`;
+                if (btnCompact) btnCompact.classList.toggle("active", isCompactFsHeader);
+            }
+
+            requestAnimationFrame(() => {
+                resizeAndRenderDrawOverlay();
+            });
+        }
+
+        function bindChartPaneResizers() {
+            const resMainSub = document.getElementById("resizerMainToFirstSub");
+            const resCvdNet = document.getElementById("resizerCvdToNetpos");
+            const resBottom = document.getElementById("resizerChartBottom");
+
+            const attachDrag = (el, onDragStart, onDragMove) => {
+                if (!el || el.dataset.bound === "1") return;
+                el.dataset.bound = "1";
+                let startY = 0;
+                let state = null;
+
+                el.addEventListener("pointerdown", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startY = e.clientY;
+                    state = onDragStart();
+                    el.classList.add("dragging");
+                    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+                });
+
+                el.addEventListener("pointermove", (e) => {
+                    if (!state) return;
+                    e.preventDefault();
+                    const dy = e.clientY - startY;
+                    onDragMove(dy, state);
+                    applyCustomChartHeights();
+                });
+
+                const endDrag = (e) => {
+                    if (!state) return;
+                    state = null;
+                    el.classList.remove("dragging");
+                    try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+                    localStorage.setItem("quant_main_chart_h", String(customMainChartHeight));
+                    localStorage.setItem("quant_cvd_chart_h", String(customCvdChartHeight));
+                    localStorage.setItem("quant_netpos_chart_h", String(customNetposChartHeight));
+                };
+                el.addEventListener("pointerup", endDrag);
+                el.addEventListener("pointercancel", endDrag);
+            };
+
+            // 1. 拖动主图与第一个副图之间的分隔条（上拉增大副图、下拉增大主图）
+            attachDrag(
+                resMainSub,
+                () => ({
+                    cvdH: customCvdChartHeight,
+                    netH: customNetposChartHeight,
+                    mainH: customMainChartHeight,
+                    cvdOn: showCvdSubchart,
+                    netOn: showNetposSubchart
+                }),
+                (dy, st) => {
+                    if (st.cvdOn && !st.netOn) {
+                        customCvdChartHeight = Math.max(70, Math.min(340, Math.round(st.cvdH - dy)));
+                    } else if (!st.cvdOn && st.netOn) {
+                        customNetposChartHeight = Math.max(70, Math.min(340, Math.round(st.netH - dy)));
+                    } else if (st.cvdOn && st.netOn) {
+                        customCvdChartHeight = Math.max(70, Math.min(300, Math.round(st.cvdH - dy)));
+                    }
+                    if (!isTvFullscreen) {
+                        customMainChartHeight = Math.max(240, Math.min(860, Math.round(st.mainH + dy)));
+                    }
+                }
+            );
+
+            // 2. 拖动 CVD 与 净多空持仓 两个副图之间的分隔条
+            attachDrag(
+                resCvdNet,
+                () => ({
+                    cvdH: customCvdChartHeight,
+                    netH: customNetposChartHeight
+                }),
+                (dy, st) => {
+                    const totalSub = st.cvdH + st.netH;
+                    const nextCvd = Math.max(70, Math.min(totalSub - 70, Math.round(st.cvdH + dy)));
+                    customCvdChartHeight = nextCvd;
+                    customNetposChartHeight = Math.max(70, totalSub - nextCvd);
+                }
+            );
+
+            // 3. 非全屏模式下拖动看盘底部条直接拉高/压缩主图高度
+            attachDrag(
+                resBottom,
+                () => ({ mainH: customMainChartHeight }),
+                (dy, st) => {
+                    customMainChartHeight = Math.max(240, Math.min(860, Math.round(st.mainH + dy)));
+                }
+            );
+        }
+
+        function getNativeFullscreenElement() {
+            return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null;
+        }
+
+        async function requestNativeBrowserFullscreen() {
+            const el = document.documentElement;
+            try {
+                if (el.requestFullscreen) {
+                    await el.requestFullscreen({ navigationUI: "hide" });
+                    return true;
+                } else if (el.webkitRequestFullscreen) {
+                    el.webkitRequestFullscreen();
+                    return true;
+                } else if (el.msRequestFullscreen) {
+                    el.msRequestFullscreen();
+                    return true;
+                }
+            } catch (e) {}
+            return false;
+        }
+
+        async function exitNativeBrowserFullscreen() {
+            try {
+                if (!getNativeFullscreenElement()) return;
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            } catch (e) {}
+        }
+
+        function syncPageImmersiveBtnUI() {
+            const btn = document.getElementById("btnPageImmersiveFs");
+            if (!btn) return;
+            const isNativeFs = Boolean(getNativeFullscreenElement());
+            if (isNativeFs) {
+                btn.textContent = "✕ 退出全屏";
+                btn.style.borderColor = "#ef4444";
+                btn.style.color = "#fca5a5";
+            } else {
+                btn.textContent = "⛶ 整页全屏";
+                btn.style.borderColor = "var(--neon-emerald)";
+                btn.style.color = "#34d399";
+            }
+        }
+
+        async function togglePageNativeFullscreen() {
+            if (getNativeFullscreenElement()) {
+                await exitNativeBrowserFullscreen();
+                syncPageImmersiveBtnUI();
+            } else {
+                const ok = await requestNativeBrowserFullscreen();
+                syncPageImmersiveBtnUI();
+                if (!ok) {
+                    showToast("提示：若浏览器限制全屏，可点浏览器菜单【添加到主屏幕】实现无地址栏独立运行");
+                }
+            }
+        }
+
+        function applyTvFullscreenUIState(active) {
+            const card = document.getElementById("tvChartCard");
+            const shell = document.getElementById("tvChartShell");
+            const btn = document.getElementById("btnTvFullscreen");
+            const collapseBtn = document.getElementById("btnTvCollapse");
+
+            isTvFullscreen = active;
+            if (active) {
+                if (isTvCollapsed) {
+                    isTvCollapsed = false;
+                    shell.classList.remove("collapsed");
+                    if (collapseBtn) collapseBtn.textContent = "🔽 收起";
+                }
+                card.classList.add("tv-fullscreen-card");
+                document.body.style.overflow = "hidden";
+                if (btn) {
+                    btn.textContent = "✕ 退出全屏";
+                    btn.style.background = "rgba(239, 68, 68, 0.25)";
+                    btn.style.borderColor = "#ef4444";
+                    btn.style.color = "#fca5a5";
+                }
+            } else {
+                card.classList.remove("tv-fullscreen-card");
+                document.body.style.overflow = "";
+                if (btn) {
+                    btn.textContent = "⛶ 全屏看盘";
+                    btn.style.background = "rgba(6, 182, 212, 0.18)";
+                    btn.style.borderColor = "var(--neon-cyan)";
+                    btn.style.color = "#67e8f9";
+                }
+            }
+            applyCustomChartHeights();
+        }
+
         function toggleTvCollapse() {
             const shell = document.getElementById("tvChartShell");
             const hint = document.getElementById("tvSubHintBar");
@@ -5272,41 +5705,30 @@
                 if (btn) btn.textContent = "🔽 收起";
                 if (chartEngineMode === "STRAT") fetchAndRenderStrategyChart(true);
             }
+            applyCustomChartHeights();
         }
 
-        function toggleTvFullscreen() {
-            const card = document.getElementById("tvChartCard");
-            const shell = document.getElementById("tvChartShell");
-            const btn = document.getElementById("btnTvFullscreen");
-            const collapseBtn = document.getElementById("btnTvCollapse");
-
-            if (isTvCollapsed) {
-                isTvCollapsed = false;
-                shell.classList.remove("collapsed");
-                if (collapseBtn) collapseBtn.textContent = "🔽 收起";
-            }
-
-            isTvFullscreen = !isTvFullscreen;
-            if (isTvFullscreen) {
-                card.classList.add("tv-fullscreen-card");
-                document.body.style.overflow = "hidden";
-                if (btn) {
-                    btn.textContent = "✕ 退出全屏 (ESC)";
-                    btn.style.background = "rgba(239, 68, 68, 0.25)";
-                    btn.style.borderColor = "#ef4444";
-                    btn.style.color = "#fca5a5";
-                }
+        async function toggleTvFullscreen() {
+            const nextState = !isTvFullscreen;
+            applyTvFullscreenUIState(nextState);
+            if (nextState) {
+                await requestNativeBrowserFullscreen();
             } else {
-                card.classList.remove("tv-fullscreen-card");
-                document.body.style.overflow = "";
-                if (btn) {
-                    btn.textContent = "⛶ 网页全屏";
-                    btn.style.background = "rgba(6, 182, 212, 0.18)";
-                    btn.style.borderColor = "var(--neon-cyan)";
-                    btn.style.color = "#67e8f9";
-                }
+                await exitNativeBrowserFullscreen();
             }
+            syncPageImmersiveBtnUI();
         }
+
+        ["fullscreenchange", "webkitfullscreenchange", "msfullscreenchange"].forEach(evtName => {
+            document.addEventListener(evtName, () => {
+                const nativeActive = Boolean(getNativeFullscreenElement());
+                syncPageImmersiveBtnUI();
+                // 若用户通过手机手势下滑或系统返回键退出了系统级全屏，同步退出图表全屏遮罩
+                if (!nativeActive && isTvFullscreen) {
+                    applyTvFullscreenUIState(false);
+                }
+            });
+        });
 
         document.addEventListener("keydown", (e) => {
             const tag = (e.target && e.target.tagName) || "";
@@ -6472,7 +6894,9 @@
             setupChartInspect();
 
             renderWatchlistBar();
+            bindChartPaneResizers();
             syncChartControlButtons();
+            applyCustomChartHeights();
 
             // 异步无阻塞加载图表引擎并拉取首屏K线
             fetchAndRenderStrategyChart(false);
@@ -6488,5 +6912,5 @@
         });
     </script>
 </body>
-<!-- Build: v7-zero-blocking-cdn-async-lazy-custom-relay -->
+<!-- Build: v8-mobile-native-fullscreen-and-pane-resizers -->
 </html>
