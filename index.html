@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="量化作战终端">
     <meta name="theme-color" content="#131314">
-    <link rel="manifest" href='data:application/manifest+json,{"name":"跨市场量化作战终端","short_name":"量化终端","start_url":".","display":"standalone","background_color":"#131314","theme_color":"#131314"}'>
+    <link rel="manifest" href="./manifest.json">
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
     <style>
         :root {
@@ -7225,8 +7225,12 @@
 
             fetchLiveMarketData();
             setInterval(fetchLiveMarketData, 3500);
+
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.register("./sw.js").catch(() => {});
+            }
         });
     </script>
 </body>
-<!-- Build: v9.2-draggable-adjustable-horizontal-lines -->
+<!-- Build: v9.3-pwa-manifest-and-sw-registration -->
 </html>
