@@ -409,6 +409,156 @@
 
         .btn-auto-layout { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--neon-emerald); color: #34d399; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
 
+        /* 交易工作台：全球时段与 ICT Killzone + 流动性扫荡警报 + 双轨计划卡片 */
+        .session-clock-strip {
+            background: #18191a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .session-pills-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .session-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-family: monospace;
+            background: #131314;
+            border: 1px solid #282a2c;
+            color: var(--text-muted);
+        }
+        .session-pill.is-open {
+            background: rgba(16, 185, 129, 0.08);
+            border-color: rgba(16, 185, 129, 0.35);
+            color: #e3e3e3;
+        }
+        .session-pill.is-pre {
+            background: rgba(245, 158, 11, 0.08);
+            border-color: rgba(245, 158, 11, 0.35);
+            color: #fde68a;
+        }
+        .session-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #5f6368;
+            display: inline-block;
+        }
+        .session-pill.is-open .session-dot { background: #10b981; box-shadow: 0 0 6px #10b981; }
+        .session-pill.is-pre .session-dot { background: #f59e0b; }
+
+        .killzone-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 5px;
+            background: #131314;
+            border: 1px solid #333537;
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .killzone-badge.active-kz {
+            background: rgba(245, 158, 11, 0.14);
+            border-color: rgba(245, 158, 11, 0.45);
+            color: #fbbf24;
+        }
+
+        .sweep-alert-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .sweep-alert-item {
+            background: linear-gradient(90deg, rgba(245, 158, 11, 0.10), rgba(30, 31, 32, 0.92));
+            border: 1px solid rgba(245, 158, 11, 0.32);
+            border-left: 3px solid var(--neon-amber);
+            border-radius: 6px;
+            padding: 7px 11px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #f3f4f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+        .sweep-alert-item.bull-sweep {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.11), rgba(30, 31, 32, 0.92));
+            border-color: rgba(16, 185, 129, 0.35);
+            border-left-color: var(--neon-emerald);
+        }
+        .sweep-alert-item.bear-sweep {
+            background: linear-gradient(90deg, rgba(239, 68, 68, 0.11), rgba(30, 31, 32, 0.92));
+            border-color: rgba(239, 68, 68, 0.35);
+            border-left-color: var(--neon-red);
+        }
+
+        .tactical-plan-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 13px 14px;
+            margin-bottom: 12px;
+        }
+        .plan-inner-box {
+            background: #161718;
+            border: 1px solid #2e3134;
+            border-left: 3px solid var(--neon-cyan);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-top: 8px;
+            font-size: 12px;
+            line-height: 1.65;
+        }
+        .plan-track-row {
+            padding: 5px 0;
+            border-bottom: 1px dashed rgba(154, 160, 166, 0.16);
+        }
+        .plan-track-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .key-level-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+            align-items: center;
+        }
+        .kl-chip {
+            font-size: 11px;
+            font-family: monospace;
+            padding: 2px 7px;
+            border-radius: 4px;
+            border: 1px solid #3c4043;
+            background: #131314;
+            color: #cbd5e1;
+        }
+        .kl-chip.grade-a {
+            border-color: rgba(239, 68, 68, 0.55);
+            background: rgba(239, 68, 68, 0.12);
+            color: #fca5a5;
+            font-weight: 800;
+        }
+        .kl-chip.grade-b {
+            border-color: rgba(138, 180, 248, 0.4);
+            background: rgba(138, 180, 248, 0.08);
+            color: #93c5fd;
+        }
+
         #appToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #282a2c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 12px; border: 1px solid var(--neon-emerald); display: none; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
     </style>
 </head>
@@ -478,8 +628,21 @@
             <div id="koruDiffText" style="color:var(--neon-emerald); font-weight:600;">● 挂单距现价: --</div>
         </div>
 
+        <!-- 全球交易时段与 ICT Killzone 实时时空雷达 -->
+        <div class="session-clock-strip" id="globalSessionClockBar">
+            <div class="session-pills-wrap" id="sessionClockPills">
+                <span class="session-pill is-open"><span class="session-dot"></span><b>加密</b> 24/7 <span style="color:#34d399;">开</span></span>
+                <span class="session-pill" id="pillSessionSeoul"><span class="session-dot"></span><b>首尔</b> --:-- <span>--</span></span>
+                <span class="session-pill" id="pillSessionLondon"><span class="session-dot"></span><b>伦敦</b> --:-- <span>--</span></span>
+                <span class="session-pill" id="pillSessionNy"><span class="session-dot"></span><b>纽约</b> --:-- <span>--</span></span>
+            </div>
+            <div class="killzone-badge" id="ictKillzoneBadge">📍 正在校准 ICT 时间窗口...</div>
+        </div>
+
         <!-- 子模块 1: 核心总览 -->
         <div class="koru-subview active" id="subview-overview">
+            <!-- 顶部流动性扫荡与亚盘猎杀实时警报条 -->
+            <div class="sweep-alert-stack" id="liquiditySweepAlertStack" style="display:none;"></div>
             <div class="card" id="strategicBannerCard" style="background: linear-gradient(180deg, #232426, #1e1f20); border-color: #3c4043; cursor:pointer;" onclick="switchKoruSubTabById('chart')">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div>
@@ -746,6 +909,37 @@
                 </div>
                 <div id="resizerChartBottom" class="chart-bottom-resizer" title="上下拖动调节看盘窗口总高度">
                     <span>━━ ↕ 拖动拉高/压缩看盘窗口 ━━</span>
+                </div>
+            </div>
+
+            <!-- 工作台级：多级别共振/分歧 + 日内/波段双轨作战计划 & A/B关键位 -->
+            <div class="tactical-plan-card" id="tacticalWorkbenchPlanCard">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <b id="planSymbolTitle" style="font-size:14px; color:#fff; font-family:monospace;">KORUUSDT.P</b>
+                        <span class="badge" id="mtfResonanceBadge" style="color:var(--neon-amber); border-color:rgba(245,158,11,0.45);">⏳ 多级别结构扫描中</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span id="planLivePriceText" style="font-family:monospace; font-size:14px; font-weight:800; color:#fff;">--</span>
+                        <button type="button" class="btn-sm" id="btnSyncPlanToSandbox" onclick="syncWorkbenchPlanToSandbox()" style="border-color:var(--neon-emerald); color:#34d399; font-weight:700;" title="将当前推演的入场/止损/目标一键同步到沙盒或BTC开单器">⚡ 同步至沙盒</button>
+                    </div>
+                </div>
+
+                <div class="plan-inner-box" id="planInnerBox">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:4px;">
+                        <span>📋 <b>交易计划</b> <span id="planBiasTag" style="font-weight:800; color:var(--neon-cyan);">扫描中</span> · <span id="planStructureSummary" style="color:var(--text-muted); font-size:11px;">等待K线均线与SMC结构对齐...</span></span>
+                    </div>
+                    <div class="plan-track-row" id="planIntradayRow">
+                        <span style="color:var(--neon-cyan); font-weight:700;">日内 (1H)</span> · 正在计算 EMA10/15 与 SMC 订单块入场带...
+                    </div>
+                    <div class="plan-track-row" id="planSwingRow">
+                        <span style="color:var(--neon-amber); font-weight:700;">波段 (1D)</span> · 正在扫描日线结构与关键支撑阻力...
+                    </div>
+                </div>
+
+                <div class="key-level-chips" id="planKeyLevelsRow">
+                    <span style="font-size:11px; color:var(--text-muted);">🎯 关键位 (<b style="color:#fca5a5;">🅰️共振</b> / <b style="color:#93c5fd;">🅱️单一</b>):</span>
+                    <span class="kl-chip">正在识别多维共振点位...</span>
                 </div>
             </div>
 
@@ -3599,6 +3793,7 @@
 
                 const latestBar = enriched[enriched.length - 1];
                 updateLwHudText(latestBar);
+                updateWorkbenchIntelligencePanel(enriched, symObj, reqInterval);
 
                 const sigBadge = document.getElementById("stratLatestSignalBadge");
                 if (sigBadge) {
@@ -3677,6 +3872,9 @@
                     title: `${isUnl ? "🔓可拖·" : ""}水平线(${visTag})`
                 }));
             });
+            if (lwLastDataCache && lwLastDataCache.length >= 10) {
+                refreshWorkbenchKeyLevelsOnly();
+            }
         }
 
         function addCustomHLineValue(rawPrice, exitDrawMode = false) {
@@ -7464,6 +7662,417 @@
             }
         }
 
+
+        // =========================================================================
+        // 交易工作台增强引擎：全球时段与 ICT Killzone + 流动性扫荡警报 + 多级别共振双轨计划
+        // =========================================================================
+        let dailyBiasCache = {}; // { [symId]: { ts, bias, ema10, ema15, ma50, pdh, pdl, demandOb, supplyOb } }
+        let latestWorkbenchPlanSnapshot = null;
+
+        function getZonedClockParts(dateObj, timeZone) {
+            const parts = new Intl.DateTimeFormat("en-US", {
+                timeZone,
+                weekday: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false
+            }).formatToParts(dateObj);
+            const get = (t) => (parts.find(p => p.type === t) || {}).value || "";
+            const wd = get("weekday");
+            const hr = parseInt(get("hour"), 10) % 24;
+            const mi = parseInt(get("minute"), 10);
+            const isWeekend = wd === "Sat" || wd === "Sun";
+            return {
+                wd,
+                hr,
+                mi,
+                mins: hr * 60 + mi,
+                isWeekend,
+                hhmm: `${String(hr).padStart(2, "0")}:${String(mi).padStart(2, "0")}`
+            };
+        }
+
+        function updateGlobalSessionClocks() {
+            const now = new Date();
+            const seoul = getZonedClockParts(now, "Asia/Seoul");
+            const london = getZonedClockParts(now, "Europe/London");
+            const ny = getZonedClockParts(now, "America/New_York");
+            const bj = getZonedClockParts(now, "Asia/Shanghai");
+
+            // 1. 首尔 KRX: 周一至周五 09:00 - 15:30 KST
+            const seoulOpen = !seoul.isWeekend && seoul.mins >= 9 * 60 && seoul.mins < 15 * 60 + 30;
+            const elSeoul = document.getElementById("pillSessionSeoul");
+            if (elSeoul) {
+                elSeoul.className = `session-pill ${seoulOpen ? "is-open" : ""}`;
+                elSeoul.innerHTML = `<span class="session-dot"></span><b>首尔</b> ${seoul.hhmm} <span style="color:${seoulOpen ? '#34d399' : '#9aa0a6'};">${seoulOpen ? '开' : '闭'}</span>`;
+            }
+
+            // 2. 伦敦 LSE: 周一至周五 08:00 - 16:30 London
+            const londonOpen = !london.isWeekend && london.mins >= 8 * 60 && london.mins < 16 * 60 + 30;
+            const elLondon = document.getElementById("pillSessionLondon");
+            if (elLondon) {
+                elLondon.className = `session-pill ${londonOpen ? "is-open" : ""}`;
+                elLondon.innerHTML = `<span class="session-dot"></span><b>伦敦</b> ${london.hhmm} <span style="color:${londonOpen ? '#34d399' : '#9aa0a6'};">${londonOpen ? '开' : '闭'}</span>`;
+            }
+
+            // 3. 纽约 NYSE/NASDAQ: 正股 09:30 - 16:00 ET; 盘前 04:00 - 09:30; 盘后 16:00 - 20:00
+            const nyRegular = !ny.isWeekend && ny.mins >= 9 * 60 + 30 && ny.mins < 16 * 60;
+            const nyExtended = !ny.isWeekend && !nyRegular && ((ny.mins >= 4 * 60 && ny.mins < 9 * 60 + 30) || (ny.mins >= 16 * 60 && ny.mins < 20 * 60));
+            const elNy = document.getElementById("pillSessionNy");
+            if (elNy) {
+                elNy.className = `session-pill ${nyRegular ? "is-open" : (nyExtended ? "is-pre" : "")}`;
+                const stText = nyRegular ? "开" : (nyExtended ? "盘前/后" : "闭");
+                const stColor = nyRegular ? "#34d399" : (nyExtended ? "#fbbf24" : "#9aa0a6");
+                elNy.innerHTML = `<span class="session-dot"></span><b>纽约</b> ${ny.hhmm} <span style="color:${stColor};">${stText}</span>`;
+            }
+
+            // 4. ICT Killzone 与高流动性窗口判定 (按北京时间 UTC+8 精确映射)
+            const kzEl = document.getElementById("ictKillzoneBadge");
+            if (kzEl) {
+                const m = bj.mins;
+                let text = "💤 非 Killzone 过渡时段 · 谨防磨损";
+                let active = false;
+                if (m >= 8 * 60 && m < 12 * 60) {
+                    text = "🌏 亚盘 & 首尔流动性窗口 (08:00-12:00)";
+                    active = true;
+                } else if (m >= 15 * 60 && m < 18 * 60) {
+                    text = "🔥 伦敦 Killzone 猎杀窗口 (15:00-18:00)";
+                    active = true;
+                } else if (m >= 20 * 60 + 30 && m < 23 * 60 + 30) {
+                    text = "⚡ 纽约 Killzone 欧美重叠高波窗 (20:30-23:30)";
+                    active = true;
+                } else if (m >= 2 * 60 && m < 4 * 60) {
+                    text = "🎯 纽约银弹 Silver Bullet 窗口 (02:00-04:00)";
+                    active = true;
+                }
+                kzEl.textContent = text;
+                kzEl.className = `killzone-badge ${active ? "active-kz" : ""}`;
+            }
+        }
+
+        function detectLiquiditySweeps(candles, symObj, dec) {
+            const alerts = [];
+            if (!Array.isArray(candles) || candles.length < 25) return alerts;
+            const n = candles.length;
+            const symLabel = symObj.market === "OKX" ? `${symObj.ticker}` : `🇺🇸${symObj.ticker}`;
+            const recentBars = candles.slice(-4);
+            const priorWindow = candles.slice(Math.max(0, n - 48), n - 4);
+            if (priorWindow.length < 10) return alerts;
+
+            let swingLow = Infinity, swingHigh = -Infinity;
+            priorWindow.forEach(b => {
+                if (b.low < swingLow) swingLow = b.low;
+                if (b.high > swingHigh) swingHigh = b.high;
+            });
+
+            // 1. 检测 SSL (卖方流动性) 扫荡后收回 -> 看涨信号
+            const sweptLowBar = recentBars.find(b => b.low < swingLow && b.close > swingLow);
+            if (sweptLowBar) {
+                alerts.push({
+                    kind: "bull",
+                    text: `🔔 ${symLabel} 扫荡 SSL (卖方流动性) ${swingLow.toFixed(dec)} → 看涨收回信号`
+                });
+            }
+
+            // 2. 检测 BSL (买方流动性) 扫荡后回落 -> 看跌信号
+            const sweptHighBar = recentBars.find(b => b.high > swingHigh && b.close < swingHigh);
+            if (sweptHighBar) {
+                alerts.push({
+                    kind: "bear",
+                    text: `🔔 ${symLabel} 扫荡 BSL (买方流动性) ${swingHigh.toFixed(dec)} → 看跌派发信号`
+                });
+            }
+
+            // 3. 检测亚盘低/高点猎杀反转 (Judas Swing: 亚盘 08:00-14:00 UTC+8 极值被刺破后收回)
+            const asiaBars = candles.slice(-30, -3).filter(b => {
+                const h = (Math.floor(b.time / 3600) + 8) % 24;
+                return h >= 8 && h < 14;
+            });
+            if (asiaBars.length >= 3) {
+                let asiaLow = Infinity, asiaHigh = -Infinity;
+                asiaBars.forEach(b => {
+                    if (b.low < asiaLow) asiaLow = b.low;
+                    if (b.high > asiaHigh) asiaHigh = b.high;
+                });
+                const last2 = candles.slice(-2);
+                if (last2.some(b => b.low < asiaLow && b.close > asiaLow) && Math.abs(asiaLow - swingLow) > Math.pow(10, -dec)) {
+                    alerts.push({
+                        kind: "bull",
+                        text: `🔔 ${symLabel} 扫亚盘低点 (${asiaLow.toFixed(dec)}) 后反弹（看涨 Judas）`
+                    });
+                } else if (last2.some(b => b.high > asiaHigh && b.close < asiaHigh) && Math.abs(asiaHigh - swingHigh) > Math.pow(10, -dec)) {
+                    alerts.push({
+                        kind: "bear",
+                        text: `🔔 ${symLabel} 扫亚盘高点 (${asiaHigh.toFixed(dec)}) 后回落（看跌 Judas）`
+                    });
+                }
+            }
+
+            return alerts.slice(0, 3);
+        }
+
+        async function getDailyStructureSnapshot(symObj) {
+            const cacheKey = symObj.id;
+            const cached = dailyBiasCache[cacheKey];
+            if (cached && (Date.now() - cached.ts < 180000)) {
+                return cached;
+            }
+            try {
+                const dailyCandles = symObj.market === "US"
+                    ? await fetchUsEquityCandlesForSymbol(symObj, "D")
+                    : await fetchOkxCandlesForSymbol(symObj, "D");
+                if (Array.isArray(dailyCandles) && dailyCandles.length >= 20) {
+                    const smcD = computeBreakout33AndSmc(dailyCandles);
+                    const en = smcD.enriched;
+                    const lastD = en[en.length - 1];
+                    const prevD = en[en.length - 2] || lastD;
+                    const bias = lastD.ema10 > lastD.ema15 && (!lastD.ma50 || lastD.close >= lastD.ma50)
+                        ? "LONG"
+                        : (lastD.ema10 < lastD.ema15 && (!lastD.ma50 || lastD.close <= lastD.ma50) ? "SHORT" : "NEUTRAL");
+                    const snap = {
+                        ts: Date.now(),
+                        bias,
+                        ema10: lastD.ema10,
+                        ema15: lastD.ema15,
+                        ma50: lastD.ma50,
+                        pdh: prevD.high,
+                        pdl: prevD.low,
+                        demandOb: smcD.demandBlocks[smcD.demandBlocks.length - 1] || null,
+                        supplyOb: smcD.supplyBlocks[smcD.supplyBlocks.length - 1] || null
+                    };
+                    dailyBiasCache[cacheKey] = snap;
+                    return snap;
+                }
+            } catch (e) {}
+            return null;
+        }
+
+        function buildKeyLevelConfluenceChips(candles, symObj, dec, dailySnap) {
+            const symKey = getCurrentSymKey();
+            const lastBar = candles[candles.length - 1];
+            const curPrice = lastBar.close;
+            const rawLevels = [];
+
+            if (lastBar.ma50) rawLevels.push({ label: "MA50", price: lastBar.ma50 });
+            if (lastBar.ema15) rawLevels.push({ label: "EMA15", price: lastBar.ema15 });
+
+            const snap = lwLastSmcSnapshot || {};
+            const dem = (snap.demandBlocks || [])[snap.demandBlocks.length - 1];
+            const sup = (snap.supplyBlocks || [])[snap.supplyBlocks.length - 1];
+            if (dem) rawLevels.push({ label: "需求OB", price: dem.top });
+            if (sup) rawLevels.push({ label: "供给OB", price: sup.bottom });
+
+            if (dailySnap) {
+                if (dailySnap.pdl) rawLevels.push({ label: "PDL前低", price: dailySnap.pdl });
+                if (dailySnap.pdh) rawLevels.push({ label: "PDH前高", price: dailySnap.pdh });
+            }
+
+            const userHLines = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
+            userHLines.forEach(h => {
+                rawLevels.push({ label: "自定义线", price: Number(h.price) });
+            });
+
+            // 聚类重合度检测：价差 <= 0.6% 判定为 🅰️ 多维共振关键位，其余为 🅱️ 单一关键位
+            const used = new Set();
+            const graded = [];
+            for (let i = 0; i < rawLevels.length; i++) {
+                if (used.has(i)) continue;
+                const base = rawLevels[i];
+                const matches = [base.label];
+                used.add(i);
+                for (let j = i + 1; j < rawLevels.length; j++) {
+                    if (used.has(j)) continue;
+                    const diffPct = Math.abs(rawLevels[j].price - base.price) / Math.max(0.0001, curPrice);
+                    if (diffPct <= 0.006) {
+                        matches.push(rawLevels[j].label);
+                        used.add(j);
+                    }
+                }
+                const isResonant = matches.length >= 2;
+                graded.push({
+                    grade: isResonant ? "A" : "B",
+                    price: base.price,
+                    distPct: Math.abs(base.price - curPrice) / Math.max(0.0001, curPrice),
+                    desc: isResonant ? `${matches.slice(0, 2).join("+")}` : base.label
+                });
+            }
+
+            graded.sort((a, b) => (a.grade === b.grade ? a.distPct - b.distPct : (a.grade === "A" ? -1 : 1)));
+            return graded.slice(0, 5);
+        }
+
+        function refreshWorkbenchKeyLevelsOnly() {
+            if (!lwLastDataCache || lwLastDataCache.length < 10) return;
+            const symObj = getActiveSymbolObj();
+            const dec = getActiveSymbolDecimals(lwLastDataCache[lwLastDataCache.length - 1].close);
+            const dailySnap = dailyBiasCache[symObj.id] || null;
+            const levels = buildKeyLevelConfluenceChips(lwLastDataCache, symObj, dec, dailySnap);
+            const rowEl = document.getElementById("planKeyLevelsRow");
+            if (!rowEl) return;
+            let html = `<span style="font-size:11px; color:var(--text-muted);">🎯 关键位 (<b style="color:#fca5a5;">🅰️共振</b> / <b style="color:#93c5fd;">🅱️单一</b>):</span>`;
+            levels.forEach(lv => {
+                const cls = lv.grade === "A" ? "kl-chip grade-a" : "kl-chip grade-b";
+                const tag = lv.grade === "A" ? "🅰️共振" : "🅱️单一";
+                html += `<span class="${cls}">${tag} ${lv.desc} ${lv.price.toFixed(dec)}</span>`;
+            });
+            rowEl.innerHTML = html;
+        }
+
+        async function updateWorkbenchIntelligencePanel(enrichedCandles, symObj, interval) {
+            if (!Array.isArray(enrichedCandles) || enrichedCandles.length < 15) return;
+            const lastBar = enrichedCandles[enrichedCandles.length - 1];
+            const firstBar = enrichedCandles[Math.max(0, enrichedCandles.length - 24)];
+            const dec = getActiveSymbolDecimals(lastBar.close);
+
+            // 1. 顶部流动性扫荡与亚盘猎杀警报
+            const sweepStack = document.getElementById("liquiditySweepAlertStack");
+            if (sweepStack) {
+                const alerts = detectLiquiditySweeps(enrichedCandles, symObj, dec);
+                if (alerts.length > 0) {
+                    sweepStack.style.display = "flex";
+                    sweepStack.innerHTML = alerts.map(a => {
+                        const cls = a.kind === "bull" ? "sweep-alert-item bull-sweep" : "sweep-alert-item bear-sweep";
+                        return `<div class="${cls}"><span>${a.text}</span><span style="font-size:10px; opacity:0.75; font-family:monospace;">UTC+8</span></div>`;
+                    }).join("");
+                } else {
+                    sweepStack.style.display = "none";
+                }
+            }
+
+            // 2. 更新双轨作战计划标题与现价
+            const titleEl = document.getElementById("planSymbolTitle");
+            const priceEl = document.getElementById("planLivePriceText");
+            const chg24 = firstBar.close > 0 ? ((lastBar.close - firstBar.close) / firstBar.close) * 100 : 0;
+            if (titleEl) {
+                titleEl.textContent = symObj.market === "OKX"
+                    ? `🪙 ${symObj.okxInstId || `${symObj.ticker}-USDT-SWAP`}`
+                    : `🇺🇸 ${symObj.ticker} (${symObj.desc || "美股/ETF"})`;
+            }
+            if (priceEl) {
+                const cCol = chg24 >= 0 ? "#34d399" : "#f87171";
+                priceEl.innerHTML = `${lastBar.close.toFixed(dec)} <span style="font-size:11px; color:${cCol};">${chg24 >= 0 ? "+" : ""}${chg24.toFixed(2)}%</span>`;
+            }
+
+            // 3. 判定当前周期方向 + 拉取日线结构进行【多级别共振/分歧】校验
+            const stBias = lastBar.ema10 > lastBar.ema15 ? "LONG" : (lastBar.ema10 < lastBar.ema15 ? "SHORT" : "NEUTRAL");
+            const dailySnap = await getDailyStructureSnapshot(symObj);
+            const mtfBadge = document.getElementById("mtfResonanceBadge");
+            if (mtfBadge) {
+                if (dailySnap && dailySnap.bias !== "NEUTRAL" && stBias === dailySnap.bias) {
+                    const isBull = stBias === "LONG";
+                    mtfBadge.textContent = isBull ? "🟢 多级别多头共振" : "🔴 多级别空头共振";
+                    mtfBadge.style.color = isBull ? "#34d399" : "#f87171";
+                    mtfBadge.style.borderColor = isBull ? "#10b981" : "#ef4444";
+                    mtfBadge.style.background = isBull ? "rgba(16,185,129,0.14)" : "rgba(239,68,68,0.14)";
+                } else {
+                    mtfBadge.textContent = "⚠️ 多级别分歧";
+                    mtfBadge.style.color = "#fbbf24";
+                    mtfBadge.style.borderColor = "rgba(245,158,11,0.45)";
+                    mtfBadge.style.background = "rgba(245,158,11,0.1)";
+                }
+            }
+
+            // 4. 生成日内 + 波段双轨可执行作战计划
+            const snap = lwLastSmcSnapshot || {};
+            const dem = (snap.demandBlocks || [])[snap.demandBlocks.length - 1];
+            const sup = (snap.supplyBlocks || [])[snap.supplyBlocks.length - 1];
+            const isBull = stBias === "LONG";
+
+            const biasTagEl = document.getElementById("planBiasTag");
+            const structEl = document.getElementById("planStructureSummary");
+            const intraEl = document.getElementById("planIntradayRow");
+            const swingEl = document.getElementById("planSwingRow");
+            const innerBox = document.getElementById("planInnerBox");
+
+            let intraEntry = lastBar.ema10, intraSl = lastBar.ma50 || lastBar.low, intraTp = lastBar.close * (isBull ? 1.035 : 0.965);
+            if (isBull) {
+                const zoneLow = dem ? dem.bottom : Math.min(lastBar.ema10, lastBar.ema15);
+                const zoneHigh = dem ? dem.top : Math.max(lastBar.ema10, lastBar.ema15);
+                intraEntry = (zoneLow + zoneHigh) * 0.5;
+                intraSl = Math.min(zoneLow * 0.992, lastBar.ma50 ? lastBar.ma50 * 0.994 : zoneLow * 0.985);
+                intraTp = sup ? sup.bottom : (snap.lastSH ? snap.lastSH.price : lastBar.close * 1.045);
+                if (intraTp <= intraEntry) intraTp = intraEntry * 1.045;
+
+                if (biasTagEl) { biasTagEl.textContent = "偏多"; biasTagEl.style.color = "#34d399"; }
+                if (structEl) structEl.textContent = `HH+HL 多头结构 · 均线多头排列 (${TF_DISPLAY_LABELS[interval] || interval})`;
+                if (innerBox) innerBox.style.borderLeftColor = "#10b981";
+                if (intraEl) {
+                    intraEl.innerHTML = `<b style="color:#34d399;">日内 回踩低吸</b> | 入场 <b>${zoneLow.toFixed(dec)}~${zoneHigh.toFixed(dec)}</b>` +
+                        `<br><span style="color:var(--text-muted); margin-left:14px;">止损 <b style="color:#f87171;">${intraSl.toFixed(dec)}</b> 下方 &nbsp;|&nbsp; 目标 <b style="color:#34d399;">${intraTp.toFixed(dec)}</b></span>`;
+                }
+            } else {
+                const zoneLow = sup ? sup.bottom : Math.min(lastBar.ema10, lastBar.ema15);
+                const zoneHigh = sup ? sup.top : Math.max(lastBar.ema10, lastBar.ema15);
+                intraEntry = (zoneLow + zoneHigh) * 0.5;
+                intraSl = Math.max(zoneHigh * 1.008, lastBar.ma50 ? lastBar.ma50 * 1.006 : zoneHigh * 1.015);
+                intraTp = dem ? dem.top : (snap.lastSL ? snap.lastSL.price : lastBar.close * 0.955);
+                if (intraTp >= intraEntry) intraTp = intraEntry * 0.955;
+
+                if (biasTagEl) { biasTagEl.textContent = "偏空"; biasTagEl.style.color = "#f87171"; }
+                if (structEl) structEl.textContent = `LH+LL 下降结构 · 均线空头压制 (${TF_DISPLAY_LABELS[interval] || interval})`;
+                if (innerBox) innerBox.style.borderLeftColor = "#ef4444";
+                if (intraEl) {
+                    intraEl.innerHTML = `<b style="color:#f87171;">日内 反弹做空</b> | 入场 <b>${zoneLow.toFixed(dec)}~${zoneHigh.toFixed(dec)}</b>` +
+                        `<br><span style="color:var(--text-muted); margin-left:14px;">止损 <b style="color:#f87171;">${intraSl.toFixed(dec)}</b> 上方 &nbsp;|&nbsp; 目标 <b style="color:#34d399;">${intraTp.toFixed(dec)}</b></span>`;
+                }
+            }
+
+            if (swingEl) {
+                if (dailySnap) {
+                    const dBull = dailySnap.bias !== "SHORT";
+                    const dEntry = dBull
+                        ? (dailySnap.demandOb ? dailySnap.demandOb.top : (dailySnap.ma50 || dailySnap.ema15))
+                        : (dailySnap.supplyOb ? dailySnap.supplyOb.bottom : (dailySnap.ma50 || dailySnap.ema15));
+                    const dSl = dBull
+                        ? (dailySnap.pdl ? Math.min(dailySnap.pdl * 0.99, dEntry * 0.96) : dEntry * 0.95)
+                        : (dailySnap.pdh ? Math.max(dailySnap.pdh * 1.01, dEntry * 1.04) : dEntry * 1.05);
+                    const dTp = dBull
+                        ? (dailySnap.pdh ? Math.max(dailySnap.pdh, dEntry * 1.08) : dEntry * 1.09)
+                        : (dailySnap.pdl ? Math.min(dailySnap.pdl, dEntry * 0.92) : dEntry * 0.91);
+                    swingEl.innerHTML = `<b style="color:${dBull ? '#38bdf8' : '#fbbf24'};">波段 (1D) ${dBull ? '回踩低吸' : '逢高做空'}</b> | 锚点 <b>${dEntry.toFixed(dec)}</b>` +
+                        `<br><span style="color:var(--text-muted); margin-left:14px;">止损 <b style="color:#f87171;">${dSl.toFixed(dec)}</b> &nbsp;|&nbsp; 目标 <b style="color:#34d399;">${dTp.toFixed(dec)}</b> (PDL/PDH: ${dailySnap.pdl.toFixed(dec)} / ${dailySnap.pdh.toFixed(dec)})</span>`;
+                } else {
+                    swingEl.innerHTML = `<span style="color:var(--text-muted);">波段 (1D) · 正在同步日线前高前低 (PDH/PDL) 锚点...</span>`;
+                }
+            }
+
+            latestWorkbenchPlanSnapshot = {
+                symObj,
+                bias: stBias,
+                entry: intraEntry,
+                sl: intraSl,
+                tp: intraTp,
+                dec
+            };
+            refreshWorkbenchKeyLevelsOnly();
+        }
+
+        function syncWorkbenchPlanToSandbox() {
+            if (!latestWorkbenchPlanSnapshot) {
+                showToast("正在等待当前品种K线计算完成...");
+                return;
+            }
+            const { symObj, bias, entry, sl, tp, dec } = latestWorkbenchPlanSnapshot;
+            if (symObj.ticker === "BTC") {
+                switchMainTab("btc");
+                setBtcTradeSide(bias === "LONG" ? "LONG" : "SHORT", true);
+                document.getElementById("tier1Price").value = entry.toFixed(1);
+                document.getElementById("tier2Price").value = (bias === "LONG" ? entry * 0.992 : entry * 1.008).toFixed(1);
+                document.getElementById("tier3Price").value = (bias === "LONG" ? entry * 0.984 : entry * 1.016).toFixed(1);
+                document.getElementById("btcSlPrice").value = sl.toFixed(1);
+                document.getElementById("btcTpPrice").value = tp.toFixed(1);
+                calculateBtcLadder();
+                showToast("⚡ 已将工作台 BTC 计划一键填入战术阶梯开单器！");
+            } else {
+                const slInput = document.getElementById("liveCalcSlInput");
+                const tpInput = document.getElementById("liveCalcTpInput");
+                if (slInput) slInput.value = sl.toFixed(dec);
+                if (tpInput) tpInput.value = tp.toFixed(dec);
+                updatePositionSandbox();
+                showToast(`✅ 已将 ${symObj.ticker} 止损 (${sl.toFixed(dec)}) 与目标 (${tp.toFixed(dec)}) 同步至风控沙盒！`);
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', async () => {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -7484,6 +8093,10 @@
             syncChartControlButtons();
             applyCustomChartHeights();
 
+            // 启动全球交易时段与 ICT Killzone 实时时钟
+            updateGlobalSessionClocks();
+            setInterval(updateGlobalSessionClocks, 1000);
+
             // 异步无阻塞加载图表引擎并拉取首屏K线
             fetchAndRenderStrategyChart(false);
 
@@ -7502,5 +8115,5 @@
         });
     </script>
 </body>
-<!-- Build: v9.5-separated-okx-vs-us-market-eastmoney-direct -->
+<!-- Build: v9.6-workbench-clocks-killzone-sweeps-mtf-plan -->
 </html>
