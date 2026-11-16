@@ -6138,8 +6138,7 @@
         }
 
         function parseKrxCsvTextToHistory(csvText, fallbackDateStr = "") {
-            const lines = csvText.split(/?
-/).map(l => l.trim()).filter(Boolean);
+            const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
             if (lines.length < 2) return [];
 
             const parseCsvRow = (row) => {
@@ -7099,5 +7098,5 @@
         });
     </script>
 </body>
-<!-- Build: v9-6month-kospi-history-and-csv-parser -->
+<!-- Build: v9.1-hotfix-csv-split-regex -->
 </html>
