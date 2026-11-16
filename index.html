@@ -325,6 +325,66 @@
             border-color: #DCD7C9;
         }
 
+        /* 图表快照相机下拉菜单 (仿 TradingView 原生快捷键菜单) */
+        .snapshot-menu-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .snapshot-dropdown {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            min-width: 218px;
+            background: #1e1f20;
+            border: 1px solid #3c4043;
+            border-radius: 8px;
+            padding: 6px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
+            z-index: 1200;
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .snapshot-dropdown.open {
+            display: flex;
+        }
+        .snapshot-dropdown-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            padding: 4px 10px 6px 10px;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(154, 160, 166, 0.14);
+            margin-bottom: 3px;
+        }
+        .snapshot-menu-item {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 10px;
+            color: #e3e3e3;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+            transition: background 0.15s;
+        }
+        .snapshot-menu-item:hover {
+            background: rgba(138, 180, 248, 0.14);
+            color: #fff;
+        }
+        .snapshot-shortcut {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
         /* 右侧价格轴：现价 + K线收盘倒计时双行标签 (仿 TradingView 原生风格) */
         .lw-price-countdown-badge {
             position: absolute;
@@ -779,6 +839,20 @@
                         <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleNetposSubchart()" title="独立显示/隐藏 Leviathan 合约净多空持仓 (Net Longs / Net Shorts / Net Delta) 副图（可与CVD同时开启）">⚖️ 净多空持仓</button>
                         <button type="button" class="btn-sm" id="btnToggleDrawBar" onclick="toggleDrawingToolbar()" title="展开/收起画线与测量工具箱（水平线/趋势线段/斐波那契/矩形箱体/测量尺）">✏️ 画线工具</button>
                         <button type="button" class="btn-sm" id="btnToggleHeightBar" onclick="toggleHeightControlBar()" title="手动调节主图与副图高度（也支持直接上下拖动分隔条）">📐 调高度</button>
+                        <div class="snapshot-menu-wrap" id="snapshotMenuWrap">
+                            <button type="button" class="btn-sm" id="btnChartSnapshot" onclick="toggleSnapshotMenu(event)" style="border-color:rgba(16,185,129,0.45); color:#6ee7b7; font-weight:700;" title="图表快照：一键复制图片到剪贴板 (⇧⌘S) 或下载高清PNG (⌥⌘S)">📷 快照</button>
+                            <div class="snapshot-dropdown" id="snapshotDropdownMenu">
+                                <div class="snapshot-dropdown-title">图表快照</div>
+                                <button type="button" class="snapshot-menu-item" onclick="captureChartSnapshot('copy')">
+                                    <span>📋 复制图片</span>
+                                    <span class="snapshot-shortcut">⇧ ⌘ S</span>
+                                </button>
+                                <button type="button" class="snapshot-menu-item" onclick="captureChartSnapshot('download')">
+                                    <span>⬇️ 下载图片</span>
+                                    <span class="snapshot-shortcut">⌥ ⌘ S</span>
+                                </button>
+                            </div>
+                        </div>
                         <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
                         <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 全屏看盘</button>
                     </div>
@@ -6391,7 +6465,23 @@
         document.addEventListener("keydown", (e) => {
             const tag = (e.target && e.target.tagName) || "";
             const isInput = tag === "INPUT" || tag === "TEXTAREA";
+            const modKey = e.metaKey || e.ctrlKey;
+            const isKeyS = (e.code === "KeyS" || (e.key && e.key.toLowerCase() === "s"));
+
+            // 仿 TradingView 快捷键：⇧⌘S / Shift+Ctrl+S 复制行情快照；⌥⌘S / Alt+Ctrl+S 下载行情快照
+            if (modKey && isKeyS && e.shiftKey && !e.altKey) {
+                e.preventDefault();
+                captureChartSnapshot("copy");
+                return;
+            }
+            if (modKey && isKeyS && e.altKey && !e.shiftKey) {
+                e.preventDefault();
+                captureChartSnapshot("download");
+                return;
+            }
+
             if (e.key === "Escape") {
+                closeSnapshotMenu();
                 if (activeDrawTool !== "none") {
                     selectDrawTool("none");
                     return;
@@ -8234,6 +8324,256 @@
             badge.style.display = "block";
         }
 
+
+        // =========================================================================
+        // 图表一键快照引擎 (支持 ⇧⌘S 复制到剪贴板 / ⌥⌘S 下载高清 PNG，自动拼接主图+画线+双副图)
+        // =========================================================================
+        function toggleSnapshotMenu(evt) {
+            if (evt) {
+                evt.stopPropagation();
+            }
+            const menu = document.getElementById("snapshotDropdownMenu");
+            if (!menu) return;
+            menu.classList.toggle("open");
+        }
+
+        function closeSnapshotMenu() {
+            const menu = document.getElementById("snapshotDropdownMenu");
+            if (menu) menu.classList.remove("open");
+        }
+
+        document.addEventListener("click", (e) => {
+            const wrap = document.getElementById("snapshotMenuWrap");
+            if (wrap && !wrap.contains(e.target)) {
+                closeSnapshotMenu();
+            }
+        });
+
+        function buildCompositeChartCanvas() {
+            if (chartEngineMode !== "STRAT" || !lwChart || isTvCollapsed) {
+                return null;
+            }
+            const mainPane = document.getElementById("lwMainPane");
+            if (!mainPane) return null;
+
+            const p = getChartPalette();
+            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            const totalW = mainPane.clientWidth || 800;
+            const mainH = mainPane.clientHeight || 440;
+            const headerH = 38;
+            const splitterH = 2;
+
+            const activeSubPanes = [];
+            if (showCvdSubchart && lwCvdChart) {
+                const cvdPane = document.getElementById("lwCvdPane");
+                if (cvdPane && cvdPane.clientHeight > 0) {
+                    activeSubPanes.push({
+                        chart: lwCvdChart,
+                        pane: cvdPane,
+                        title: (document.getElementById("lwCvdTitle")?.textContent || "CVD 资金流") + "  " + (document.getElementById("lwCvdValues")?.textContent || "")
+                    });
+                }
+            }
+            if (showNetposSubchart && lwNetposChart) {
+                const npPane = document.getElementById("lwNetposPane");
+                if (npPane && npPane.clientHeight > 0) {
+                    activeSubPanes.push({
+                        chart: lwNetposChart,
+                        pane: npPane,
+                        title: (document.getElementById("lwNetposTitle")?.textContent || "净多空持仓") + "  " + (document.getElementById("lwNetposValues")?.textContent || "")
+                    });
+                }
+            }
+
+            let totalH = headerH + mainH;
+            activeSubPanes.forEach(sp => {
+                totalH += splitterH + (sp.pane.clientHeight || 140);
+            });
+
+            const out = document.createElement("canvas");
+            out.width = Math.round(totalW * dpr);
+            out.height = Math.round(totalH * dpr);
+            const ctx = out.getContext("2d");
+            ctx.scale(dpr, dpr);
+
+            // 1. 背景底色
+            ctx.fillStyle = p.bg;
+            ctx.fillRect(0, 0, totalW, totalH);
+
+            // 2. 顶部专业战报信息栏 (品种 + 周期 + 最新OHLC + 均线数值 + 北京时间)
+            const symObj = getActiveSymbolObj();
+            const lastBar = (lwLastDataCache && lwLastDataCache.length > 0) ? lwLastDataCache[lwLastDataCache.length - 1] : null;
+            const dec = getActiveSymbolDecimals(lastBar ? lastBar.close : null);
+            const tfLabel = TF_DISPLAY_LABELS[tvInterval] || tvInterval;
+            const symTitle = symObj.market === "OKX"
+                ? `${symObj.okxInstId || `${symObj.ticker}-USDT-SWAP`}`
+                : `${symObj.ticker} (${symObj.desc || "US"})`;
+
+            ctx.fillStyle = p.isDark ? "#18191a" : "#F3EFE2";
+            ctx.fillRect(0, 0, totalW, headerH);
+            ctx.strokeStyle = p.border;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, headerH - 0.5);
+            ctx.lineTo(totalW, headerH - 0.5);
+            ctx.stroke();
+
+            ctx.font = "bold 12px monospace";
+            ctx.fillStyle = p.isDark ? "#e3e3e3" : "#1E222D";
+            let leftText = `${symTitle} · ${tfLabel}`;
+            if (lastBar) {
+                const chg = lastBar.open > 0 ? (((lastBar.close - lastBar.open) / lastBar.open) * 100).toFixed(2) : "0.00";
+                leftText += `   O:${lastBar.open.toFixed(dec)} H:${lastBar.high.toFixed(dec)} L:${lastBar.low.toFixed(dec)} C:${lastBar.close.toFixed(dec)} (${chg >= 0 ? "+" : ""}${chg}%)`;
+            }
+            ctx.fillText(leftText, 12, 16);
+
+            if (lastBar) {
+                ctx.font = "bold 11px monospace";
+                let xCursor = 12;
+                const maItems = [
+                    { text: `EMA10:${lastBar.ema10 ? lastBar.ema10.toFixed(dec) : "--"}`, color: p.ema10 },
+                    { text: `EMA15:${lastBar.ema15 ? lastBar.ema15.toFixed(dec) : "--"}`, color: p.ema15 },
+                    { text: `MA50:${lastBar.ma50 ? lastBar.ma50.toFixed(dec) : "--"}`, color: p.ma50 }
+                ];
+                maItems.forEach(m => {
+                    ctx.fillStyle = m.color;
+                    ctx.fillText(m.text, xCursor, 31);
+                    xCursor += ctx.measureText(m.text).width + 14;
+                });
+            }
+
+            const nowBj = formatBeijingTime(Math.floor(Date.now() / 1000), false) + " UTC+8";
+            ctx.font = "11px monospace";
+            ctx.fillStyle = p.text;
+            const timeW = ctx.measureText(nowBj).width;
+            ctx.fillText(nowBj, Math.max(12, totalW - timeW - 12), 16);
+
+            // 3. 绘制主图 LightweightCharts 官方截图画布
+            let curY = headerH;
+            try {
+                const mainShot = lwChart.takeScreenshot();
+                if (mainShot) {
+                    ctx.drawImage(mainShot, 0, curY, totalW, mainH);
+                }
+            } catch (e) {}
+
+            // 4. 叠加自定义画线 & SMC 供需订单块覆盖层 (#lwDrawOverlay)
+            const overlayCanvas = document.getElementById("lwDrawOverlay");
+            if (overlayCanvas && overlayCanvas.width > 0 && overlayCanvas.height > 0) {
+                ctx.drawImage(overlayCanvas, 0, curY, totalW, mainH);
+            }
+
+            // 5. 叠加右侧价格轴双行现价 + 收盘倒计时标签
+            const cdBadge = document.getElementById("lwPriceCountdownBadge");
+            if (cdBadge && cdBadge.style.display !== "none" && lastBar) {
+                const priceY = lwCandleSeries.priceToCoordinate(lastBar.close);
+                if (priceY !== null && isFinite(priceY) && priceY >= 14 && priceY <= mainH - 36) {
+                    let axisW = 68;
+                    try {
+                        const w = lwChart.priceScale("right").width();
+                        if (w && w >= 56) axisW = Math.round(w);
+                    } catch (e) {}
+                    const isDown = lastBar.close < lastBar.open;
+                    const boxH = 32;
+                    const bx = totalW - axisW;
+                    const by = curY + priceY - boxH * 0.5;
+                    ctx.fillStyle = isDown ? "#f23645" : "#089981";
+                    ctx.fillRect(bx, by, axisW, boxH);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "bold 11px monospace";
+                    ctx.fillText(document.getElementById("lwCdPriceText")?.textContent || "", bx + 6, by + 13);
+                    ctx.font = "bold 10px monospace";
+                    ctx.fillText(document.getElementById("lwCdTimerText")?.textContent || "", bx + 6, by + 26);
+                }
+            }
+
+            curY += mainH;
+
+            // 6. 依次拼接激活的 CVD 资金流 / 净多空持仓副图
+            activeSubPanes.forEach(sp => {
+                const subH = sp.pane.clientHeight || 140;
+                ctx.fillStyle = p.border;
+                ctx.fillRect(0, curY, totalW, splitterH);
+                curY += splitterH;
+
+                try {
+                    const subShot = sp.chart.takeScreenshot();
+                    if (subShot) {
+                        ctx.drawImage(subShot, 0, curY, totalW, subH);
+                    }
+                } catch (e) {}
+
+                // 绘制副图左上角指标文字条
+                ctx.font = "bold 10px monospace";
+                const lbl = sp.title.trim();
+                const lw = Math.min(totalW - 80, ctx.measureText(lbl).width + 12);
+                ctx.fillStyle = p.isDark ? "rgba(30, 31, 32, 0.85)" : "rgba(250, 247, 238, 0.9)";
+                ctx.fillRect(8, curY + 5, lw, 18);
+                ctx.fillStyle = p.isDark ? "#cbd5e1" : "#1E222D";
+                ctx.fillText(lbl, 14, curY + 17);
+
+                curY += subH;
+            });
+
+            return out;
+        }
+
+        function triggerCanvasPngDownload(canvas, filename) {
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+            }, "image/png");
+        }
+
+        async function captureChartSnapshot(mode = "copy") {
+            closeSnapshotMenu();
+            if (chartEngineMode !== "STRAT") {
+                showToast("⚠️ 当前为 TV 外部画线窗口，请切回【⚔️ 破阵3.3 + SMC】使用一键快照");
+                return;
+            }
+            const canvas = buildCompositeChartCanvas();
+            if (!canvas) {
+                showToast("⚠️ 图表尚未渲染完成，请稍候再试");
+                return;
+            }
+
+            const symObj = getActiveSymbolObj();
+            const tfLabel = TF_DISPLAY_LABELS[tvInterval] || tvInterval;
+            const now = new Date();
+            const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}${String(now.getSeconds()).padStart(2,"0")}`;
+            const filename = `${symObj.ticker}_${tfLabel}_${stamp}.png`;
+
+            if (mode === "download") {
+                triggerCanvasPngDownload(canvas, filename);
+                showToast(`⬇️ 已下载高清行情快照：${filename}`);
+                return;
+            }
+
+            // mode === "copy"：优先写入系统图片剪贴板，支持直接 Cmd+V / 长按粘贴发微信、飞书或笔记
+            try {
+                if (navigator.clipboard && typeof window.ClipboardItem !== "undefined") {
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+                    if (blob) {
+                        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+                        showToast(`📋 已复制 ${symObj.ticker} (${tfLabel}) 高清行情快照到剪贴板，可直接粘贴发送！`);
+                        return;
+                    }
+                }
+                throw new Error("Clipboard image API unavailable");
+            } catch (err) {
+                // 若当前浏览器安全策略限制图片剪贴板写入，自动降级为直接下载 PNG
+                triggerCanvasPngDownload(canvas, filename);
+                showToast(`⬇️ 当前浏览器限制直接复制图片，已自动为你下载：${filename}`);
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', async () => {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -8280,5 +8620,5 @@
         });
     </script>
 </body>
-<!-- Build: v9.7-right-axis-price-bar-countdown -->
+<!-- Build: v9.8-one-click-chart-snapshot-copy-download -->
 </html>
