@@ -542,12 +542,17 @@
                             <button type="button" class="btn-sm active" id="btnEngineStrat" onclick="switchChartEngine('STRAT', this)">⚔️ 破阵3.3 + SMC</button>
                             <button type="button" class="btn-sm" id="btnEngineTv" onclick="switchChartEngine('TV', this)">📺 TV原版画线</button>
                         </div>
-                        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                            <div class="btn-group" id="watchlistButtonsGroup" style="flex-wrap:wrap;">
-                                <button type="button" class="btn-sm active" onclick="selectWatchlistSymbol('KORU')">🛰️ KORU</button>
-                                <button type="button" class="btn-sm" onclick="selectWatchlistSymbol('BTC')">⚡ BTC</button>
+                        <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                            <div class="btn-group" id="marketFilterGroup" title="按数据源市场筛选自选品种">
+                                <button type="button" class="btn-sm active" data-mfilter="ALL" onclick="setWatchlistMarketFilter('ALL', this)" style="padding:2px 6px; font-size:10px;">全部</button>
+                                <button type="button" class="btn-sm" data-mfilter="OKX" onclick="setWatchlistMarketFilter('OKX', this)" style="padding:2px 6px; font-size:10px;">🪙 交易所</button>
+                                <button type="button" class="btn-sm" data-mfilter="US" onclick="setWatchlistMarketFilter('US', this)" style="padding:2px 6px; font-size:10px;">🇺🇸 美股</button>
                             </div>
-                            <button type="button" class="btn-sm" id="btnToggleWatchlistDrawer" onclick="toggleWatchlistDrawer()" style="border-color:var(--neon-emerald); color:#34d399; font-weight:700;" title="自由添加美股/ETF（如 TSLA、NVDA、QQQ）或 OKX 合约品种">+ 品种</button>
+                            <div class="btn-group" id="watchlistButtonsGroup" style="flex-wrap:wrap;">
+                                <button type="button" class="btn-sm active" onclick="selectWatchlistSymbol('OKX:KORU')">🪙 KORU</button>
+                                <button type="button" class="btn-sm" onclick="selectWatchlistSymbol('OKX:BTC')">⚡ BTC</button>
+                            </div>
+                            <button type="button" class="btn-sm" id="btnToggleWatchlistDrawer" onclick="toggleWatchlistDrawer()" style="border-color:var(--neon-emerald); color:#34d399; font-weight:700;" title="分别添加【🪙 OKX交易所合约】或【🇺🇸 美股/ETF现货】（如 KORU、SOXL、QQQ、TSLA）">+ 品种</button>
                         </div>
                     </div>
 
@@ -610,26 +615,35 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                         <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:220px;">
                             <span style="color:var(--neon-emerald); font-weight:800; white-space:nowrap;">🔍 添加自选品种:</span>
-                            <input type="text" id="newTickerInput" placeholder="输入代码或中文名，如 TSLA / 特斯拉 / 英伟达 / QQQ / SOL..." class="form-input" style="flex:1; min-width:160px; padding:4px 8px; font-size:11px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); handleAddCustomSymbol();}">
+                            <input type="text" id="newTickerInput" placeholder="输入代码，如 KORU / SOXL / QQQ / TSLA / NVDA / SOL..." class="form-input" style="flex:1; min-width:150px; padding:4px 8px; font-size:11px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); handleAddCustomSymbol();}">
                             <select id="newTickerMarketSelect" class="form-input" style="width:auto; padding:4px 6px; font-size:11px;">
-                                <option value="AUTO">自动识别</option>
-                                <option value="US">🇺🇸 美股 / ETF</option>
-                                <option value="OKX">🪙 OKX 合约</option>
+                                <option value="US">🇺🇸 美股 / ETF 现货</option>
+                                <option value="OKX">🪙 OKX 交易所合约</option>
+                                <option value="BOTH">⚡ 双市场同时添加</option>
                             </select>
                             <button type="button" class="btn-sm" onclick="handleAddCustomSymbol()" style="background:rgba(16,185,129,0.2); border-color:var(--neon-emerald); color:#34d399; font-weight:800; padding:4px 10px;">+ 添加并看盘</button>
                         </div>
                         <button type="button" class="btn-sm" onclick="toggleWatchlistDrawer(false)" style="color:var(--text-muted);">收起 ✕</button>
                     </div>
 
-                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                        <span style="color:var(--text-muted);">热门一键添加:</span>
-                        <div id="hotPresetChipsContainer" style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;"></div>
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                            <span style="color:#fbbf24; font-weight:700; min-width:86px;">🪙 交易所合约:</span>
+                            <div id="hotOkxPresetsContainer" style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;"></div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                            <span style="color:#60a5fa; font-weight:700; min-width:86px;">🇺🇸 美股 / ETF:</span>
+                            <div id="hotUsPresetsContainer" style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;"></div>
+                        </div>
                     </div>
                 </div>
 
                 <div id="tvSubHintBar" style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted); margin-bottom:8px; flex-wrap:wrap; gap:4px;">
                     <span id="tvMaLegendText">均线三色锁定: <b style="color:#facc15;">EMA10(黄)</b> · <b style="color:#38bdf8;">EMA15(蓝)</b> · <b style="color:#f87171;">MA50(红)</b> · 破阵3.3信号 + SMC结构 (UTC+8)</span>
-                    <span id="stratLatestSignalBadge" style="color:var(--neon-cyan); font-weight:700;">正在扫描破阵3.3信号...</span>
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <button type="button" class="btn-sm" id="btnSwitchSiblingMarket" onclick="switchActiveSymbolMarket()" style="display:none; padding:1px 7px; font-size:10px; border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">⇄ 切换数据源</button>
+                        <span id="stratLatestSignalBadge" style="color:var(--neon-cyan); font-weight:700;">正在扫描破阵3.3信号...</span>
+                    </div>
                 </div>
 
                 <div id="chartDrawingToolbar" style="display:none; flex-direction:column; gap:6px; background:rgba(15, 23, 42, 0.85); border:1px solid var(--border-color); border-radius:6px; padding:7px 10px; margin-bottom:8px; font-size:11px;">
@@ -1577,74 +1591,148 @@
         // 双擎看盘状态管理：【破阵3.3 + SMC 视觉引擎】 vs 【TV原版画线】
         let chartEngineMode = "STRAT";
         const DEFAULT_WATCHLIST = [
-            { id: "KORU", label: "KORU", icon: "🛰️", market: "OKX", okxInstId: "KORU-USDT-SWAP", tvSymbol: "OKX:KORUUSDT.P", pinned: true, desc: "3倍做多韩国ETF" },
-            { id: "BTC",  label: "BTC",  icon: "⚡", market: "OKX", okxInstId: "BTC-USDT-SWAP",  tvSymbol: "OKX:BTCUSDT.P",  pinned: true, desc: "比特币永续" }
+            { id: "OKX:KORU", ticker: "KORU", label: "KORU", icon: "🪙", market: "OKX", okxInstId: "KORU-USDT-SWAP", tvSymbol: "OKX:KORUUSDT.P", pinned: true, desc: "OKX 3倍做多韩国永续" },
+            { id: "OKX:BTC",  ticker: "BTC",  label: "BTC",  icon: "🪙", market: "OKX", okxInstId: "BTC-USDT-SWAP",  tvSymbol: "OKX:BTCUSDT.P",  pinned: true, desc: "OKX 比特币永续" },
+            { id: "US:KORU",  ticker: "KORU", label: "KORU", icon: "🇺🇸", market: "US",  emSecId: "107.KORU",         tvSymbol: "AMEX:KORU",      pinned: false, desc: "美股 Direxion 3x韩国ETF" }
         ];
-        const SYMBOL_ALIAS_MAP = {
-            "TSLA": { id: "TSLA", label: "TSLA", icon: "🇺🇸", market: "US", tvSymbol: "TSLA", desc: "特斯拉" },
-            "TESLA": { id: "TSLA", label: "TSLA", icon: "🇺🇸", market: "US", tvSymbol: "TSLA", desc: "特斯拉" },
-            "TESAL": { id: "TSLA", label: "TSLA", icon: "🇺🇸", market: "US", tvSymbol: "TSLA", desc: "特斯拉" },
-            "特斯拉": { id: "TSLA", label: "TSLA", icon: "🇺🇸", market: "US", tvSymbol: "TSLA", desc: "特斯拉" },
-            "NVDA": { id: "NVDA", label: "NVDA", icon: "🇺🇸", market: "US", tvSymbol: "NVDA", desc: "英伟达" },
-            "NVIDIA": { id: "NVDA", label: "NVDA", icon: "🇺🇸", market: "US", tvSymbol: "NVDA", desc: "英伟达" },
-            "英伟达": { id: "NVDA", label: "NVDA", icon: "🇺🇸", market: "US", tvSymbol: "NVDA", desc: "英伟达" },
-            "QQQ": { id: "QQQ", label: "QQQ", icon: "🇺🇸", market: "US", tvSymbol: "QQQ", desc: "纳指100ETF" },
-            "QQQM": { id: "QQQM", label: "QQQM", icon: "🇺🇸", market: "US", tvSymbol: "QQQM", desc: "迷你纳指ETF" },
-            "纳指": { id: "QQQ", label: "QQQ", icon: "🇺🇸", market: "US", tvSymbol: "QQQ", desc: "纳指100ETF" },
-            "纳斯达克": { id: "QQQ", label: "QQQ", icon: "🇺🇸", market: "US", tvSymbol: "QQQ", desc: "纳指100ETF" },
-            "TQQQ": { id: "TQQQ", label: "TQQQ", icon: "🇺🇸", market: "US", tvSymbol: "TQQQ", desc: "3倍做多纳指" },
-            "SQQQ": { id: "SQQQ", label: "SQQQ", icon: "🇺🇸", market: "US", tvSymbol: "SQQQ", desc: "3倍做空纳指" },
-            "SOXL": { id: "SOXL", label: "SOXL", icon: "🇺🇸", market: "US", tvSymbol: "SOXL", desc: "3倍做多半导体" },
-            "SMH": { id: "SMH", label: "SMH", icon: "🇺🇸", market: "US", tvSymbol: "SMH", desc: "半导体ETF" },
-            "AAPL": { id: "AAPL", label: "AAPL", icon: "🇺🇸", market: "US", tvSymbol: "AAPL", desc: "苹果" },
-            "苹果": { id: "AAPL", label: "AAPL", icon: "🇺🇸", market: "US", tvSymbol: "AAPL", desc: "苹果" },
-            "MSFT": { id: "MSFT", label: "MSFT", icon: "🇺🇸", market: "US", tvSymbol: "MSFT", desc: "微软" },
-            "微软": { id: "MSFT", label: "MSFT", icon: "🇺🇸", market: "US", tvSymbol: "MSFT", desc: "微软" },
-            "META": { id: "META", label: "META", icon: "🇺🇸", market: "US", tvSymbol: "META", desc: "Meta" },
-            "AMZN": { id: "AMZN", label: "AMZN", icon: "🇺🇸", market: "US", tvSymbol: "AMZN", desc: "亚马逊" },
-            "亚马逊": { id: "AMZN", label: "AMZN", icon: "🇺🇸", market: "US", tvSymbol: "AMZN", desc: "亚马逊" },
-            "GOOGL": { id: "GOOGL", label: "GOOGL", icon: "🇺🇸", market: "US", tvSymbol: "GOOGL", desc: "谷歌" },
-            "谷歌": { id: "GOOGL", label: "GOOGL", icon: "🇺🇸", market: "US", tvSymbol: "GOOGL", desc: "谷歌" },
-            "AMD": { id: "AMD", label: "AMD", icon: "🇺🇸", market: "US", tvSymbol: "AMD", desc: "AMD" },
-            "SPY": { id: "SPY", label: "SPY", icon: "🇺🇸", market: "US", tvSymbol: "SPY", desc: "标普500ETF" },
-            "标普": { id: "SPY", label: "SPY", icon: "🇺🇸", market: "US", tvSymbol: "SPY", desc: "标普500ETF" },
-            "COIN": { id: "COIN", label: "COIN", icon: "🇺🇸", market: "US", tvSymbol: "COIN", desc: "Coinbase" },
-            "MSTR": { id: "MSTR", label: "MSTR", icon: "🇺🇸", market: "US", tvSymbol: "MSTR", desc: "MicroStrategy" },
-            "PLTR": { id: "PLTR", label: "PLTR", icon: "🇺🇸", market: "US", tvSymbol: "PLTR", desc: "Palantir" },
-            "GLD": { id: "GLD", label: "GLD", icon: "🇺🇸", market: "US", tvSymbol: "GLD", desc: "黄金ETF" },
-            "黄金": { id: "GLD", label: "GLD", icon: "🇺🇸", market: "US", tvSymbol: "GLD", desc: "黄金ETF" },
-            "ETH": { id: "ETH", label: "ETH", icon: "💎", market: "OKX", okxInstId: "ETH-USDT-SWAP", tvSymbol: "OKX:ETHUSDT.P", desc: "以太坊永续" },
-            "以太坊": { id: "ETH", label: "ETH", icon: "💎", market: "OKX", okxInstId: "ETH-USDT-SWAP", tvSymbol: "OKX:ETHUSDT.P", desc: "以太坊永续" },
-            "SOL": { id: "SOL", label: "SOL", icon: "🟣", market: "OKX", okxInstId: "SOL-USDT-SWAP", tvSymbol: "OKX:SOLUSDT.P", desc: "Solana永续" },
-            "DOGE": { id: "DOGE", label: "DOGE", icon: "🐕", market: "OKX", okxInstId: "DOGE-USDT-SWAP", tvSymbol: "OKX:DOGEUSDT.P", desc: "狗狗币永续" },
-            "SUI": { id: "SUI", label: "SUI", icon: "💧", market: "OKX", okxInstId: "SUI-USDT-SWAP", tvSymbol: "OKX:SUIUSDT.P", desc: "SUI永续" },
-            "XRP": { id: "XRP", label: "XRP", icon: "🪙", market: "OKX", okxInstId: "XRP-USDT-SWAP", tvSymbol: "OKX:XRPUSDT.P", desc: "瑞波永续" },
-            "PEPE": { id: "PEPE", label: "PEPE", icon: "🐸", market: "OKX", okxInstId: "PEPE-USDT-SWAP", tvSymbol: "OKX:PEPEUSDT.P", desc: "PEPE永续" }
+        const TICKER_DESC_MAP = {
+            "KORU": "3倍做多韩国ETF",
+            "SOXL": "3倍做多半导体ETF",
+            "SOXS": "3倍做空半导体ETF",
+            "QQQ":  "纳指100ETF",
+            "QQQM": "迷你纳指ETF",
+            "TQQQ": "3倍做多纳指ETF",
+            "SQQQ": "3倍做空纳指ETF",
+            "TSLA": "特斯拉",
+            "NVDA": "英伟达",
+            "AAPL": "苹果",
+            "MSFT": "微软",
+            "META": "Meta",
+            "AMZN": "亚马逊",
+            "GOOGL": "谷歌",
+            "AMD":  "AMD",
+            "SPY":  "标普500ETF",
+            "SMH":  "半导体ETF",
+            "COIN": "Coinbase",
+            "MSTR": "MicroStrategy",
+            "PLTR": "Palantir",
+            "GLD":  "黄金ETF",
+            "BTC":  "比特币",
+            "ETH":  "以太坊",
+            "SOL":  "Solana",
+            "DOGE": "狗狗币",
+            "SUI":  "SUI",
+            "XRP":  "瑞波币",
+            "PEPE": "PEPE"
         };
-        const KNOWN_CRYPTO_TICKERS = new Set(["BTC", "ETH", "SOL", "DOGE", "SUI", "XRP", "PEPE", "BNB", "AVAX", "LINK", "TON", "AAVE", "UNI", "ARB", "OP", "WIF", "ORDI", "ADA", "DOT", "LTC", "BCH", "NEAR", "APT", "TIA", "INJ", "KORU", "XQQQ"]);
-        const HOT_PRESET_SYMBOLS = [
-            { id: "TSLA", text: "TSLA 特斯拉" },
-            { id: "NVDA", text: "NVDA 英伟达" },
-            { id: "QQQ",  text: "QQQ 纳指ETF" },
-            { id: "TQQQ", text: "TQQQ 3x纳指" },
-            { id: "SOXL", text: "SOXL 3x半导体" },
-            { id: "AAPL", text: "AAPL 苹果" },
-            { id: "ETH",  text: "ETH 以太坊" },
-            { id: "SOL",  text: "SOL" }
+        const CN_TICKER_ALIAS = {
+            "特斯拉": "TSLA", "TESLA": "TSLA", "TESAL": "TSLA",
+            "英伟达": "NVDA", "NVIDIA": "NVDA",
+            "纳指": "QQQ", "纳斯达克": "QQQ",
+            "半导体": "SOXL",
+            "苹果": "AAPL", "微软": "MSFT", "亚马逊": "AMZN",
+            "谷歌": "GOOGL", "标普": "SPY", "黄金": "GLD",
+            "以太坊": "ETH"
+        };
+        // 东方财富美股精确市场代码映射 (105=纳斯达克, 107=纽交所Arca/ETF, 106=纽交所主板)
+        const EM_US_SECID_MAP = {
+            "KORU": "107.KORU", "SOXL": "107.SOXL", "SOXS": "107.SOXS",
+            "SPY":  "107.SPY",  "GLD":  "107.GLD",  "IWM":  "107.IWM",
+            "ARKK": "107.ARKK", "UVXY": "107.UVXY", "XLF":  "107.XLF",
+            "QQQ":  "105.QQQ",  "QQQM": "105.QQQM", "TQQQ": "105.TQQQ", "SQQQ": "105.SQQQ",
+            "SMH":  "105.SMH",  "TSLA": "105.TSLA", "NVDA": "105.NVDA",
+            "AAPL": "105.AAPL", "MSFT": "105.MSFT", "META": "105.META",
+            "AMZN": "105.AMZN", "GOOGL":"105.GOOGL","AMD":  "105.AMD",
+            "COIN": "105.COIN", "MSTR": "105.MSTR", "PLTR": "105.PLTR"
+        };
+        const KNOWN_CRYPTO_ONLY = new Set(["BTC", "ETH", "SOL", "DOGE", "SUI", "XRP", "PEPE", "BNB", "AVAX", "LINK", "TON", "AAVE", "UNI", "ARB", "OP", "WIF", "ORDI", "ADA", "DOT", "LTC", "BCH", "NEAR", "APT", "TIA", "INJ"]);
+        const HOT_OKX_PRESETS = [
+            { ticker: "KORU", text: "KORU合约" },
+            { ticker: "SOXL", text: "SOXL合约" },
+            { ticker: "TSLA", text: "TSLA合约" },
+            { ticker: "NVDA", text: "NVDA合约" },
+            { ticker: "QQQ",  text: "QQQ合约" },
+            { ticker: "ETH",  text: "ETH永续" },
+            { ticker: "SOL",  text: "SOL永续" }
         ];
+        const HOT_US_PRESETS = [
+            { ticker: "KORU", text: "KORU (3x韩国)" },
+            { ticker: "SOXL", text: "SOXL (3x半导体)" },
+            { ticker: "QQQ",  text: "QQQ (纳指)" },
+            { ticker: "TSLA", text: "TSLA (特斯拉)" },
+            { ticker: "NVDA", text: "NVDA (英伟达)" },
+            { ticker: "TQQQ", text: "TQQQ (3x纳指)" },
+            { ticker: "AAPL", text: "AAPL (苹果)" }
+        ];
+
+        function normalizeWatchlistItem(raw) {
+            if (!raw || typeof raw !== "object") return null;
+            let market = raw.market === "US" ? "US" : "OKX";
+            let ticker = String(raw.ticker || raw.id || "").toUpperCase()
+                .replace(/^OKX:/, "").replace(/^US:/, "")
+                .replace(/USDT\.P$/, "").replace(/-USDT-SWAP$/, "").replace(/-USDT$/, "")
+                .replace(/[^A-Z0-9.\-^]/g, "");
+            if (!ticker) return null;
+            const id = `${market}:${ticker}`;
+            const descBase = TICKER_DESC_MAP[ticker] || ticker;
+            if (market === "OKX") {
+                return {
+                    id,
+                    ticker,
+                    label: ticker,
+                    icon: "🪙",
+                    market: "OKX",
+                    okxInstId: raw.okxInstId || `${ticker}-USDT-SWAP`,
+                    tvSymbol: `OKX:${ticker}USDT.P`,
+                    pinned: Boolean(raw.pinned || id === "OKX:KORU" || id === "OKX:BTC"),
+                    desc: `OKX ${descBase}永续`
+                };
+            }
+            return {
+                id,
+                ticker,
+                label: ticker,
+                icon: "🇺🇸",
+                market: "US",
+                emSecId: raw.emSecId || EM_US_SECID_MAP[ticker] || "",
+                tvSymbol: ticker,
+                pinned: false,
+                desc: `美股 ${descBase}`
+            };
+        }
 
         let userWatchlist = DEFAULT_WATCHLIST.slice();
         try {
             const savedWl = JSON.parse(localStorage.getItem("quant_user_watchlist") || "null");
-            if (Array.isArray(savedWl) && savedWl.length >= 2) {
-                userWatchlist = savedWl;
+            if (Array.isArray(savedWl) && savedWl.length >= 1) {
+                const migrated = [];
+                const seenIds = new Set();
+                savedWl.forEach(item => {
+                    const norm = normalizeWatchlistItem(item);
+                    if (norm && !seenIds.has(norm.id)) {
+                        seenIds.add(norm.id);
+                        migrated.push(norm);
+                    }
+                });
+                // 确保两个核心默认置顶标的始终存在
+                DEFAULT_WATCHLIST.slice(0, 2).forEach(defItem => {
+                    if (!seenIds.has(defItem.id)) {
+                        migrated.unshift(defItem);
+                    }
+                });
+                if (migrated.length >= 2) userWatchlist = migrated;
             }
         } catch (e) {}
 
-        let activeWatchlistId = localStorage.getItem("quant_active_symbol_id") || "KORU";
+        let activeWatchlistId = localStorage.getItem("quant_active_symbol_id") || "OKX:KORU";
+        if (activeWatchlistId && !activeWatchlistId.includes(":")) {
+            const foundByTicker = userWatchlist.find(x => x.ticker === activeWatchlistId);
+            activeWatchlistId = foundByTicker ? foundByTicker.id : `OKX:${activeWatchlistId}`;
+        }
         if (!userWatchlist.some(x => x.id === activeWatchlistId)) {
             activeWatchlistId = userWatchlist[0].id;
         }
+        let watchlistMarketFilter = localStorage.getItem("quant_wl_market_filter") || "ALL"; // 'ALL' | 'OKX' | 'US'
         let isWatchlistDrawerOpen = false;
         let lastUsEquityFetchTs = 0;
 
@@ -1898,12 +1986,19 @@
         }
 
         function getCurrentSymKey() {
-            return getActiveSymbolObj().id;
+            const symObj = getActiveSymbolObj();
+            // 兼容旧版 KORU / BTC 存档 key，同时隔离 OKX 与 US 同名品种画线
+            if (symObj.id === "OKX:KORU") return "KORU";
+            if (symObj.id === "OKX:BTC") return "BTC";
+            if (symObj.market === "US" && customHorizontalLines[symObj.ticker] && !customHorizontalLines[symObj.id]) {
+                return symObj.ticker;
+            }
+            return symObj.id;
         }
 
         function getActiveSymbolDecimals(refPrice = null) {
-            const symKey = getCurrentSymKey();
-            if (symKey === "KORU") return 3;
+            const symObj = getActiveSymbolObj();
+            if (symObj.id === "OKX:KORU") return 3;
             let p = refPrice;
             if (p === null || !isFinite(p) || p <= 0) {
                 if (Array.isArray(lwLastDataCache) && lwLastDataCache.length > 0) {
@@ -1911,7 +2006,7 @@
                 }
             }
             if (p === null || !isFinite(p) || p <= 0) {
-                return symKey === "BTC" ? 1 : 2;
+                return symObj.ticker === "BTC" ? 1 : 2;
             }
             if (p >= 1000) return 1;
             if (p >= 1) return 2;
@@ -1924,22 +2019,18 @@
             localStorage.setItem("quant_active_symbol_id", activeWatchlistId);
         }
 
-        function resolveTickerSpec(rawInput, forcedMarket = "AUTO") {
+        function resolveTickerSpecs(rawInput, forcedMarket = "US") {
             const cleaned = String(rawInput || "").trim();
-            if (!cleaned) return null;
+            if (!cleaned) return [];
             const upper = cleaned.toUpperCase();
 
-            // 1. 优先命中别名/中文/常见拼写纠正映射表
-            if (SYMBOL_ALIAS_MAP[upper] && forcedMarket === "AUTO") {
-                return { ...SYMBOL_ALIAS_MAP[upper], pinned: false };
-            }
-            if (SYMBOL_ALIAS_MAP[cleaned] && forcedMarket === "AUTO") {
-                return { ...SYMBOL_ALIAS_MAP[cleaned], pinned: false };
-            }
+            let explicitMarket = forcedMarket;
+            if (upper.startsWith("OKX:")) explicitMarket = "OKX";
+            else if (upper.startsWith("US:") || upper.startsWith("NASDAQ:") || upper.startsWith("NYSE:") || upper.startsWith("AMEX:")) explicitMarket = "US";
 
-            // 2. 提取标准英文代码（兼容 "OKX:SOLUSDT.P" / "SOL-USDT-SWAP" / "TSLA"）
-            let ticker = upper
+            let ticker = CN_TICKER_ALIAS[cleaned] || CN_TICKER_ALIAS[upper] || upper
                 .replace(/^OKX:/, "")
+                .replace(/^US:/, "")
                 .replace(/^NASDAQ:/, "")
                 .replace(/^NYSE:/, "")
                 .replace(/^AMEX:/, "")
@@ -1948,37 +2039,29 @@
                 .replace(/-USDT$/, "")
                 .replace(/[^A-Z0-9.\-^]/g, "");
 
-            if (!ticker) return null;
+            if (!ticker) return [];
 
-            const aliasHit = SYMBOL_ALIAS_MAP[ticker];
-            let market = forcedMarket;
-            if (market === "AUTO") {
-                if (aliasHit) market = aliasHit.market;
-                else if (KNOWN_CRYPTO_TICKERS.has(ticker)) market = "OKX";
-                else market = "US";
+            // 纯加密货币（如 BTC/ETH/SOL）自动归类至 OKX 交易所合约
+            if (KNOWN_CRYPTO_ONLY.has(ticker)) {
+                return [normalizeWatchlistItem({ ticker, market: "OKX" })];
             }
 
-            if (market === "OKX") {
-                return {
-                    id: ticker,
-                    label: ticker,
-                    icon: (aliasHit && aliasHit.icon) || "🪙",
-                    market: "OKX",
-                    okxInstId: `${ticker}-USDT-SWAP`,
-                    tvSymbol: `OKX:${ticker}USDT.P`,
-                    pinned: false,
-                    desc: (aliasHit && aliasHit.desc) || `${ticker}永续`
-                };
+            if (explicitMarket === "BOTH") {
+                return [
+                    normalizeWatchlistItem({ ticker, market: "OKX" }),
+                    normalizeWatchlistItem({ ticker, market: "US" })
+                ];
             }
-            return {
-                id: ticker,
-                label: ticker,
-                icon: (aliasHit && aliasHit.icon) || "🇺🇸",
-                market: "US",
-                tvSymbol: ticker,
-                pinned: false,
-                desc: (aliasHit && aliasHit.desc) || `${ticker} 美股/ETF`
-            };
+            return [normalizeWatchlistItem({ ticker, market: explicitMarket === "OKX" ? "OKX" : "US" })];
+        }
+
+        function setWatchlistMarketFilter(filterMode, btnEl) {
+            watchlistMarketFilter = filterMode;
+            localStorage.setItem("quant_wl_market_filter", filterMode);
+            document.querySelectorAll("#marketFilterGroup button").forEach(b => {
+                b.classList.toggle("active", b.dataset.mfilter === filterMode);
+            });
+            renderWatchlistBar();
         }
 
         function toggleWatchlistDrawer(forceState) {
@@ -1995,60 +2078,120 @@
         }
 
         function renderHotPresetChips() {
-            const container = document.getElementById("hotPresetChipsContainer");
-            if (!container) return;
-            container.innerHTML = HOT_PRESET_SYMBOLS.map(item => {
-                const exists = userWatchlist.some(w => w.id === item.id);
-                if (exists) {
-                    return `<button type="button" class="btn-sm active" onclick="selectWatchlistSymbol('${item.id}')" style="font-size:10px; padding:2px 7px;">✓ ${item.text}</button>`;
-                }
-                return `<button type="button" class="btn-sm" onclick="quickAddPresetSymbol('${item.id}')" style="font-size:10px; padding:2px 7px; border-color:rgba(16,185,129,0.4); color:#6ee7b7;">+ ${item.text}</button>`;
-            }).join("");
+            const okxContainer = document.getElementById("hotOkxPresetsContainer");
+            const usContainer = document.getElementById("hotUsPresetsContainer");
+            if (okxContainer) {
+                okxContainer.innerHTML = HOT_OKX_PRESETS.map(item => {
+                    const targetId = `OKX:${item.ticker}`;
+                    const exists = userWatchlist.some(w => w.id === targetId);
+                    if (exists) {
+                        return `<button type="button" class="btn-sm active" onclick="selectWatchlistSymbol('${targetId}')" style="font-size:10px; padding:2px 7px;">✓ 🪙 ${item.text}</button>`;
+                    }
+                    return `<button type="button" class="btn-sm" onclick="quickAddPresetSymbol('${item.ticker}', 'OKX')" style="font-size:10px; padding:2px 7px; border-color:rgba(245,158,11,0.4); color:#fcd34d;">+ 🪙 ${item.text}</button>`;
+                }).join("");
+            }
+            if (usContainer) {
+                usContainer.innerHTML = HOT_US_PRESETS.map(item => {
+                    const targetId = `US:${item.ticker}`;
+                    const exists = userWatchlist.some(w => w.id === targetId);
+                    if (exists) {
+                        return `<button type="button" class="btn-sm active" onclick="selectWatchlistSymbol('${targetId}')" style="font-size:10px; padding:2px 7px;">✓ 🇺🇸 ${item.text}</button>`;
+                    }
+                    return `<button type="button" class="btn-sm" onclick="quickAddPresetSymbol('${item.ticker}', 'US')" style="font-size:10px; padding:2px 7px; border-color:rgba(96,165,250,0.45); color:#93c5fd;">+ 🇺🇸 ${item.text}</button>`;
+                }).join("");
+            }
         }
 
         function renderWatchlistBar() {
             const group = document.getElementById("watchlistButtonsGroup");
             if (!group) return;
-            group.innerHTML = userWatchlist.map(item => {
+            document.querySelectorAll("#marketFilterGroup button").forEach(b => {
+                b.classList.toggle("active", b.dataset.mfilter === watchlistMarketFilter);
+            });
+
+            const filteredList = userWatchlist.filter(item => {
+                if (watchlistMarketFilter === "ALL") return true;
+                return item.market === watchlistMarketFilter;
+            });
+
+            group.innerHTML = filteredList.map(item => {
                 const isAct = item.id === activeWatchlistId;
+                const mTag = item.market === "OKX" ? "🪙" : "🇺🇸";
+                const suffix = item.market === "OKX" ? ".P" : "";
                 const delHtml = item.pinned
                     ? ""
-                    : `<span onclick="event.stopPropagation(); removeWatchlistSymbol('${item.id}')" title="从自选移除 ${item.label}" style="margin-left:4px; opacity:0.65; color:#f87171; font-weight:900;">×</span>`;
-                return `<button type="button" class="btn-sm ${isAct ? 'active' : ''}" onclick="selectWatchlistSymbol('${item.id}')" title="${item.desc || item.label}">${item.icon || ''} ${item.label}${delHtml}</button>`;
+                    : `<span onclick="event.stopPropagation(); removeWatchlistSymbol('${item.id}')" title="从自选移除 ${item.desc}" style="margin-left:4px; opacity:0.65; color:#f87171; font-weight:900;">×</span>`;
+                return `<button type="button" class="btn-sm ${isAct ? 'active' : ''}" onclick="selectWatchlistSymbol('${item.id}')" title="${item.desc}">${mTag} ${item.label}${suffix}${delHtml}</button>`;
             }).join("");
+
+            // 同步更新子栏中的【一键切换同标的另一市场】按钮
+            const cur = getActiveSymbolObj();
+            const sibBtn = document.getElementById("btnSwitchSiblingMarket");
+            if (sibBtn) {
+                if (KNOWN_CRYPTO_ONLY.has(cur.ticker)) {
+                    sibBtn.style.display = "none";
+                } else {
+                    sibBtn.style.display = "inline-block";
+                    if (cur.market === "OKX") {
+                        sibBtn.textContent = `⇄ 切至 🇺🇸 ${cur.ticker}美股`;
+                        sibBtn.title = `当前为 OKX 交易所永续合约，点击切换至美股现货/ETF (${cur.ticker})`;
+                    } else {
+                        sibBtn.textContent = `⇄ 切至 🪙 ${cur.ticker}合约`;
+                        sibBtn.title = `当前为美股现货/ETF，点击切换至 OKX 交易所永续合约 (${cur.ticker}-USDT-SWAP)`;
+                    }
+                }
+            }
+
             renderHotPresetChips();
         }
 
-        function quickAddPresetSymbol(presetId) {
-            const spec = resolveTickerSpec(presetId, "AUTO");
+        function switchActiveSymbolMarket() {
+            const cur = getActiveSymbolObj();
+            const targetMarket = cur.market === "OKX" ? "US" : "OKX";
+            quickAddPresetSymbol(cur.ticker, targetMarket);
+        }
+
+        function quickAddPresetSymbol(ticker, market) {
+            const spec = normalizeWatchlistItem({ ticker, market });
             if (!spec) return;
             if (!userWatchlist.some(x => x.id === spec.id)) {
                 userWatchlist.push(spec);
                 saveWatchlistToStorage();
             }
+            if (watchlistMarketFilter !== "ALL" && watchlistMarketFilter !== spec.market) {
+                watchlistMarketFilter = "ALL";
+                localStorage.setItem("quant_wl_market_filter", "ALL");
+            }
             selectWatchlistSymbol(spec.id);
-            showToast(`已添加自选品种：${spec.label} (${spec.desc})`);
+            showToast(`已切换至：${spec.icon} ${spec.desc}`);
         }
 
         function handleAddCustomSymbol() {
             const inp = document.getElementById("newTickerInput");
             const marketSel = document.getElementById("newTickerMarketSelect");
             if (!inp) return;
-            const forcedMarket = marketSel ? marketSel.value : "AUTO";
-            const spec = resolveTickerSpec(inp.value, forcedMarket);
-            if (!spec) {
-                showToast("请输入有效的品种代码或名称，如 TSLA、NVDA、QQQ、SOL");
+            const forcedMarket = marketSel ? marketSel.value : "US";
+            const specs = resolveTickerSpecs(inp.value, forcedMarket);
+            if (!specs.length) {
+                showToast("请输入有效的品种代码，如 KORU、SOXL、QQQ、TSLA、NVDA");
                 return;
             }
             inp.value = "";
-            if (!userWatchlist.some(x => x.id === spec.id)) {
-                userWatchlist.push(spec);
-                saveWatchlistToStorage();
-                showToast(`已成功添加品种：${spec.label}（${spec.desc}）`);
-            } else {
-                showToast(`${spec.label} 已在自选列表中，已为你切换`);
+            let addedCount = 0;
+            specs.forEach(spec => {
+                if (!userWatchlist.some(x => x.id === spec.id)) {
+                    userWatchlist.push(spec);
+                    addedCount++;
+                }
+            });
+            saveWatchlistToStorage();
+            if (watchlistMarketFilter !== "ALL" && specs.length === 1 && watchlistMarketFilter !== specs[0].market) {
+                watchlistMarketFilter = "ALL";
+                localStorage.setItem("quant_wl_market_filter", "ALL");
             }
-            selectWatchlistSymbol(spec.id);
+            const lastSpec = specs[specs.length - 1];
+            showToast(addedCount > 0 ? `已添加自选：${specs.map(s => s.icon + s.desc).join(" + ")}` : `已切换至：${lastSpec.icon} ${lastSpec.desc}`);
+            selectWatchlistSymbol(lastSpec.id);
         }
 
         function removeWatchlistSymbol(symId) {
@@ -2062,7 +2205,7 @@
             saveWatchlistToStorage();
             renderWatchlistBar();
             selectWatchlistSymbol(activeWatchlistId);
-            showToast(`已移除自选品种：${removed.label}`);
+            showToast(`已移除自选：${removed.icon} ${removed.desc}`);
         }
 
         function selectWatchlistSymbol(symId) {
@@ -2756,7 +2899,7 @@
             const p = getChartPalette();
             const symObj = getActiveSymbolObj();
             const dec = getActiveSymbolDecimals(bar.close);
-            const symName = symObj.market === "OKX" ? (symObj.okxInstId || `${symObj.id}-USDT-SWAP`) : `${symObj.label} (${symObj.desc || '美股/ETF'})`;
+            const symName = symObj.market === "OKX" ? `🪙 ${symObj.okxInstId || `${symObj.ticker}-USDT-SWAP`}` : `🇺🇸 ${symObj.ticker} (${symObj.desc || '美股/ETF'})`;
             const tfLabel = { "1": "1m", "5": "5m", "15": "15m", "60": "1H", "240": "4H", "D": "1D", "3D": "3D", "W": "1W", "M": "1M" }[tvInterval] || "1H";
             const chg = bar.open > 0 ? (((bar.close - bar.open) / bar.open) * 100).toFixed(2) : "0.00";
             const chgColor = bar.close >= bar.open ? "#10b981" : "#ef4444";
@@ -3117,7 +3260,13 @@
         async function fetchOkxCandlesForSymbol(symObj, interval) {
             const barMap = { "1": "1m", "5": "5m", "15": "15m", "60": "1H", "240": "4H", "D": "1Dutc", "3D": "3Dutc", "W": "1Wutc", "M": "1Mutc" };
             const bar = barMap[interval] || "1H";
-            const candidates = [symObj.okxInstId || `${symObj.id}-USDT-SWAP`, `${symObj.id}-USDT`];
+            const tk = String(symObj.ticker || symObj.id || "").toUpperCase().replace(/^OKX:/, "");
+            const candidates = [...new Set([
+                symObj.okxInstId || `${tk}-USDT-SWAP`,
+                `${tk}-USDT-SWAP`,
+                `X${tk}-USDT-SWAP`,
+                `${tk}-USDT`
+            ])];
 
             for (const instId of candidates) {
                 try {
@@ -3152,8 +3301,11 @@
                 } catch (e) {}
             }
 
-            // 国内免翻墙兜底：主流加密资产自动回退至 CryptoCompare 公开历史 K 线
-            return await fetchCryptoCompareFallbackCandles(symObj.id, interval);
+            // 仅对纯加密货币（BTC/ETH/SOL等）回退至 CryptoCompare 现货K线，避免误用错误数据源
+            if (KNOWN_CRYPTO_ONLY.has(tk)) {
+                return await fetchCryptoCompareFallbackCandles(tk, interval);
+            }
+            return [];
         }
 
         function parseYahooChartPayload(json, aggStep = 1) {
@@ -3184,100 +3336,109 @@
             return aggregateCandlesByStep(rawCandles, aggStep).slice(-240);
         }
 
-        function fetchSinaUsKlineJsonp(ticker, interval) {
-            return new Promise((resolve) => {
-                // 新浪财经美股直连数据源：国内三网免翻墙毫秒级直出，支持 5m/15m/1H/4H/日/周/月线
-                const sym = String(ticker || "").toLowerCase().replace(/[^a-z0-9.]/g, "");
-                if (!sym) return resolve([]);
+        function parseEastmoneyUsKlineRows(klines, aggStep = 1) {
+            if (!Array.isArray(klines) || klines.length < 5) return [];
+            const parsed = [];
+            const seen = new Set();
 
-                const isDailyOrAbove = ["D", "3D", "W", "M"].includes(interval);
-                const scaleMap = { "1": "5", "5": "5", "15": "15", "60": "60", "240": "60" };
-                const aggMap   = { "1": 1,   "5": 1,   "15": 1,    "60": 1,    "240": 4,   "D": 1, "3D": 3, "W": 5, "M": 21 };
-                const aggStep = aggMap[interval] || 1;
-                const dataLen = Math.min(960, 245 * aggStep);
+            klines.forEach(line => {
+                // fields2=f51,f52,f53,f54,f55,f56 -> 时间,开盘,收盘,最高,最低,成交量
+                const parts = String(line).split(",");
+                if (parts.length < 5) return;
+                const m = parts[0].trim().match(/(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?/);
+                if (!m) return;
 
-                const cbName = "_sinaUsCb_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
-                const script = document.createElement("script");
-                let settled = false;
+                const yr = Number(m[1]), mo = Number(m[2]), dy = Number(m[3]);
+                const hr = m[4] !== undefined ? Number(m[4]) : 16;
+                const mi = m[5] !== undefined ? Number(m[5]) : 0;
+                // 美东时间 (America/New_York) 精确换算为 UTC 秒时间戳，使图表 UTC+8 坐标完全准确
+                const isDst = (mo > 3 && mo < 11) || (mo === 3 && dy >= 8) || (mo === 11 && dy <= 7);
+                const utcOffsetHours = isDst ? 4 : 5;
+                const ts = Math.floor(Date.UTC(yr, mo - 1, dy, hr + utcOffsetHours, mi, 0) / 1000);
 
-                const cleanup = () => {
-                    try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
-                    if (script.parentNode) script.parentNode.removeChild(script);
-                };
-
-                const timer = setTimeout(() => {
-                    if (settled) return;
-                    settled = true;
-                    cleanup();
-                    resolve([]);
-                }, 4500);
-
-                window[cbName] = (payload) => {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(timer);
-                    cleanup();
-
-                    try {
-                        let rows = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
-                        if (!rows.length) return resolve([]);
-                        const parsed = [];
-                        const seen = new Set();
-
-                        rows.forEach(item => {
-                            const rawD = item.day || item.d || item.date;
-                            if (!rawD) return;
-                            // 新浪美股时间为美东时间 (America/New_York)，转换为标准 Unix 秒时间戳（自动对齐 UTC+8 看盘坐标）
-                            const m = String(rawD).match(/(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
-                            if (!m) return;
-                            const yr = Number(m[1]), mo = Number(m[2]), dy = Number(m[3]);
-                            const hr = m[4] !== undefined ? Number(m[4]) : 16;
-                            const mi = m[5] !== undefined ? Number(m[5]) : 0;
-                            const sc = m[6] !== undefined ? Number(m[6]) : 0;
-                            // 美东夏令时 EDT = UTC-4, 冬令时 EST = UTC-5
-                            const isDst = (mo > 3 && mo < 11) || (mo === 3 && dy >= 8) || (mo === 11 && dy <= 7);
-                            const utcOffsetHours = isDst ? 4 : 5;
-                            const ts = Math.floor(Date.UTC(yr, mo - 1, dy, hr + utcOffsetHours, mi, sc) / 1000);
-
-                            const o = parseFloat(item.open ?? item.o);
-                            const h = parseFloat(item.high ?? item.h);
-                            const l = parseFloat(item.low ?? item.l);
-                            const c = parseFloat(item.close ?? item.c);
-                            const v = parseFloat(item.volume ?? item.v) || 0;
-                            if (!isFinite(o) || !isFinite(h) || !isFinite(l) || !isFinite(c) || c <= 0) return;
-                            if (!seen.has(ts)) {
-                                seen.add(ts);
-                                parsed.push({ time: ts, open: o, high: h, low: l, close: c, vol: v });
-                            }
-                        });
-
-                        parsed.sort((a, b) => a.time - b.time);
-                        if (parsed.length < 5) return resolve([]);
-                        resolve(aggregateCandlesByStep(parsed, aggStep).slice(-240));
-                    } catch (e) {
-                        resolve([]);
-                    }
-                };
-
-                script.onerror = () => {
-                    if (settled) return;
-                    settled = true;
-                    clearTimeout(timer);
-                    cleanup();
-                    resolve([]);
-                };
-
-                if (isDailyOrAbove) {
-                    script.src = `https://finance.sina.com.cn/staticdata/api/jsonp_v2.php/window.${cbName}=/US_MinKService.getDailyK?symbol=${encodeURIComponent(sym)}&___qn=3`;
-                } else {
-                    const scale = scaleMap[interval] || "60";
-                    script.src = `https://finance.sina.com.cn/staticdata/api/jsonp_v2.php/window.${cbName}=/US_MinKService.getMinK?symbol=${encodeURIComponent(sym)}&type=${scale}&___qn=3&datalen=${dataLen}`;
+                const o = parseFloat(parts[1]);
+                const c = parseFloat(parts[2]);
+                const h = parseFloat(parts[3]);
+                const l = parseFloat(parts[4]);
+                const v = parseFloat(parts[5]) || 0;
+                if (!isFinite(o) || !isFinite(c) || !isFinite(h) || !isFinite(l) || c <= 0) return;
+                if (!seen.has(ts)) {
+                    seen.add(ts);
+                    parsed.push({ time: ts, open: o, high: h, low: l, close: c, vol: v });
                 }
-                document.head.appendChild(script);
             });
+
+            parsed.sort((a, b) => a.time - b.time);
+            if (parsed.length < 5) return [];
+            return aggregateCandlesByStep(parsed, aggStep).slice(-240);
         }
 
-        async function fetchUsEquityCandlesForSymbol(ticker, interval) {
+        async function resolveEastmoneyUsSecId(ticker) {
+            const tk = String(ticker || "").toUpperCase();
+            if (EM_US_SECID_MAP[tk]) return EM_US_SECID_MAP[tk];
+            try {
+                const cachedMap = JSON.parse(localStorage.getItem("quant_em_secid_cache") || "{}");
+                if (cachedMap[tk]) return cachedMap[tk];
+            } catch (e) {}
+
+            try {
+                const suggestUrl = `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(tk)}&type=14&token=D43BF722C8E33BDC906FB84D85E756E8&count=6`;
+                const json = await fetchJsonWithTimeout(suggestUrl, 2600);
+                const items = json?.QuotationCodeTable?.Data;
+                if (Array.isArray(items)) {
+                    const hit = items.find(x =>
+                        String(x.Code || "").toUpperCase() === tk &&
+                        ["105", "106", "107"].includes(String(x.MktNum || ""))
+                    );
+                    if (hit && hit.QuoteID) {
+                        try {
+                            const cachedMap = JSON.parse(localStorage.getItem("quant_em_secid_cache") || "{}");
+                            cachedMap[tk] = hit.QuoteID;
+                            localStorage.setItem("quant_em_secid_cache", JSON.stringify(cachedMap));
+                        } catch (e) {}
+                        return hit.QuoteID;
+                    }
+                }
+            } catch (e) {}
+            return "";
+        }
+
+        async function fetchEastmoneyUsCandles(symObj, interval) {
+            const tk = String(symObj.ticker || symObj.id || "").toUpperCase().replace(/^US:/, "");
+            if (!tk) return [];
+
+            // 东方财富 K 线周期代码: 1=1m, 5=5m, 15=15m, 60=1H, 101=1D, 102=1W, 103=1M
+            const kltMap = { "1": "1", "5": "5", "15": "15", "60": "60", "240": "60", "D": "101", "3D": "101", "W": "102", "M": "103" };
+            const aggMap = { "1": 1,   "5": 1,   "15": 1,    "60": 1,    "240": 4,    "D": 1,     "3D": 3,     "W": 1,     "M": 1 };
+            const klt = kltMap[interval] || "60";
+            const aggStep = aggMap[interval] || 1;
+            const lmt = Math.min(960, 245 * aggStep);
+
+            const knownSecId = symObj.emSecId || await resolveEastmoneyUsSecId(tk);
+            const secIdCandidates = [...new Set([
+                knownSecId,
+                `105.${tk}`,
+                `107.${tk}`,
+                `106.${tk}`
+            ].filter(Boolean))];
+
+            for (const secid of secIdCandidates) {
+                try {
+                    const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${encodeURIComponent(secid)}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56&klt=${klt}&fqt=1&end=20500101&lmt=${lmt}`;
+                    const json = await fetchJsonWithTimeout(url, 3200);
+                    const klines = json?.data?.klines;
+                    const candles = parseEastmoneyUsKlineRows(klines, aggStep);
+                    if (candles.length >= 5) {
+                        symObj.emSecId = secid;
+                        return candles;
+                    }
+                } catch (e) {}
+            }
+            return [];
+        }
+
+        async function fetchUsEquityCandlesForSymbol(symObj, interval) {
+            const ticker = String(symObj.ticker || symObj.id || "").toUpperCase().replace(/^US:/, "");
             const cfgMap = {
                 "1":   { yfInt: "1m",  yfRange: "5d",  agg: 1 },
                 "5":   { yfInt: "5m",  yfRange: "1mo", agg: 1 },
@@ -3292,7 +3453,11 @@
             const cfg = cfgMap[interval] || cfgMap["60"];
             const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${cfg.yfInt}&range=${cfg.yfRange}&includePrePost=false`;
 
-            // 1. 若已配置自定义中继，优先走自定义中继请求 Yahoo Finance 原始高清全周期 K 线
+            // 1. 优先通过国内三网直连的东方财富美股/ETF K线接口获取（全周期 1m/5m/15m/1H/4H/1D/1W/1M 免翻墙秒出）
+            const emCandles = await fetchEastmoneyUsCandles(symObj, interval);
+            if (emCandles.length >= 5) return emCandles;
+
+            // 2. 若已配置自定义中继，走自定义中继请求 Yahoo Finance
             const customRelay = getCustomRelayBase();
             if (customRelay) {
                 try {
@@ -3302,31 +3467,18 @@
                 } catch (e) {}
             }
 
-            // 2. 并行竞速：新浪财经美股直连接口（免翻墙秒开） vs Yahoo Finance 多镜像代理
-            const sinaPromise = fetchSinaUsKlineJsonp(ticker, interval);
-            const yahooProxyPromise = (async () => {
-                const candidateUrls = [
-                    `https://corsproxy.io/?url=${encodeURIComponent(yfUrl)}`,
-                    `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`,
-                    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yfUrl)}`,
-                    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${cfg.yfInt}&range=${cfg.yfRange}&includePrePost=false`
-                ];
-                for (const u of candidateUrls) {
-                    try {
-                        const json = await fetchJsonWithTimeout(u, 3200);
-                        const candles = parseYahooChartPayload(json, cfg.agg);
-                        if (candles.length >= 5) return candles;
-                    } catch (e) {}
-                }
-                return [];
-            })();
-
-            const sinaCandles = await sinaPromise;
-            if (sinaCandles && sinaCandles.length >= 5) return sinaCandles;
-
-            const yfCandles = await yahooProxyPromise;
-            if (yfCandles && yfCandles.length >= 5) return yfCandles;
-
+            // 3. 备用公共镜像代理
+            const candidateUrls = [
+                `https://corsproxy.io/?url=${encodeURIComponent(yfUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`
+            ];
+            for (const u of candidateUrls) {
+                try {
+                    const json = await fetchJsonWithTimeout(u, 2800);
+                    const candles = parseYahooChartPayload(json, cfg.agg);
+                    if (candles.length >= 5) return candles;
+                } catch (e) {}
+            }
             return [];
         }
 
@@ -3342,16 +3494,16 @@
             if (!lwChart) return;
 
             const symObj = getActiveSymbolObj();
-            const isKoru = symObj.id === "KORU";
+            const isKoru = symObj.id === "OKX:KORU";
             const reqSymId = symObj.id;
             const reqInterval = tvInterval;
 
             if (!preserveViewport) {
                 const ohlcEl = document.getElementById("lwOhlcLine");
                 const sigBadge = document.getElementById("stratLatestSignalBadge");
-                if (ohlcEl) ohlcEl.textContent = `${symObj.label} (${symObj.desc || symObj.market}) · 正在拉取K线数据...`;
+                if (ohlcEl) ohlcEl.textContent = `${symObj.icon} ${symObj.desc || symObj.label} · 正在拉取K线数据...`;
                 if (sigBadge) {
-                    sigBadge.textContent = symObj.market === "US" ? `正在同步美股 ${symObj.label} 盘面...` : `正在扫描 ${symObj.label} 破阵3.3信号...`;
+                    sigBadge.textContent = symObj.market === "US" ? `正在同步美股 ${symObj.ticker} 行情...` : `正在扫描 OKX ${symObj.ticker} 永续信号...`;
                     sigBadge.style.color = "var(--neon-cyan)";
                 }
             }
@@ -3360,7 +3512,7 @@
                 let candles = [];
                 if (symObj.market === "US") {
                     lastUsEquityFetchTs = Date.now();
-                    candles = await fetchUsEquityCandlesForSymbol(symObj.id, reqInterval);
+                    candles = await fetchUsEquityCandlesForSymbol(symObj, reqInterval);
                 } else {
                     candles = await fetchOkxCandlesForSymbol(symObj, reqInterval);
                 }
@@ -3464,7 +3616,7 @@
         function renderAllLwPriceLines() {
             if (!lwCandleSeries) return;
             const p = getChartPalette();
-            const isKoru = getCurrentSymKey() === "KORU";
+            const isKoru = getActiveSymbolObj().id === "OKX:KORU";
             const symKey = getCurrentSymKey();
             const { lastSH, lastSL } = lwLastSmcSnapshot;
 
@@ -4879,7 +5031,7 @@
         }
 
         async function fetchOkxOiHistoryForCandles(candles, symObj, interval) {
-            const ticker = String(symObj.id || "").toUpperCase();
+            const ticker = String(symObj.ticker || symObj.id || "").toUpperCase().replace(/^OKX:/, "").replace(/^US:/, "");
             let oiRows = [];
 
             // 1. 优先从币安永续公开历史持仓接口拉取（自动经过自定义中继转发）
@@ -7350,5 +7502,5 @@
         });
     </script>
 </body>
-<!-- Build: v9.4-dual-engine-us-equity-sina-yahoo-feed -->
+<!-- Build: v9.5-separated-okx-vs-us-market-eastmoney-direct -->
 </html>
