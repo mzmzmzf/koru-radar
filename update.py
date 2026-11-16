@@ -1,152 +1,139 @@
+import csv
+import glob
+import json
 import os
 import re
-import csv
-import json
-import glob
+from datetime import datetime, timedelta
 
-# 统一校准为 KOSPI 200 单倍成分股总市值口径（万亿韩元）
-BASE_HISTORY = [
-    {"date": "10/08", "cap": 2090.25, "point": 865.20},
-    {"date": "10/10", "cap": 2070.10, "point": 855.10},
-    {"date": "10/12", "cap": 2035.00, "point": 840.00},
-    {"date": "10/14", "cap": 2032.55, "point": 839.20},
-    {"date": "10/16", "cap": 1990.20, "point": 820.50},
-    {"date": "10/18", "cap": 2002.50, "point": 825.00},
-    {"date": "10/20", "cap": 2010.40, "point": 828.60},
-    {"date": "10/22", "cap": 1990.10, "point": 819.40},
-    {"date": "10/24", "cap": 2007.80, "point": 826.80},
-    {"date": "10/26", "cap": 1987.50, "point": 818.20},
-    {"date": "10/28", "cap": 1990.00, "point": 819.00},
-    {"date": "10/30", "cap": 1982.60, "point": 815.40},
-    {"date": "11/01", "cap": 1997.50, "point": 822.00},
-    {"date": "11/02", "cap": 2034.25, "point": 838.00},
-    {"date": "11/03", "cap": 2027.60, "point": 835.40},
-    {"date": "11/04", "cap": 2007.50, "point": 826.00},
-    {"date": "11/05", "cap": 2020.25, "point": 831.20},
-    {"date": "11/06", "cap": 2000.10, "point": 823.00},
-    {"date": "11/07", "cap": 2004.00, "point": 824.50},
-    {"date": "11/08", "cap": 1975.20, "point": 811.20},
-    {"date": "11/09", "cap": 1907.50, "point": 782.40},
-    {"date": "11/10", "cap": 1915.10, "point": 785.60},
-    {"date": "11/11", "cap": 2044.43, "point": 838.32}
-]
-
-JSON_PATH = os.path.join("data", "kospi_history.json")
-MIN_VALID_CAP = 1200.0   # KOSPI 200 单倍市值物理下限（万亿韩元）
-MAX_VALID_CAP = 3500.0   # KOSPI 200 单倍市值物理上限（万亿韩元）
-ANCHOR_CAP_1111 = 2044.43
-ANCHOR_PT_1111 = 838.32
+DATA_DIR = "data"
+OUTPUT_JSON = os.path.join(DATA_DIR, "kospi_history.json")
+MAX_HISTORY_DAYS = 185  # 保留半年（约 6 个月 / 130+ 个交易日）历史数据
 
 
-def normalize_to_trillion_krw(raw_sum):
-    """自动匹配 원 / 천원 / 백만원 / 억원 量级，锁定单倍万亿韩元区间"""
-    for divisor in (1e12, 1e9, 1e6, 1e4, 1.0):
-        val = raw_sum / divisor
-        if MIN_VALID_CAP <= val <= MAX_VALID_CAP:
-            return round(val, 2)
-    return None
-
-
-def parse_krx_csv(filepath):
+def read_csv_rows(filepath):
     for enc in ("utf-8-sig", "cp949", "euc-kr", "utf-8"):
         try:
-            with open(filepath, "r", encoding=enc) as f:
+            with open(filepath, "r", encoding=enc, newline="") as f:
                 rows = list(csv.reader(f))
-            if len(rows) < 2:
-                continue
-
-            header_row_idx = 0
-            cap_idx = -1
-            for r_idx in range(min(5, len(rows))):
-                for c_idx, col in enumerate(rows[r_idx]):
-                    clean_col = col.strip().replace(" ", "")
-                    if any(k in clean_col for k in ("상장시가총액", "시가총액", "MKTCAP", "MarketCap", "市值")):
-                        header_row_idx = r_idx
-                        cap_idx = c_idx
-                        break
-                if cap_idx != -1:
-                    break
-
-            data_rows = rows[header_row_idx + 1:]
-            valid_rows = [
-                r for r in data_rows
-                if r and not any(w in "".join(r) for w in ("합계", "총계", "소계", "Total"))
-            ]
-
-            if cap_idx != -1:
-                total_val = 0.0
-                for row in valid_rows:
-                    if cap_idx < len(row):
-                        num_str = row[cap_idx].replace(",", "").strip()
-                        try:
-                            total_val += float(num_str)
-                        except ValueError:
-                            pass
-                cap = normalize_to_trillion_krw(total_val)
-                if cap:
-                    return cap
-
-            num_cols = max(len(r) for r in valid_rows)
-            header = rows[header_row_idx]
-            for c_idx in range(num_cols):
-                col_name = header[c_idx].strip() if c_idx < len(header) else ""
-                if any(bad in col_name for bad in ("코드", "거래량", "거래대금", "주식수", "종가", "대비", "등락")):
-                    continue
-                col_sum = 0.0
-                for row in valid_rows:
-                    if c_idx < len(row):
-                        num_str = row[c_idx].replace(",", "").strip()
-                        try:
-                            col_sum += float(num_str)
-                        except ValueError:
-                            pass
-                cap = normalize_to_trillion_krw(col_sum)
-                if cap:
-                    return cap
+            if rows and len(rows) >= 2:
+                return rows
         except Exception:
             continue
-    return None
+    return []
+
+
+def parse_number(raw):
+    if raw is None:
+        return 0.0
+    cleaned = str(raw).replace(",", "").replace('"', "").strip()
+    try:
+        return float(cleaned)
+    except ValueError:
+        return 0.0
+
+
+def normalize_cap_trillion(raw_cap):
+    if raw_cap <= 0:
+        return 0.0
+    if raw_cap > 1e11:      # 원 -> 조원 (万亿韩元)
+        return raw_cap / 1e12
+    if raw_cap > 1e5:       # 백만원 -> 조원
+        return raw_cap / 1e6
+    return raw_cap
 
 
 def main():
-    os.makedirs("data", exist_ok=True)
-    # 每次重构基于校准后的单倍底座，彻底清除旧双倍脏数据
-    history_map = {item["date"]: dict(item) for item in BASE_HISTORY}
+    os.makedirs(DATA_DIR, exist_ok=True)
+    records_by_date = {}
 
-    if os.path.exists(JSON_PATH):
-        with open(JSON_PATH, "r", encoding="utf-8") as f:
-            old_data = json.load(f)
-        for item in old_data:
-            d = item.get("date")
-            c = float(item.get("cap", 0))
-            if d and d not in history_map and MIN_VALID_CAP <= c <= MAX_VALID_CAP:
-                history_map[d] = item
+    # 1. 读取已有历史记录作为底稿
+    if os.path.exists(OUTPUT_JSON):
+        try:
+            with open(OUTPUT_JSON, "r", encoding="utf-8") as f:
+                old_list = json.load(f)
+            if isinstance(old_list, list):
+                for item in old_list:
+                    d = str(item.get("date", "")).strip()
+                    if d and item.get("cap"):
+                        records_by_date[d] = {
+                            "date": d,
+                            "cap": round(float(item["cap"]), 2),
+                            **({"point": round(float(item["point"]), 2)} if item.get("point") else {})
+                        }
+        except Exception:
+            pass
 
-    csv_files = sorted(glob.glob("data_*_*.csv"))
-    parsed_files = []
-
+    # 2. 扫描根目录与 data/ 目录下的所有 data_*.csv 文件
+    csv_files = sorted(set(glob.glob("data_*.csv") + glob.glob(os.path.join(DATA_DIR, "data_*.csv"))))
     for fp in csv_files:
-        m = re.search(r"data_\d+_(\d{4})(\d{2})(\d{2})\.csv$", os.path.basename(fp))
-        if not m:
+        rows = read_csv_rows(fp)
+        if len(rows) < 2:
             continue
-        date_str = f"{m.group(2)}/{m.group(3)}"
-        cap = parse_krx_csv(fp)
-        if cap:
-            est_point = round(ANCHOR_PT_1111 * (cap / ANCHOR_CAP_1111), 2)
-            history_map[date_str] = {
-                "date": date_str,
-                "cap": cap,
-                "point": est_point
-            }
-            parsed_files.append(fp)
 
-    sorted_history = sorted(history_map.values(), key=lambda x: x["date"])
-    with open(JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(sorted_history, f, ensure_ascii=False, indent=2)
+        headers = [h.strip() for h in rows[0]]
+        date_idx = next((i for i, h in enumerate(headers) if "일자" in h or "날짜" in h or "date" in h.lower()), -1)
+        close_idx = next((i for i, h in enumerate(headers) if h == "종가" or "현재가" in h or "지수" in h or "close" in h.lower()), -1)
+        cap_idx = next((i for i, h in enumerate(headers) if "상장시가총액" in h or "시가총액" in h or "cap" in h.lower()), -1)
 
-    if len(parsed_files) > 1:
-        for old_fp in parsed_files[:-1]:
-            os.remove(old_fp)
+        # 情况 A: KRX 多日历史指数时序表 (如 data_4256_20261116.csv)
+        if date_idx != -1 and cap_idx != -1:
+            for r in rows[1:]:
+                if len(r) <= max(date_idx, cap_idx):
+                    continue
+                m = re.search(r"(\d{4})[/-](\d{1,2})[/-](\d{1,2})", r[date_idx])
+                if not m:
+                    continue
+                mm_dd = f"{int(m.group(2)):02d}/{int(m.group(3)):02d}"
+                full_key = f"{m.group(1)}-{mm_dd}"
+                cap_val = normalize_cap_trillion(parse_number(r[cap_idx]))
+                pt_val = parse_number(r[close_idx]) if close_idx != -1 and len(r) > close_idx else 0.0
+                if cap_val > 100:
+                    entry = {"_sort": full_key, "date": mm_dd, "cap": round(cap_val, 2)}
+                    if pt_val > 0:
+                        entry["point"] = round(pt_val, 2)
+                    records_by_date[full_key] = entry
+
+        # 情况 B: KRX 单日成分股快照表 (如 data_0359_YYYYMMDD.csv)
+        elif cap_idx != -1 and date_idx == -1:
+            total_cap = sum(parse_number(r[cap_idx]) for r in rows[1:] if len(r) > cap_idx)
+            cap_val = normalize_cap_trillion(total_cap)
+            m = re.search(r"(\d{4})(\d{2})(\d{2})", os.path.basename(fp))
+            if cap_val > 100 and m:
+                mm_dd = f"{m.group(2)}/{m.group(3)}"
+                full_key = f"{m.group(1)}-{mm_dd}"
+                old_pt = records_by_date.get(mm_dd, {}).get("point")
+                entry = {"_sort": full_key, "date": mm_dd, "cap": round(cap_val, 2)}
+                if old_pt:
+                    entry["point"] = old_pt
+                records_by_date[full_key] = entry
+
+    # 3. 统一排序并截取最近半年（185天 / 最多140个交易日）
+    normalized_list = []
+    for k, v in records_by_date.items():
+        sort_k = v.get("_sort")
+        if not sort_k:
+            # 兼容旧的 MM/DD 键
+            year_guess = "2026"
+            sort_k = f"{year_guess}-{v['date']}"
+        item = {"_sort": sort_k, "date": v["date"], "cap": v["cap"]}
+        if v.get("point"):
+            item["point"] = v["point"]
+        normalized_list.append(item)
+
+    # 按完整日期去重并升序排列
+    dedup = {x["_sort"]: x for x in normalized_list}
+    sorted_items = sorted(dedup.values(), key=lambda x: x["_sort"])[-135:]
+
+    final_output = []
+    for x in sorted_items:
+        row_out = {"date": x["date"], "cap": x["cap"]}
+        if "point" in x:
+            row_out["point"] = x["point"]
+        final_output.append(row_out)
+
+    with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
+        json.dump(final_output, f, ensure_ascii=False, indent=2)
+    print(f"Updated {OUTPUT_JSON} with {len(final_output)} trading days.")
 
 
 if __name__ == "__main__":
