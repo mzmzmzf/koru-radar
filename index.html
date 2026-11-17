@@ -443,6 +443,30 @@
             transform: scale(1.22);
             box-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
         }
+        .draw-width-btn {
+            height: 18px;
+            min-width: 22px;
+            padding: 0 5px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #9aa0a6;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .draw-width-btn:hover {
+            background: rgba(138, 180, 248, 0.14);
+            color: #e3e3e3;
+        }
+        .draw-width-btn.active-width {
+            background: rgba(138, 180, 248, 0.22);
+            border-color: var(--neon-cyan);
+            color: #ffffff;
+            box-shadow: 0 0 6px rgba(138, 180, 248, 0.35);
+        }
 
         /* 图表快照相机下拉菜单 (仿 TradingView 原生快捷键菜单) */
         .snapshot-menu-wrap {
@@ -1089,6 +1113,13 @@
                                 <button type="button" class="draw-color-dot" data-color="#a855f7" onclick="setDrawingColor('#a855f7')" title="机构暗紫 (#a855f7)" style="background:#a855f7;"></button>
                                 <button type="button" class="draw-color-dot" data-color="#e2e8f0" onclick="setDrawingColor('#e2e8f0')" title="极简纯白/银灰 (#e2e8f0)" style="background:#e2e8f0;"></button>
                                 <input type="color" id="customDrawColorInput" value="#38bdf8" onchange="setDrawingColor(this.value)" oninput="setDrawingColor(this.value)" title="自由调色盘：自定义任意画线颜色" style="width:16px; height:16px; padding:0; border:none; background:transparent; cursor:pointer;">
+                            </span>
+                            <span id="drawWidthGroup" style="display:inline-flex; align-items:center; gap:2px; padding:2px 5px; background:#131314; border:1px solid var(--border-color); border-radius:4px;" title="设置画线粗细（1px 细 / 2px 标准 / 3px 加粗 / 4px 特粗，选中已有画线后点击可直接修改粗细）">
+                                <span style="font-size:10px; color:var(--text-muted); margin-right:1px;">🖊️</span>
+                                <button type="button" class="draw-width-btn" data-width="1" onclick="setDrawingLineWidth(1)" title="1px 细线"><span style="width:12px; height:1px; background:currentColor; display:block; border-radius:1px;"></span></button>
+                                <button type="button" class="draw-width-btn active-width" data-width="2" onclick="setDrawingLineWidth(2)" title="2px 标准"><span style="width:12px; height:2px; background:currentColor; display:block; border-radius:1px;"></span></button>
+                                <button type="button" class="draw-width-btn" data-width="3" onclick="setDrawingLineWidth(3)" title="3px 加粗"><span style="width:12px; height:3px; background:currentColor; display:block; border-radius:1px;"></span></button>
+                                <button type="button" class="draw-width-btn" data-width="4" onclick="setDrawingLineWidth(4)" title="4px 特粗"><span style="width:12px; height:4px; background:currentColor; display:block; border-radius:1px;"></span></button>
                             </span>
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="ruler" onclick="selectDrawTool('ruler')" title="测量两点之间的价格涨跌幅%与K线根数">📐 测量尺</button>
                             <button type="button" class="btn-sm" onclick="testPriceAlertSoundAndPopup()" style="border-color:rgba(245,158,11,0.4); color:#fbbf24; font-size:10px; padding:2px 6px;" title="测试触价响铃声音与系统桌面弹窗通知">🔊 试音</button>
@@ -2265,6 +2296,7 @@ export default {
         let isDrawingToolbarOpen = false;
         const LEGACY_COLOR_MAP = { bull: "#10b981", bear: "#ef4444", neutral: "#38bdf8" };
         let activeDrawColor = localStorage.getItem("quant_draw_color") || "#38bdf8";
+        let activeDrawWidth = Math.max(1, Math.min(4, parseInt(localStorage.getItem("quant_draw_width") || "2", 10) || 2));
         let rectColorPreset = localStorage.getItem("quant_rect_preset") || "bull";
         let priceAlertsEnabled = localStorage.getItem("quant_price_alerts_enabled") !== "false"; // 默认开启触价声音+弹窗提醒
         let selectedDrawingId = null;
@@ -2826,6 +2858,55 @@ export default {
             }
         }
 
+        function resolveItemLineWidth(item, fallback = 2) {
+            if (item && isFinite(Number(item.lineWidth))) {
+                const w = Math.round(Number(item.lineWidth));
+                if (w >= 1 && w <= 4) return w;
+            }
+            return fallback;
+        }
+
+        function setDrawingLineWidth(widthVal) {
+            const w = Math.max(1, Math.min(4, Math.round(Number(widthVal) || 2)));
+            activeDrawWidth = w;
+            localStorage.setItem("quant_draw_width", String(w));
+
+            if (draftDrawing) {
+                draftDrawing.lineWidth = w;
+            }
+
+            const target = getActiveTargetDrawingAny();
+            if (target && target.item) {
+                target.item.lineWidth = w;
+                if (target.kind === "hline") {
+                    saveCustomHLinesToStorage();
+                    renderAllLwPriceLines();
+                } else {
+                    saveCustomShapesToStorage();
+                }
+                renderDrawingToolbarState();
+                renderDrawOverlay();
+                showToast(`🖊️ 已更新画线粗细为 ${w}px`);
+            } else {
+                scheduleCloudSyncPush();
+                showToast(`🖊️ 已设为 ${w}px 画线粗细`);
+            }
+            syncDrawWidthButtons();
+        }
+
+        function syncDrawWidthButtons() {
+            const grp = document.getElementById("drawWidthGroup");
+            if (!grp) return;
+            const target = getActiveTargetDrawingAny();
+            const currentW = (target && target.item)
+                ? resolveItemLineWidth(target.item, activeDrawWidth)
+                : activeDrawWidth;
+            grp.querySelectorAll(".draw-width-btn").forEach(btn => {
+                const bw = parseInt(btn.dataset.width || "2", 10);
+                btn.classList.toggle("active-width", bw === currentW);
+            });
+        }
+
         function toggleDrawingToolbar(forceState) {
             isDrawingToolbarOpen = typeof forceState === "boolean" ? forceState : !isDrawingToolbarOpen;
             if (!isDrawingToolbarOpen && activeDrawTool !== "none") {
@@ -3069,6 +3150,7 @@ export default {
                 btn.classList.toggle("active", btn.dataset.tool === activeDrawTool);
             });
             syncRectColorDots();
+            syncDrawWidthButtons();
 
             const activeEditShape = getActiveEditShape();
             const activeAny = getActiveTargetDrawingAny();
@@ -3170,7 +3252,7 @@ export default {
                     <span onclick="event.stopPropagation(); toggleHLineLockById('${hObj.id}')" title="${isUnl ? '点击锁定水平线位置' : '点击解锁上下拖动微调'}" style="cursor:pointer;">${lockIcon}</span>
                     <span onclick="event.stopPropagation(); toggleHLineAlertById('${hObj.id}')" title="${alertOn ? '触价响铃提醒已开启（点击可单独静音此线）' : '此水平线已静音（点击开启触价提醒）'}" style="cursor:pointer; opacity:${alertOn ? '1' : '0.45'};">${bellIcon}</span>
                     <span style="width:8px; height:8px; border-radius:50%; background:${hColor}; display:inline-block;"></span>
-                    📏 ${Number(hObj.price).toFixed(dec)} <span style="opacity:0.78; font-size:10px;">[${visTag}]</span>
+                    📏 ${Number(hObj.price).toFixed(dec)} <span style="opacity:0.78; font-size:10px;">·${resolveItemLineWidth(hObj, 2)}px [${visTag}]</span>
                     <button type="button" onclick="event.stopPropagation(); removeCustomHLineById('${hObj.id}')" title="删除水平线" style="background:none; border:none; color:#f28b82; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
                 </span>`;
             });
@@ -3193,7 +3275,7 @@ export default {
                 html += `<span onclick="selectSavedShape('${item.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isUnl ? 'rgba(52,211,153,0.16)' : (isSel ? 'rgba(245,158,11,0.22)' : 'rgba(138,180,248,0.14)')}; border:1px solid ${isUnl ? '#34d399' : (isSel ? '#f59e0b' : 'rgba(138,180,248,0.45)')}; color:${isUnl ? '#6ee7b7' : (isSel ? '#fcd34d' : '#c4c7c5')}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
                     <span onclick="event.stopPropagation(); toggleShapeLockById('${item.id}')" title="${isUnl ? '点击锁定位置' : '点击解锁微调'}" style="cursor:pointer;">${lockIcon}</span>
                     <span style="width:8px; height:8px; border-radius:50%; background:${sColor}; display:inline-block;"></span>
-                    ${meta.icon} ${meta.name} ${pA}→${pB} <span style="opacity:0.78; font-size:10px;">[${visTag}]</span>
+                    ${meta.icon} ${meta.name} ${pA}→${pB} <span style="opacity:0.78; font-size:10px;">·${resolveItemLineWidth(item, 2)}px [${visTag}]</span>
                     <button type="button" onclick="event.stopPropagation(); removeSavedShapeById('${item.id}')" title="删除图形" style="background:none; border:none; color:#f28b82; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
                 </span>`;
             });
@@ -4254,7 +4336,7 @@ export default {
                 lwPriceLines.push(lwCandleSeries.createPriceLine({
                     price: Number(hObj.price),
                     color: isUnl ? "#10b981" : (isSel ? "#fbbf24" : customCol),
-                    lineWidth: 2,
+                    lineWidth: resolveItemLineWidth(hObj, 2),
                     lineStyle: LightweightCharts.LineStyle.Solid,
                     axisLabelVisible: true,
                     title: `${isUnl ? "🔓可拖·" : (alertOn ? "🔔" : "")}水平线(${visTag})`
@@ -4283,6 +4365,7 @@ export default {
                     visibleTfs: [tvInterval],
                     locked: false,
                     color: activeDrawColor || "#38bdf8",
+                    lineWidth: activeDrawWidth || 2,
                     alertEnabled: true
                 };
                 list.push(createdObj);
@@ -4916,12 +4999,13 @@ export default {
 
             const isUnlocked = item.locked === false;
             const showHandles = isUnlocked;
+            const itemLineW = resolveItemLineWidth(item, 2);
 
             if (item.type === "trend") {
                 const customStroke = resolveItemCustomColor(item, isDark ? "#38bdf8" : "#0284c7");
                 const lineColor = customStroke;
                 ctx.strokeStyle = lineColor;
-                ctx.lineWidth = (isUnlocked || isHighlighted) ? 2.6 : 2;
+                ctx.lineWidth = (isUnlocked || isHighlighted) ? (itemLineW + 0.6) : itemLineW;
                 ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
@@ -4988,7 +5072,7 @@ export default {
 
                     // 2. 平行对边轨线
                     ctx.strokeStyle = baseColor;
-                    ctx.lineWidth = showHandles ? 2.2 : 1.8;
+                    ctx.lineWidth = showHandles ? (itemLineW + 0.3) : Math.max(1, itemLineW - 0.2);
                     ctx.setLineDash([]);
                     ctx.beginPath();
                     ctx.moveTo(x1, y1Par);
@@ -4998,7 +5082,7 @@ export default {
                     // 3. 50% 通道中轨虚线
                     if (y1Mid !== null && y2Mid !== null) {
                         ctx.strokeStyle = isDark ? "rgba(148, 163, 184, 0.65)" : "rgba(71, 85, 105, 0.6)";
-                        ctx.lineWidth = 1.2;
+                        ctx.lineWidth = Math.max(1, itemLineW * 0.6);
                         ctx.setLineDash([4, 4]);
                         ctx.beginPath();
                         ctx.moveTo(x1, y1Mid);
@@ -5014,7 +5098,7 @@ export default {
 
                 // 5. 基准主轨线
                 ctx.strokeStyle = baseColor;
-                ctx.lineWidth = showHandles ? 2.4 : 2;
+                ctx.lineWidth = showHandles ? (itemLineW + 0.5) : itemLineW;
                 ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
@@ -5057,7 +5141,7 @@ export default {
                 ctx.fillStyle = style.fill;
                 ctx.fillRect(left, top, rw, rh);
                 ctx.strokeStyle = style.stroke;
-                ctx.lineWidth = (isHighlighted || isUnlocked) ? 2.2 : 1.5;
+                ctx.lineWidth = (isHighlighted || isUnlocked) ? (itemLineW + 0.6) : itemLineW;
                 ctx.strokeRect(left, top, rw, rh);
                 if (isUnlocked) {
                     [ [x1, y1], [x2, y2] ].forEach(([ax, ay]) => {
@@ -5117,7 +5201,7 @@ export default {
                     const ly = priceToOverlayY(lvlPrice);
                     if (ly === null) return;
                     ctx.strokeStyle = isHighlighted && (lv.r === 0 || lv.r === 1) ? "#f59e0b" : lv.color;
-                    ctx.lineWidth = (lv.r === 0.5 || lv.r === 0.618) ? 1.6 : 1.1;
+                    ctx.lineWidth = (lv.r === 0.5 || lv.r === 0.618) ? Math.max(1.4, itemLineW * 0.85) : Math.max(1, itemLineW * 0.55);
                     ctx.beginPath();
                     ctx.moveTo(left, ly);
                     ctx.lineTo(right, ly);
@@ -5433,6 +5517,7 @@ export default {
                     channelOffsetPrice: 0,
                     locked: false,
                     color: activeDrawColor || "#38bdf8",
+                    lineWidth: activeDrawWidth || 2,
                     colorVariant: rectColorPreset
                 };
                 scheduleOverlayDraw();
@@ -9351,6 +9436,7 @@ export default {
                     cvdDailyReset,
                     netposDisplayMode,
                     activeDrawColor,
+                    activeDrawWidth,
                     priceAlertsEnabled,
                     kospiChartSpan
                 },
@@ -9451,6 +9537,10 @@ export default {
                     if (pr.activeDrawColor) {
                         activeDrawColor = pr.activeDrawColor;
                         localStorage.setItem("quant_draw_color", activeDrawColor);
+                    }
+                    if (pr.activeDrawWidth) {
+                        activeDrawWidth = Math.max(1, Math.min(4, Math.round(Number(pr.activeDrawWidth) || 2)));
+                        localStorage.setItem("quant_draw_width", String(activeDrawWidth));
                     }
                     if (typeof pr.priceAlertsEnabled === "boolean") {
                         priceAlertsEnabled = pr.priceAlertsEnabled;
@@ -9780,5 +9870,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v10.1-smooth-draw-lock-immersive-topright-exit -->
+<!-- Build: v10.2-line-width-selector-smooth-draw-immersive -->
 </html>
