@@ -325,6 +325,58 @@
             border-color: #DCD7C9;
         }
 
+        /* 触价声音 + 桌面弹窗提醒横幅与色彩选择器 */
+        .price-alert-toast-stack {
+            position: fixed;
+            top: 58px;
+            right: 16px;
+            z-index: 10050;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 340px;
+            pointer-events: none;
+        }
+        .price-alert-popup {
+            pointer-events: auto;
+            background: linear-gradient(135deg, #1e1f20, #161718);
+            border: 1px solid var(--neon-amber);
+            border-left: 4px solid var(--neon-amber);
+            border-radius: 8px;
+            padding: 10px 12px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.72);
+            color: #f3f4f6;
+            font-size: 12px;
+            line-height: 1.45;
+            animation: alertSlideIn 0.22s ease-out;
+        }
+        .price-alert-popup.sl-alert {
+            border-color: var(--neon-red);
+            border-left-color: var(--neon-red);
+        }
+        .price-alert-popup.tp-alert {
+            border-color: var(--neon-emerald);
+            border-left-color: var(--neon-emerald);
+        }
+        @keyframes alertSlideIn {
+            from { opacity: 0; transform: translateX(24px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .draw-color-dot {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            border: 1.5px solid transparent;
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s;
+            padding: 0;
+        }
+        .draw-color-dot.active-dot {
+            border-color: #ffffff;
+            transform: scale(1.22);
+            box-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
+        }
+
         /* 图表快照相机下拉菜单 (仿 TradingView 原生快捷键菜单) */
         .snapshot-menu-wrap {
             position: relative;
@@ -837,7 +889,8 @@
                         <button type="button" class="btn-sm active" id="btnToggleSmcBlocks" onclick="toggleSmcBlocks()" title="显示/隐藏 SMC 供需订单块色块（粉色供给块/蓝色需求块）与 BOS/CHoCH 结构线">🧱 SMC色块</button>
                         <button type="button" class="btn-sm" id="btnSubchartCvd" onclick="toggleCvdSubchart()" title="独立显示/隐藏 Gimelfarb 累积成交量净差 (CVD + SMA28) 副图（可与净多空持仓同时开启）">📊 CVD资金流</button>
                         <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleNetposSubchart()" title="独立显示/隐藏 Leviathan 合约净多空持仓 (Net Longs / Net Shorts / Net Delta) 副图（可与CVD同时开启）">⚖️ 净多空持仓</button>
-                        <button type="button" class="btn-sm" id="btnToggleDrawBar" onclick="toggleDrawingToolbar()" title="展开/收起画线与测量工具箱（水平线/趋势线段/斐波那契/矩形箱体/测量尺）">✏️ 画线工具</button>
+                        <button type="button" class="btn-sm" id="btnToggleDrawBar" onclick="toggleDrawingToolbar()" title="展开/收起画线与测量工具箱（支持趋势线/水平线/通道/箱体自定义颜色）">✏️ 画线工具</button>
+                        <button type="button" class="btn-sm active" id="btnTogglePriceAlert" onclick="togglePriceAlertSystem()" style="border-color:var(--neon-amber); color:#fcd34d; font-weight:700;" title="开启/关闭：水平线与沙盒止损/止盈线【触价声音蜂鸣 + 桌面系统弹窗】提醒">🔔 触价提醒:开</button>
                         <button type="button" class="btn-sm" id="btnToggleHeightBar" onclick="toggleHeightControlBar()" title="手动调节主图与副图高度（也支持直接上下拖动分隔条）">📐 调高度</button>
                         <div class="snapshot-menu-wrap" id="snapshotMenuWrap">
                             <button type="button" class="btn-sm" id="btnChartSnapshot" onclick="toggleSnapshotMenu(event)" style="border-color:rgba(16,185,129,0.45); color:#6ee7b7; font-weight:700;" title="图表快照：一键复制图片到剪贴板 (⇧⌘S) 或下载高清PNG (⌥⌘S)">📷 快照</button>
@@ -930,12 +983,18 @@
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="channel" onclick="selectDrawTool('channel')" title="三点拉出平行通道线（含50%中轨，支持解锁微调角度与通道宽度后锁定）">⫽ 平行通道</button>
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="fib" onclick="selectDrawTool('fib')" title="两点拉出斐波那契回撤（含 0.382/0.5/0.618/0.786）">🔱 斐波那契</button>
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="rect" onclick="selectDrawTool('rect')" title="框选威科夫箱体/供需区间">▭ 矩形箱体</button>
-                            <span id="rectColorGroup" style="display:inline-flex; align-items:center; gap:3px; margin-left:2px; padding:2px 5px; background:#131314; border:1px solid var(--border-color); border-radius:4px;">
-                                <button type="button" onclick="setRectColorPreset('bull')" title="多头需求绿" style="width:12px; height:12px; border-radius:50%; background:#10b981; border:1px solid #fff; cursor:pointer;"></button>
-                                <button type="button" onclick="setRectColorPreset('bear')" title="空头供给红" style="width:12px; height:12px; border-radius:50%; background:#ef4444; border:1px solid transparent; cursor:pointer;"></button>
-                                <button type="button" onclick="setRectColorPreset('neutral')" title="威科夫箱体蓝" style="width:12px; height:12px; border-radius:50%; background:#38bdf8; border:1px solid transparent; cursor:pointer;"></button>
+                            <span id="rectColorGroup" style="display:inline-flex; align-items:center; gap:4px; margin-left:2px; padding:2px 6px; background:#131314; border:1px solid var(--border-color); border-radius:4px;" title="设置趋势线 / 水平线 / 平行通道 / 箱体颜色（选中已有画线后点击可直接改色）">
+                                <span style="font-size:10px; color:var(--text-muted); margin-right:1px;">🎨</span>
+                                <button type="button" class="draw-color-dot" data-color="#38bdf8" onclick="setDrawingColor('#38bdf8')" title="天际蓝 (#38bdf8)" style="background:#38bdf8;"></button>
+                                <button type="button" class="draw-color-dot" data-color="#10b981" onclick="setDrawingColor('#10b981')" title="多头翡绿 (#10b981)" style="background:#10b981;"></button>
+                                <button type="button" class="draw-color-dot" data-color="#ef4444" onclick="setDrawingColor('#ef4444')" title="空头警戒红 (#ef4444)" style="background:#ef4444;"></button>
+                                <button type="button" class="draw-color-dot" data-color="#f59e0b" onclick="setDrawingColor('#f59e0b')" title="黄金琥珀 (#f59e0b)" style="background:#f59e0b;"></button>
+                                <button type="button" class="draw-color-dot" data-color="#a855f7" onclick="setDrawingColor('#a855f7')" title="机构暗紫 (#a855f7)" style="background:#a855f7;"></button>
+                                <button type="button" class="draw-color-dot" data-color="#e2e8f0" onclick="setDrawingColor('#e2e8f0')" title="极简纯白/银灰 (#e2e8f0)" style="background:#e2e8f0;"></button>
+                                <input type="color" id="customDrawColorInput" value="#38bdf8" onchange="setDrawingColor(this.value)" oninput="setDrawingColor(this.value)" title="自由调色盘：自定义任意画线颜色" style="width:16px; height:16px; padding:0; border:none; background:transparent; cursor:pointer;">
                             </span>
                             <button type="button" class="btn-sm draw-tool-btn" data-tool="ruler" onclick="selectDrawTool('ruler')" title="测量两点之间的价格涨跌幅%与K线根数">📐 测量尺</button>
+                            <button type="button" class="btn-sm" onclick="testPriceAlertSoundAndPopup()" style="border-color:rgba(245,158,11,0.4); color:#fbbf24; font-size:10px; padding:2px 6px;" title="测试触价响铃声音与系统桌面弹窗通知">🔊 试音</button>
                         </div>
 
                         <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
@@ -1530,6 +1589,7 @@
         </div>
     </main>
 
+    <div id="priceAlertToastStack" class="price-alert-toast-stack"></div>
     <div id="appToast">已成功复制完整实战挂单计划至剪贴板！</div>
 
     <script>
@@ -2060,7 +2120,10 @@
         let showSmcBlocks = localStorage.getItem("quant_smc_blocks") !== "false"; // 默认开启 SMC 供需色块与 BOS/CHoCH 结构线
         let activeDrawTool = "none"; // 'none' | 'hline' | 'trend' | 'fib' | 'rect' | 'ruler'
         let isDrawingToolbarOpen = false;
-        let rectColorPreset = localStorage.getItem("quant_rect_preset") || "bull"; // 'bull' | 'bear' | 'neutral'
+        const LEGACY_COLOR_MAP = { bull: "#10b981", bear: "#ef4444", neutral: "#38bdf8" };
+        let activeDrawColor = localStorage.getItem("quant_draw_color") || "#38bdf8";
+        let rectColorPreset = localStorage.getItem("quant_rect_preset") || "bull";
+        let priceAlertsEnabled = localStorage.getItem("quant_price_alerts_enabled") !== "false"; // 默认开启触价声音+弹窗提醒
         let selectedDrawingId = null;
         let draftDrawing = null;
         let draftStep = 0; // 0: idle, 1: awaiting p2 (2nd point), 2: awaiting p3 (channel width)
@@ -2125,7 +2188,9 @@
                                     price: Number(entry.price),
                                     createdTf: cTf,
                                     visibleTfs: normalizeVisibleTfs(entry.visibleTfs, cTf),
-                                    locked: entry.locked === false ? false : true
+                                    locked: entry.locked === false ? false : true,
+                                    color: entry.color || "",
+                                    alertEnabled: entry.alertEnabled !== false
                                 };
                             }
                             return null;
@@ -2549,31 +2614,70 @@
             localStorage.setItem("quant_custom_shapes", JSON.stringify(customShapeDrawings));
         }
 
-        function setRectColorPreset(preset) {
-            rectColorPreset = preset;
-            localStorage.setItem("quant_rect_preset", preset);
-            if (selectedDrawingId) {
-                const symKey = getCurrentSymKey();
-                const found = (customShapeDrawings[symKey] || []).find(d => d.id === selectedDrawingId);
-                if (found && found.type === "rect") {
-                    found.colorVariant = preset;
-                    saveCustomShapesToStorage();
-                    renderDrawOverlay();
+        function resolveItemCustomColor(item, defaultColor) {
+            if (!item) return defaultColor;
+            if (item.color && typeof item.color === "string" && item.color.startsWith("#")) {
+                return item.color;
+            }
+            if (item.colorVariant && LEGACY_COLOR_MAP[item.colorVariant]) {
+                return LEGACY_COLOR_MAP[item.colorVariant];
+            }
+            return defaultColor;
+        }
+
+        function hexToRgba(hex, alpha = 0.14) {
+            const clean = String(hex || "").replace("#", "").trim();
+            if (clean.length === 6) {
+                const r = parseInt(clean.slice(0, 2), 16);
+                const g = parseInt(clean.slice(2, 4), 16);
+                const b = parseInt(clean.slice(4, 6), 16);
+                if (isFinite(r) && isFinite(g) && isFinite(b)) {
+                    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
                 }
             }
+            return `rgba(56, 189, 248, ${alpha})`;
+        }
+
+        function setDrawingColor(hexColor) {
+            if (!hexColor) return;
+            activeDrawColor = hexColor;
+            localStorage.setItem("quant_draw_color", hexColor);
+
+            const target = getActiveTargetDrawingAny();
+            if (target && target.item) {
+                target.item.color = hexColor;
+                if (target.kind === "hline") {
+                    saveCustomHLinesToStorage();
+                    renderAllLwPriceLines();
+                } else {
+                    saveCustomShapesToStorage();
+                }
+                renderDrawingToolbarState();
+                renderDrawOverlay();
+                showToast(`🎨 已更新画线颜色为 ${hexColor}`);
+            }
             syncRectColorDots();
-            if (activeDrawTool === "none") selectDrawTool("rect");
+        }
+
+        function setRectColorPreset(preset) {
+            const hex = LEGACY_COLOR_MAP[preset] || "#10b981";
+            setDrawingColor(hex);
         }
 
         function syncRectColorDots() {
             const grp = document.getElementById("rectColorGroup");
             if (!grp) return;
-            const map = ["bull", "bear", "neutral"];
-            const btns = grp.querySelectorAll("button");
-            btns.forEach((b, i) => {
-                b.style.borderColor = map[i] === rectColorPreset ? "#ffffff" : "transparent";
-                b.style.transform = map[i] === rectColorPreset ? "scale(1.18)" : "scale(1)";
+            const target = getActiveTargetDrawingAny();
+            const currentHex = (target && target.item && target.item.color) ? target.item.color : activeDrawColor;
+            const dots = grp.querySelectorAll(".draw-color-dot");
+            dots.forEach(b => {
+                const isMatch = String(b.dataset.color || "").toLowerCase() === String(currentHex || "").toLowerCase();
+                b.classList.toggle("active-dot", isMatch);
             });
+            const picker = document.getElementById("customDrawColorInput");
+            if (picker && currentHex && currentHex.startsWith("#") && currentHex.length === 7) {
+                picker.value = currentHex;
+            }
         }
 
         function toggleDrawingToolbar(forceState) {
@@ -2903,9 +3007,14 @@
                 const isSel = hObj.id === selectedDrawingId;
                 const isUnl = hObj.locked === false;
                 const lockIcon = isUnl ? "🔓" : "🔒";
+                const alertOn = hObj.alertEnabled !== false;
+                const bellIcon = alertOn ? "🔔" : "🔕";
+                const hColor = hObj.color || "#8ab4f8";
                 const visTag = formatVisibleTfsSummary(hObj.visibleTfs);
                 html += `<span onclick="selectSavedHLine('${hObj.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isUnl ? 'rgba(52,211,153,0.16)' : (isSel ? 'rgba(245,158,11,0.22)' : 'rgba(138,180,248,0.14)')}; border:1px solid ${isUnl ? '#34d399' : (isSel ? '#f59e0b' : 'rgba(138,180,248,0.45)')}; color:${isUnl ? '#6ee7b7' : (isSel ? '#fcd34d' : '#8ab4f8')}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
                     <span onclick="event.stopPropagation(); toggleHLineLockById('${hObj.id}')" title="${isUnl ? '点击锁定水平线位置' : '点击解锁上下拖动微调'}" style="cursor:pointer;">${lockIcon}</span>
+                    <span onclick="event.stopPropagation(); toggleHLineAlertById('${hObj.id}')" title="${alertOn ? '触价响铃提醒已开启（点击可单独静音此线）' : '此水平线已静音（点击开启触价提醒）'}" style="cursor:pointer; opacity:${alertOn ? '1' : '0.45'};">${bellIcon}</span>
+                    <span style="width:8px; height:8px; border-radius:50%; background:${hColor}; display:inline-block;"></span>
                     📏 ${Number(hObj.price).toFixed(dec)} <span style="opacity:0.78; font-size:10px;">[${visTag}]</span>
                     <button type="button" onclick="event.stopPropagation(); removeCustomHLineById('${hObj.id}')" title="删除水平线" style="background:none; border:none; color:#f28b82; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
                 </span>`;
@@ -2922,11 +3031,13 @@
                 const isSel = item.id === selectedDrawingId;
                 const isUnl = item.locked === false;
                 const lockIcon = isUnl ? "🔓" : "🔒";
+                const sColor = resolveItemCustomColor(item, "#38bdf8");
                 const pA = Number(item.p1.price).toFixed(dec);
                 const pB = Number(item.p2.price).toFixed(dec);
                 const visTag = formatVisibleTfsSummary(item.visibleTfs);
                 html += `<span onclick="selectSavedShape('${item.id}')" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; background:${isUnl ? 'rgba(52,211,153,0.16)' : (isSel ? 'rgba(245,158,11,0.22)' : 'rgba(138,180,248,0.14)')}; border:1px solid ${isUnl ? '#34d399' : (isSel ? '#f59e0b' : 'rgba(138,180,248,0.45)')}; color:${isUnl ? '#6ee7b7' : (isSel ? '#fcd34d' : '#c4c7c5')}; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700;">
                     <span onclick="event.stopPropagation(); toggleShapeLockById('${item.id}')" title="${isUnl ? '点击锁定位置' : '点击解锁微调'}" style="cursor:pointer;">${lockIcon}</span>
+                    <span style="width:8px; height:8px; border-radius:50%; background:${sColor}; display:inline-block;"></span>
                     ${meta.icon} ${meta.name} ${pA}→${pB} <span style="opacity:0.78; font-size:10px;">[${visTag}]</span>
                     <button type="button" onclick="event.stopPropagation(); removeSavedShapeById('${item.id}')" title="删除图形" style="background:none; border:none; color:#f28b82; font-weight:900; cursor:pointer; padding:0 2px;">✕</button>
                 </span>`;
@@ -3913,6 +4024,7 @@
                 const latestBar = enriched[enriched.length - 1];
                 updateLwHudText(latestBar);
                 updateWorkbenchIntelligencePanel(enriched, symObj, reqInterval);
+                checkPriceAlertsForSymbol(getCurrentSymKey(), latestBar.close, symObj.ticker, dec);
 
                 const sigBadge = document.getElementById("stratLatestSignalBadge");
                 if (sigBadge) {
@@ -3981,14 +4093,16 @@
             userLines.forEach(hObj => {
                 const isSel = hObj.id === selectedDrawingId;
                 const isUnl = hObj.locked === false;
+                const alertOn = hObj.alertEnabled !== false;
+                const customCol = hObj.color || p.customLineColor;
                 const visTag = formatVisibleTfsSummary(hObj.visibleTfs);
                 lwPriceLines.push(lwCandleSeries.createPriceLine({
                     price: Number(hObj.price),
-                    color: isUnl ? "#10b981" : (isSel ? "#fbbf24" : p.customLineColor),
+                    color: isUnl ? "#10b981" : (isSel ? "#fbbf24" : customCol),
                     lineWidth: 2,
                     lineStyle: LightweightCharts.LineStyle.Solid,
                     axisLabelVisible: true,
-                    title: `${isUnl ? "🔓可拖·" : ""}水平线(${visTag})`
+                    title: `${isUnl ? "🔓可拖·" : (alertOn ? "🔔" : "")}水平线(${visTag})`
                 }));
             });
             if (lwLastDataCache && lwLastDataCache.length >= 10) {
@@ -4012,7 +4126,9 @@
                     price: cleanPrice,
                     createdTf: tvInterval,
                     visibleTfs: [tvInterval],
-                    locked: false
+                    locked: false,
+                    color: activeDrawColor || "#38bdf8",
+                    alertEnabled: true
                 };
                 list.push(createdObj);
                 list.sort((a, b) => Number(b.price) - Number(a.price));
@@ -4614,9 +4730,10 @@
             const showHandles = isHighlighted || isUnlocked;
 
             if (item.type === "trend") {
-                const lineColor = isUnlocked ? "#10b981" : (isHighlighted ? "#f59e0b" : (isDark ? "#38bdf8" : "#0284c7"));
+                const customStroke = resolveItemCustomColor(item, isDark ? "#38bdf8" : "#0284c7");
+                const lineColor = customStroke;
                 ctx.strokeStyle = lineColor;
-                ctx.lineWidth = showHandles ? 2.5 : 2;
+                ctx.lineWidth = showHandles ? 2.6 : 2;
                 ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
@@ -4625,8 +4742,8 @@
 
                 // 端点圆锚（解锁状态下显示可拖拽放大圆锚与中点平移手柄）
                 [ [x1, y1, item.p1.price], [x2, y2, item.p2.price] ].forEach(([ax, ay, ap], idx) => {
-                    ctx.fillStyle = isUnlocked ? "#10b981" : (isDark ? "#0b0f19" : "#FAF7EE");
-                    ctx.strokeStyle = isUnlocked ? "#ffffff" : lineColor;
+                    ctx.fillStyle = isUnlocked ? lineColor : (isDark ? "#0b0f19" : "#FAF7EE");
+                    ctx.strokeStyle = (isUnlocked || isHighlighted) ? "#ffffff" : lineColor;
                     ctx.lineWidth = 2;
                     ctx.beginPath();
                     ctx.arc(ax, ay, isUnlocked ? 5.5 : (isHighlighted ? 4.5 : 3.2), 0, Math.PI * 2);
@@ -4643,18 +4760,16 @@
                 if (isUnlocked) {
                     const mx = (x1 + x2) * 0.5, my = (y1 + y2) * 0.5;
                     ctx.fillStyle = isDark ? "rgba(11,15,25,0.9)" : "rgba(250,247,238,0.95)";
-                    ctx.strokeStyle = "#10b981";
-                    ctx.lineWidth = 1.6;
+                    ctx.strokeStyle = lineColor;
+                    ctx.lineWidth = 1.8;
                     ctx.beginPath();
                     ctx.arc(mx, my, 4.2, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.stroke();
                 }
             } else if (item.type === "channel") {
-                const baseColor = isUnlocked ? "#10b981" : (isHighlighted ? "#f59e0b" : (isDark ? "#38bdf8" : "#0284c7"));
-                const fillColor = isUnlocked
-                    ? (isDark ? "rgba(16, 185, 129, 0.12)" : "rgba(16, 185, 129, 0.13)")
-                    : (isDark ? "rgba(56, 189, 248, 0.11)" : "rgba(2, 132, 199, 0.11)");
+                const baseColor = resolveItemCustomColor(item, isDark ? "#38bdf8" : "#0284c7");
+                const fillColor = hexToRgba(baseColor, isDark ? 0.12 : 0.13);
                 const cg = getChannelGeometryPrices(item);
                 const y1Par = priceToOverlayY(cg.p1Par);
                 const y2Par = priceToOverlayY(cg.p2Par);
@@ -4735,18 +4850,14 @@
                     }
                 }
             } else if (item.type === "rect") {
-                const presets = {
-                    bull: { fill: isDark ? "rgba(16, 185, 129, 0.14)" : "rgba(16, 185, 129, 0.15)", stroke: "#10b981" },
-                    bear: { fill: isDark ? "rgba(239, 68, 68, 0.14)" : "rgba(220, 38, 38, 0.14)", stroke: "#ef4444" },
-                    neutral: { fill: isDark ? "rgba(56, 189, 248, 0.14)" : "rgba(37, 99, 235, 0.12)", stroke: isDark ? "#38bdf8" : "#2563eb" }
-                };
-                const style = presets[item.colorVariant || "bull"] || presets.bull;
+                const strokeCol = resolveItemCustomColor(item, "#10b981");
+                const style = { fill: hexToRgba(strokeCol, isDark ? 0.14 : 0.15), stroke: strokeCol };
                 const left = Math.min(x1, x2), top = Math.min(y1, y2);
                 const rw = Math.max(2, Math.abs(x2 - x1)), rh = Math.max(2, Math.abs(y2 - y1));
 
                 ctx.fillStyle = style.fill;
                 ctx.fillRect(left, top, rw, rh);
-                ctx.strokeStyle = isUnlocked ? "#10b981" : (isHighlighted ? "#f59e0b" : style.stroke);
+                ctx.strokeStyle = style.stroke;
                 ctx.lineWidth = (isHighlighted || isUnlocked) ? 2.2 : 1.5;
                 ctx.strokeRect(left, top, rw, rh);
                 if (isUnlocked) {
@@ -5071,6 +5182,7 @@
                     p2: pt,
                     channelOffsetPrice: 0,
                     locked: false,
+                    color: activeDrawColor || "#38bdf8",
                     colorVariant: rectColorPreset
                 };
                 renderDrawOverlay();
@@ -7702,6 +7814,7 @@
                     if (btcTickerOut.value.via === "CUSTOM_RELAY") viaCustomRelay = true;
                     currentBtcLivePrice = liveBtc; localStorage.setItem("quant_btc", liveBtc);
                     document.getElementById("btcLiveHeader").textContent = liveBtc.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                    checkPriceAlertsForSymbol("BTC", liveBtc, "BTC", 1);
                 }
             }
 
@@ -7723,6 +7836,7 @@
                     if (koruTickerOut.value.via === "CUSTOM_RELAY") viaCustomRelay = true;
                     lastValidKoru = liveKoru; localStorage.setItem("quant_koru", liveKoru);
                     renderKoruUI(liveKoru); updatePositionSandbox();
+                    checkPriceAlertsForSymbol("KORU", liveKoru, "KORU", 3);
                     if (koruSourceBadge) {
                         koruSourceBadge.textContent = viaCustomRelay ? "自定义中继 ›" : "OKX 永续直连 ›";
                         koruSourceBadge.style.color = viaCustomRelay ? "#34d399" : "var(--neon-cyan)";
@@ -8574,6 +8688,235 @@
             }
         }
 
+
+        // =========================================================================
+        // 触价声音蜂鸣 (Web Audio 合成器) + 桌面系统弹窗 + 实时穿线监控引擎
+        // =========================================================================
+        let audioCtxInstance = null;
+        let lastObservedPrices = {}; // { [symKey]: number }
+        let alertCooldownMap = {};   // { [alertKey]: timestampMs }
+        const ALERT_COOLDOWN_MS = 180000; // 同一条线 3 分钟内不重复轰炸
+
+        function syncPriceAlertBtnUI() {
+            const btn = document.getElementById("btnTogglePriceAlert");
+            if (!btn) return;
+            btn.classList.toggle("active", priceAlertsEnabled);
+            if (priceAlertsEnabled) {
+                btn.textContent = "🔔 触价提醒:开";
+                btn.style.borderColor = "var(--neon-amber)";
+                btn.style.color = "#fcd34d";
+            } else {
+                btn.textContent = "🔕 触价提醒:关";
+                btn.style.borderColor = "var(--border-color)";
+                btn.style.color = "var(--text-muted)";
+            }
+        }
+
+        async function togglePriceAlertSystem() {
+            priceAlertsEnabled = !priceAlertsEnabled;
+            localStorage.setItem("quant_price_alerts_enabled", priceAlertsEnabled ? "true" : "false");
+            syncPriceAlertBtnUI();
+
+            if (priceAlertsEnabled) {
+                playAlertChime("info");
+                if ("Notification" in window && Notification.permission === "default") {
+                    try { await Notification.requestPermission(); } catch (e) {}
+                }
+                showToast("🔔 已开启【水平线 + 沙盒止盈止损】触价声音与桌面弹窗提醒！");
+            } else {
+                showToast("🔕 已暂停触价声音与桌面弹窗提醒");
+            }
+        }
+
+        function toggleHLineAlertById(id) {
+            const symKey = getCurrentSymKey();
+            const list = customHorizontalLines[symKey] || [];
+            const target = list.find(h => h.id === id);
+            if (!target) return;
+            target.alertEnabled = target.alertEnabled === false ? true : false;
+            saveCustomHLinesToStorage();
+            renderAllLwPriceLines();
+            renderDrawingToolbarState();
+            showToast(target.alertEnabled
+                ? `🔔 已开启水平线 ${target.price} 的触价响铃提醒`
+                : `🔕 已静音水平线 ${target.price} 的触价提醒`);
+        }
+
+        function playAlertChime(kind = "hline") {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                if (!audioCtxInstance) audioCtxInstance = new AudioCtx();
+                if (audioCtxInstance.state === "suspended") {
+                    audioCtxInstance.resume();
+                }
+                const now = audioCtxInstance.currentTime;
+                // 不同类型警报采用不同双音阶频率：止损急促双高频，止盈上扬三和弦，水平线清脆双脉冲
+                const notes = kind === "sl"
+                    ? [880, 660, 880]
+                    : (kind === "tp" ? [587.33, 783.99, 1046.5] : [740, 987.77]);
+
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtxInstance.createOscillator();
+                    const gain = audioCtxInstance.createGain();
+                    osc.type = kind === "sl" ? "sawtooth" : "sine";
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.16);
+                    gain.gain.setValueAtTime(0.0001, now + idx * 0.16);
+                    gain.gain.exponentialRampToValueAtTime(0.18, now + idx * 0.16 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.16 + 0.14);
+                    osc.connect(gain);
+                    gain.connect(audioCtxInstance.destination);
+                    osc.start(now + idx * 0.16);
+                    osc.stop(now + idx * 0.16 + 0.15);
+                });
+            } catch (e) {}
+        }
+
+        function pushVisualAndSystemAlert(title, body, kind = "hline") {
+            // 1. 页面右上角悬浮警示卡
+            const stack = document.getElementById("priceAlertToastStack");
+            if (stack) {
+                const card = document.createElement("div");
+                const kindCls = kind === "sl" ? "sl-alert" : (kind === "tp" ? "tp-alert" : "");
+                card.className = `price-alert-popup ${kindCls}`;
+                const nowStr = formatBeijingTime(Math.floor(Date.now() / 1000), false);
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:3px;">
+                        <b style="color:#fff; font-size:12px;">${title}</b>
+                        <span style="font-size:10px; font-family:monospace; color:var(--text-muted);">${nowStr}</span>
+                    </div>
+                    <div style="color:#cbd5e1; font-size:11px;">${body}</div>
+                `;
+                stack.prepend(card);
+                setTimeout(() => {
+                    if (card.parentNode) card.remove();
+                }, 9000);
+            }
+
+            // 2. 操作系统级原生桌面通知横幅
+            if ("Notification" in window) {
+                if (Notification.permission === "granted") {
+                    try {
+                        new Notification(title, { body, silent: false });
+                    } catch (e) {}
+                } else if (Notification.permission === "default") {
+                    Notification.requestPermission().then(p => {
+                        if (p === "granted") {
+                            try { new Notification(title, { body }); } catch (e) {}
+                        }
+                    }).catch(() => {});
+                }
+            }
+        }
+
+        async function testPriceAlertSoundAndPopup() {
+            if ("Notification" in window && Notification.permission === "default") {
+                try { await Notification.requestPermission(); } catch (e) {}
+            }
+            playAlertChime("hline");
+            const cur = getActiveSymbolObj();
+            pushVisualAndSystemAlert(
+                `🔔 触价提醒测试 (${cur.ticker})`,
+                `声音蜂鸣与桌面弹窗已就绪！当现价触及水平线或沙盒止盈/止损位时将自动报警。`,
+                "hline"
+            );
+        }
+
+        function checkPriceAlertsForSymbol(symKey, currentPrice, displayLabel, dec = 3) {
+            if (!isFinite(currentPrice) || currentPrice <= 0) return;
+            const prevPrice = lastObservedPrices[symKey];
+            lastObservedPrices[symKey] = currentPrice;
+
+            if (!priceAlertsEnabled || prevPrice === undefined || !isFinite(prevPrice)) return;
+
+            const nowMs = Date.now();
+            // 判定是否穿越或进入极窄触价带 (0.08%)
+            const isLevelHit = (targetP) => {
+                if (!isFinite(targetP) || targetP <= 0) return false;
+                const crossed = (prevPrice < targetP && currentPrice >= targetP) || (prevPrice > targetP && currentPrice <= targetP);
+                const withinBand = Math.abs(currentPrice - targetP) / targetP <= 0.0008 && Math.abs(prevPrice - targetP) / targetP > 0.0008;
+                return crossed || withinBand;
+            };
+
+            const triggerWithCooldown = (alertKey, title, body, kind) => {
+                const lastFired = alertCooldownMap[alertKey] || 0;
+                if (nowMs - lastFired < ALERT_COOLDOWN_MS) return;
+                alertCooldownMap[alertKey] = nowMs;
+                playAlertChime(kind);
+                pushVisualAndSystemAlert(title, body, kind);
+            };
+
+            // 1. 检查该品种的所有开启提醒的自定义水平线
+            const hList = customHorizontalLines[symKey] || [];
+            hList.forEach(hObj => {
+                if (hObj.alertEnabled === false) return;
+                const lvl = Number(hObj.price);
+                if (isLevelHit(lvl)) {
+                    const dir = currentPrice >= prevPrice ? "▲ 上穿触及" : "▼ 下穿触及";
+                    triggerWithCooldown(
+                        `hl_${symKey}_${hObj.id}_${lvl.toFixed(dec)}`,
+                        `🔔 ${displayLabel} 触及水平线 ${lvl.toFixed(dec)}`,
+                        `最新现价 ${currentPrice.toFixed(dec)} 已${dir}自定义水平线 (${lvl.toFixed(dec)})，请关注盘面结构！`,
+                        "hline"
+                    );
+                }
+            });
+
+            // 2. 若为 KORU，同步检查沙盒止损 (SL)、波段目标 (TP) 与真实保本线 (BEP)
+            if (symKey === "KORU") {
+                const liveSl = Number(sandboxData.liveSl || 7.800);
+                const liveTp = Number(sandboxData.liveTp || 8.950);
+                const bep = Number(customKoruCost * 1.002);
+
+                if (isLevelHit(liveSl)) {
+                    triggerWithCooldown(
+                        `koru_sl_${liveSl.toFixed(3)}`,
+                        `🚨 KORU 触及沙盒止损线 ${liveSl.toFixed(3)}`,
+                        `最新现价 ${currentPrice.toFixed(3)} 已触及结构止损位 (${liveSl.toFixed(3)})，请严格执行风控纪律！`,
+                        "sl"
+                    );
+                }
+                if (isLevelHit(liveTp)) {
+                    triggerWithCooldown(
+                        `koru_tp_${liveTp.toFixed(3)}`,
+                        `🎯 KORU 抵达波段止盈目标 ${liveTp.toFixed(3)}`,
+                        `最新现价 ${currentPrice.toFixed(3)} 已触及波段目标位 (${liveTp.toFixed(3)})，注意分批兑现锁定利润！`,
+                        "tp"
+                    );
+                }
+                if (isLevelHit(bep)) {
+                    triggerWithCooldown(
+                        `koru_bep_${bep.toFixed(3)}`,
+                        `🛡️ KORU 触及沙盒保本线 ${bep.toFixed(3)}`,
+                        `最新现价 ${currentPrice.toFixed(3)} 正在测试全仓真实保本线 (${bep.toFixed(3)})。`,
+                        "hline"
+                    );
+                }
+            }
+
+            // 3. 若为 BTC，同步检查战术阶梯开单器的止损 (SL) 与第一止盈 (TP1)
+            if (symKey === "BTC") {
+                const btcSl = parseFloat(document.getElementById("btcSlPrice")?.value || "0");
+                const btcTp = parseFloat(document.getElementById("btcTpPrice")?.value || "0");
+                if (isLevelHit(btcSl)) {
+                    triggerWithCooldown(
+                        `btc_sl_${btcSl.toFixed(1)}`,
+                        `🚨 BTC 触及结构止损位 ${btcSl.toFixed(1)}`,
+                        `BTC 现价 ${currentPrice.toFixed(1)} 已触及开单器止损防线 (${btcSl.toFixed(1)})！`,
+                        "sl"
+                    );
+                }
+                if (isLevelHit(btcTp)) {
+                    triggerWithCooldown(
+                        `btc_tp_${btcTp.toFixed(1)}`,
+                        `🎯 BTC 触及第一止盈目标 ${btcTp.toFixed(1)}`,
+                        `BTC 现价 ${currentPrice.toFixed(1)} 已抵达第一目标位 (${btcTp.toFixed(1)})！`,
+                        "tp"
+                    );
+                }
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', async () => {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -8591,6 +8934,7 @@
 
             renderWatchlistBar();
             bindChartPaneResizers();
+            syncPriceAlertBtnUI();
             syncChartControlButtons();
             applyCustomChartHeights();
 
@@ -8620,5 +8964,5 @@
         });
     </script>
 </body>
-<!-- Build: v9.8-one-click-chart-snapshot-copy-download -->
+<!-- Build: v9.9-price-alerts-sound-popup-and-custom-trendline-colors -->
 </html>
