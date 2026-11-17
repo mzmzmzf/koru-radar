@@ -722,6 +722,7 @@
         </div>
         <div class="header-status">
             <span class="badge" id="latencyBadge">-- ms</span>
+            <button type="button" class="badge" id="btnCloudSyncStatus" onclick="toggleCloudSyncDrawer()" style="cursor:pointer; border-color:rgba(138,180,248,0.55); color:#8ab4f8;" title="Mac 与手机端实时双向同步：画线、颜色、沙盒风控、自选列表与界面设置全自动同步">☁️ 多端同步</button>
             <button type="button" class="badge" id="btnRelayConfig" onclick="toggleRelayDrawer()" style="cursor:pointer; border-color:var(--neon-cyan); color:var(--neon-cyan);" title="配置 Cloudflare 自定义域名中继节点，实现国内免翻墙秒开全量行情与K线">🌐 中继路由</button>
             <button type="button" class="badge" id="btnPageImmersiveFs" onclick="togglePageNativeFullscreen()" style="cursor:pointer; border-color:var(--neon-emerald); color:#34d399;" title="调用系统真全屏隐藏手机浏览器标签栏与地址栏">⛶ 整页全屏</button>
             <span class="badge active" id="terminalStatus">● 智能路由初始化</span>
@@ -744,6 +745,29 @@
             </div>
             <div id="relayStatusHint" style="font-size:11px; color:var(--text-muted); line-height:1.5;">
                 💡 提示：在 Cloudflare Worker 绑定自定义域名（非 *.workers.dev）并粘贴上方 Worker 通用转发代码后填入此处，国内三网即可免翻墙秒开 KORU / BTC / 美股全量数据与 K 线。
+            </div>
+        </div>
+    </div>
+
+    <div id="cloudSyncDrawer" style="display:none; background:#18191a; border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
+        <div style="max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:250px;">
+                    <span style="color:#8ab4f8; font-weight:800; white-space:nowrap;">☁️ 云端同步口令:</span>
+                    <input type="text" id="cloudSyncRoomInput" placeholder="输入自定义同步口令(如 mao888) 或点右侧一键新建房间" class="form-input" style="flex:1; min-width:170px; padding:5px 8px; font-size:12px; font-family:monospace;" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveAndConnectCloudSync();}">
+                    <button type="button" class="btn-sm" onclick="saveAndConnectCloudSync()" style="background:rgba(16,185,129,0.2); border-color:var(--neon-emerald); color:#34d399; font-weight:800; padding:5px 10px;">🔗 连接并同步</button>
+                    <button type="button" class="btn-sm" onclick="createZeroConfigCloudRoom()" style="border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700; padding:5px 9px;" title="无需配置 Cloudflare KV，一键生成免配置云端房间号">✨ 一键新建房间</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <button type="button" class="btn-sm" onclick="manualForcePushCloudSync()" style="border-color:rgba(138,180,248,0.45); color:#93c5fd; padding:5px 8px;" title="立即将当前设备上的所有画线与配置推送覆盖到云端">⬆️ 推送本机</button>
+                    <button type="button" class="btn-sm" onclick="manualForcePullCloudSync()" style="border-color:rgba(138,180,248,0.45); color:#93c5fd; padding:5px 8px;" title="立即从云端拉取最新画线与配置到本机">⬇️ 拉取云端</button>
+                    <button type="button" class="btn-sm" onclick="copyMobileSyncMagicLink()" style="background:rgba(245,158,11,0.16); border-color:var(--neon-amber); color:#fcd34d; font-weight:800; padding:5px 9px;" title="生成包含中继域名与同步口令的直达链接，微信发给自己点开即自动完成手机端同步">📱 复制手机同步链接</button>
+                    <button type="button" class="btn-sm" onclick="disconnectCloudSync()" style="color:var(--text-muted); padding:5px 7px;">断开</button>
+                    <button type="button" class="btn-sm" onclick="toggleCloudSyncDrawer(false)" style="color:var(--text-muted); padding:5px 8px;">收起 ✕</button>
+                </div>
+            </div>
+            <div id="cloudSyncStatusHint" style="font-size:11px; color:var(--text-muted); line-height:1.5;">
+                💡 <b>跨端双向实时同步</b>：开启后，你在 Mac 上画的趋势线/水平线/通道/颜色、沙盒止盈止损、自选列表与界面开关，均会在 1.2 秒内自动同步到手机端（反之亦然）。
             </div>
         </div>
     </div>
@@ -1839,35 +1863,81 @@
         }
 
         function copyCloudflareWorkerCode() {
-            const workerCode = `export default {
-  async fetch(request) {
+            const workerCode = `// Cloudflare Worker：行情免翻墙转发 + Mac/手机端 KV 云端双向同步双合一版
+// 提示：在 Worker 设置 -> 绑定 (Bindings) 中添加 KV 命名空间，变量名填 QUANT_KV 即可永久跨端同步
+const memorySyncFallback = new Map();
+
+export default {
+  async fetch(request, env) {
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "*"
+    };
     if (request.method === "OPTIONS") {
-      return new Response(null, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-          "Access-Control-Allow-Headers": "*"
-        }
-      });
+      return new Response(null, { headers: corsHeaders });
     }
+
     const url = new URL(request.url);
+
+    // 1. 多端操作状态同步接口 (/sync?room=你的同步口令)
+    if (url.pathname === "/sync") {
+      const room = (url.searchParams.get("room") || "").replace(/[^a-zA-Z0-9_\-]/g, "").slice(0, 64);
+      if (!room) {
+        return new Response(JSON.stringify({ ok: false, error: "Missing room" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      const kvKey = "quant_sync_" + room;
+      if (request.method === "POST") {
+        const bodyText = await request.text();
+        if (bodyText.length > 512000) {
+          return new Response(JSON.stringify({ ok: false, error: "Payload too large" }), {
+            status: 413,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+        if (env && env.QUANT_KV) {
+          await env.QUANT_KV.put(kvKey, bodyText);
+        } else {
+          memorySyncFallback.set(kvKey, bodyText);
+        }
+        return new Response(JSON.stringify({ ok: true, kvBound: Boolean(env && env.QUANT_KV) }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" }
+        });
+      } else {
+        let raw = null;
+        if (env && env.QUANT_KV) {
+          raw = await env.QUANT_KV.get(kvKey);
+        } else {
+          raw = memorySyncFallback.get(kvKey) || null;
+        }
+        return new Response(raw || JSON.stringify({ empty: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" }
+        });
+      }
+    }
+
+    // 2. 行情 API 转发接口 (?url=...)
     const target = url.searchParams.get("url");
     const allowedHosts = [
       "www.okx.com",
       "aws.okx.com",
       "fapi.binance.com",
       "query1.finance.yahoo.com",
-      "open.er-api.com"
+      "open.er-api.com",
+      "jsonblob.com"
     ];
     if (!target) {
-      return new Response(JSON.stringify({ status: "ok", relay: "custom-domain-active" }), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      return new Response(JSON.stringify({ status: "ok", relay: "custom-domain-active", kvBound: Boolean(env && env.QUANT_KV) }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
     let targetUrl;
-    try { targetUrl = new URL(target); } catch { return new Response("Invalid URL", { status: 400 }); }
+    try { targetUrl = new URL(target); } catch { return new Response("Invalid URL", { status: 400, headers: corsHeaders }); }
     if (!allowedHosts.includes(targetUrl.hostname)) {
-      return new Response("Host not allowed", { status: 403 });
+      return new Response("Host not allowed", { status: 403, headers: corsHeaders });
     }
     const upstreamRes = await fetch(targetUrl.toString(), {
       headers: { "User-Agent": "Mozilla/5.0" }
@@ -1876,15 +1946,15 @@
     return new Response(body, {
       status: upstreamRes.status,
       headers: {
+        ...corsHeaders,
         "Content-Type": upstreamRes.headers.get("Content-Type") || "application/json",
-        "Access-Control-Allow-Origin": "*",
         "Cache-Control": "no-store"
       }
     });
   }
 };`;
             navigator.clipboard.writeText(workerCode)
-                .then(() => showToast("✅ 已复制 Cloudflare Worker 通用转发代码！"))
+                .then(() => showToast("✅ 已复制【行情转发 + 多端云同步】二合一 Worker 代码！"))
                 .catch(() => showToast("复制受限，请手动复制"));
         }
         const OKX_BTC_TICKER_URL = "https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP";
@@ -2393,6 +2463,7 @@
         function saveWatchlistToStorage() {
             localStorage.setItem("quant_user_watchlist", JSON.stringify(userWatchlist));
             localStorage.setItem("quant_active_symbol_id", activeWatchlistId);
+            scheduleCloudSyncPush();
         }
 
         function resolveTickerSpecs(rawInput, forcedMarket = "US") {
@@ -2608,10 +2679,12 @@
 
         function saveCustomHLinesToStorage() {
             localStorage.setItem("quant_custom_hlines", JSON.stringify(customHorizontalLines));
+            scheduleCloudSyncPush();
         }
 
         function saveCustomShapesToStorage() {
             localStorage.setItem("quant_custom_shapes", JSON.stringify(customShapeDrawings));
+            scheduleCloudSyncPush();
         }
 
         function resolveItemCustomColor(item, defaultColor) {
@@ -7219,8 +7292,13 @@
             const liveSl = parseFloat(document.getElementById("liveCalcSlInput").value) || 7.800;
             const liveTp = parseFloat(document.getElementById("liveCalcTpInput").value) || 8.950;
 
+            const prevSandboxJson = localStorage.getItem("quant_koru_sandbox") || "";
             sandboxData = { coreEntry: coreP, coreSl: coreSl, satActive: isSatActive, satEntry: satP, satSl: satSl, liveSl: liveSl, liveTp: liveTp };
-            localStorage.setItem("quant_koru_sandbox", JSON.stringify(sandboxData));
+            const nextSandboxJson = JSON.stringify(sandboxData);
+            localStorage.setItem("quant_koru_sandbox", nextSandboxJson);
+            if (prevSandboxJson !== nextSandboxJson) {
+                scheduleCloudSyncPush();
+            }
 
             const kp = lastValidKoru;
             const coreGain = (((kp - coreP) / coreP) * 100).toFixed(2);
@@ -7511,6 +7589,7 @@
         function onManualBtcPriceEdit() {
             if (isBtcAutoSync) { isBtcAutoSync = false; updateAutoSyncBtnUI(); }
             calculateBtcLadder();
+            scheduleCloudSyncPush();
         }
 
         function applyStrategyToTrenchInputs(strat) {
@@ -8917,16 +8996,490 @@
             }
         }
 
+
+        // =========================================================================
+        // 多端实时双向云同步引擎 (Mac ↔ 手机端：画线 / 颜色 / 沙盒 / 自选 / 设置全自动同步)
+        // =========================================================================
+        const SYNC_DEVICE_ID = (() => {
+            let id = localStorage.getItem("quant_sync_device_id");
+            if (!id) {
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || "");
+                id = (isMobile ? "Mobile_" : "Mac_") + Math.random().toString(36).slice(2, 7);
+                localStorage.setItem("quant_sync_device_id", id);
+            }
+            return id;
+        })();
+
+        let cloudSyncRoom = (localStorage.getItem("quant_cloud_sync_room") || "").trim();
+        let localStateUpdatedAt = parseInt(localStorage.getItem("quant_sync_updated_at") || "0", 10) || 0;
+        let isApplyingRemoteState = false;
+        let isCloudSyncInFlight = false;
+        let cloudPushDebounceTimer = null;
+
+        function getCloudSyncRoom() {
+            return (localStorage.getItem("quant_cloud_sync_room") || "").trim();
+        }
+
+        function updateCloudSyncBadgeUI(state = "idle", detailText = "") {
+            const btn = document.getElementById("btnCloudSyncStatus");
+            const hint = document.getElementById("cloudSyncStatusHint");
+            const inp = document.getElementById("cloudSyncRoomInput");
+            const room = getCloudSyncRoom();
+
+            if (inp && !inp.value && room) {
+                inp.value = room;
+            }
+
+            if (btn) {
+                if (!room) {
+                    btn.textContent = "☁️ 多端同步";
+                    btn.style.borderColor = "rgba(138,180,248,0.55)";
+                    btn.style.color = "#8ab4f8";
+                    btn.style.background = "";
+                } else if (state === "syncing") {
+                    btn.textContent = "🔄 同步中...";
+                    btn.style.borderColor = "var(--neon-cyan)";
+                    btn.style.color = "var(--neon-cyan)";
+                } else if (state === "error") {
+                    btn.textContent = "⚠️ 同步重试";
+                    btn.style.borderColor = "var(--neon-amber)";
+                    btn.style.color = "#fbbf24";
+                } else {
+                    btn.textContent = "🟢 云端已同步";
+                    btn.style.borderColor = "var(--neon-emerald)";
+                    btn.style.color = "#34d399";
+                    btn.style.background = "rgba(16, 185, 129, 0.12)";
+                }
+            }
+
+            if (hint) {
+                if (!room) {
+                    hint.innerHTML = `💡 <b>跨端双向实时同步</b>：在左侧输入自定义口令（如 <code>mao888</code>，需先在【🌐 中继路由】填入你的自定义域名）或点 <b>【✨ 一键新建房间】</b>，Mac 与手机即可全自动双向同步所有画线与操作结果。`;
+                } else {
+                    const relayBase = getCustomRelayBase();
+                    const backendLabel = room.startsWith("jb:")
+                        ? "免配置公共云端通道"
+                        : (relayBase ? `私有中继 (${relayBase})` : "待配置中继或改用一键新建房间");
+                    const extra = detailText ? ` · <b style="color:#34d399;">${detailText}</b>` : "";
+                    hint.innerHTML = `🟢 已连接同步口令：<b style="color:#34d399; font-family:monospace;">${room}</b>（通道：${backendLabel}）${extra}`;
+                }
+            }
+        }
+
+        function toggleCloudSyncDrawer(forceState) {
+            const drawer = document.getElementById("cloudSyncDrawer");
+            if (!drawer) return;
+            const isOpen = drawer.style.display !== "none";
+            const nextOpen = typeof forceState === "boolean" ? forceState : !isOpen;
+            drawer.style.display = nextOpen ? "block" : "none";
+            updateCloudSyncBadgeUI("idle");
+            if (nextOpen) {
+                const inp = document.getElementById("cloudSyncRoomInput");
+                if (inp && !inp.value) setTimeout(() => inp.focus(), 50);
+            }
+        }
+
+        function buildFullWorkspaceSnapshot(tsOverride = null) {
+            const ts = tsOverride || Date.now();
+            return {
+                v: 1,
+                updatedAt: ts,
+                sourceDevice: SYNC_DEVICE_ID,
+                customHorizontalLines,
+                customShapeDrawings,
+                userWatchlist,
+                activeWatchlistId,
+                watchlistMarketFilter,
+                tvInterval,
+                sandboxData,
+                prefs: {
+                    tvTheme,
+                    candleColorStyle,
+                    chartGridMode,
+                    isChartLogScale,
+                    showSmcBlocks,
+                    showCvdSubchart,
+                    showNetposSubchart,
+                    cvdDailyReset,
+                    netposDisplayMode,
+                    activeDrawColor,
+                    priceAlertsEnabled,
+                    kospiChartSpan
+                },
+                btcLadder: {
+                    equity: document.getElementById("btcEquity")?.value || "10000",
+                    riskPct: document.getElementById("btcRiskPct")?.value || "2.0",
+                    sl: document.getElementById("btcSlPrice")?.value || "76000",
+                    tp: document.getElementById("btcTpPrice")?.value || "71200",
+                    t1: document.getElementById("tier1Price")?.value || "74200",
+                    t2: document.getElementById("tier2Price")?.value || "74600",
+                    t3: document.getElementById("tier3Price")?.value || "75200",
+                    side: currentSide,
+                    autoSync: isBtcAutoSync
+                }
+            };
+        }
+
+        function applyRemoteWorkspaceSnapshot(snap) {
+            if (!snap || typeof snap !== "object" || !snap.updatedAt) return;
+            isApplyingRemoteState = true;
+            try {
+                // 1. 恢复全部水平线
+                if (snap.customHorizontalLines && typeof snap.customHorizontalLines === "object") {
+                    customHorizontalLines = snap.customHorizontalLines;
+                    localStorage.setItem("quant_custom_hlines", JSON.stringify(customHorizontalLines));
+                }
+
+                // 2. 恢复全部趋势线段 / 平行通道 / 斐波那契 / 矩形箱体
+                if (snap.customShapeDrawings && typeof snap.customShapeDrawings === "object") {
+                    customShapeDrawings = snap.customShapeDrawings;
+                    localStorage.setItem("quant_custom_shapes", JSON.stringify(customShapeDrawings));
+                }
+
+                // 3. 恢复自选列表与当前激活标的
+                let symbolOrTfChanged = false;
+                if (Array.isArray(snap.userWatchlist) && snap.userWatchlist.length >= 1) {
+                    const normList = snap.userWatchlist.map(normalizeWatchlistItem).filter(Boolean);
+                    if (normList.length >= 1) {
+                        userWatchlist = normList;
+                        localStorage.setItem("quant_user_watchlist", JSON.stringify(userWatchlist));
+                    }
+                }
+                if (snap.activeWatchlistId && userWatchlist.some(x => x.id === snap.activeWatchlistId) && snap.activeWatchlistId !== activeWatchlistId) {
+                    activeWatchlistId = snap.activeWatchlistId;
+                    tvSymbol = getActiveSymbolObj().tvSymbol;
+                    localStorage.setItem("quant_active_symbol_id", activeWatchlistId);
+                    symbolOrTfChanged = true;
+                }
+                if (snap.tvInterval && ALL_TIMEFRAMES.includes(snap.tvInterval) && snap.tvInterval !== tvInterval) {
+                    tvInterval = snap.tvInterval;
+                    document.querySelectorAll(".tv-tf-btn").forEach(b => {
+                        const tfMap = { "1m": "1", "5m": "5", "15m": "15", "1H": "60", "4H": "240", "1D": "D", "3D": "3D", "1W": "W", "1M": "M" };
+                        b.classList.toggle("active", tfMap[b.textContent.trim()] === tvInterval);
+                    });
+                    symbolOrTfChanged = true;
+                }
+
+                // 4. 恢复 KORU 持仓风控沙盒
+                if (snap.sandboxData && typeof snap.sandboxData === "object") {
+                    sandboxData = Object.assign(sandboxData, snap.sandboxData);
+                    localStorage.setItem("quant_koru_sandbox", JSON.stringify(sandboxData));
+                    const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = Number(v).toFixed(3); };
+                    setVal("coreEntryPrice", sandboxData.coreEntry);
+                    setVal("coreSlPrice", sandboxData.coreSl);
+                    const satChk = document.getElementById("satActiveCheck");
+                    if (satChk) satChk.checked = Boolean(sandboxData.satActive);
+                    setVal("satEntryPrice", sandboxData.satEntry);
+                    setVal("satSlPrice", sandboxData.satSl);
+                    setVal("liveCalcSlInput", sandboxData.liveSl);
+                    setVal("liveCalcTpInput", sandboxData.liveTp);
+                    updatePositionSandbox();
+                }
+
+                // 5. 恢复 BTC 战术开单器参数
+                if (snap.btcLadder && typeof snap.btcLadder === "object") {
+                    const b = snap.btcLadder;
+                    const setRaw = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = v; };
+                    setRaw("btcEquity", b.equity);
+                    setRaw("btcRiskPct", b.riskPct);
+                    setRaw("btcSlPrice", b.sl);
+                    setRaw("btcTpPrice", b.tp);
+                    setRaw("tier1Price", b.t1);
+                    setRaw("tier2Price", b.t2);
+                    setRaw("tier3Price", b.t3);
+                    if (typeof b.autoSync === "boolean") {
+                        isBtcAutoSync = b.autoSync;
+                        updateAutoSyncBtnUI();
+                    }
+                    if (b.side === "LONG" || b.side === "SHORT") {
+                        setBtcTradeSide(b.side, false);
+                    }
+                    calculateBtcLadder();
+                }
+
+                // 6. 恢复看盘颜色、副图与提醒偏好
+                if (snap.prefs && typeof snap.prefs === "object") {
+                    const pr = snap.prefs;
+                    if (pr.activeDrawColor) {
+                        activeDrawColor = pr.activeDrawColor;
+                        localStorage.setItem("quant_draw_color", activeDrawColor);
+                    }
+                    if (typeof pr.priceAlertsEnabled === "boolean") {
+                        priceAlertsEnabled = pr.priceAlertsEnabled;
+                        localStorage.setItem("quant_price_alerts_enabled", priceAlertsEnabled ? "true" : "false");
+                        syncPriceAlertBtnUI();
+                    }
+                    if (typeof pr.showSmcBlocks === "boolean") {
+                        showSmcBlocks = pr.showSmcBlocks;
+                        localStorage.setItem("quant_smc_blocks", showSmcBlocks ? "true" : "false");
+                    }
+                }
+
+                localStateUpdatedAt = Number(snap.updatedAt);
+                localStorage.setItem("quant_sync_updated_at", String(localStateUpdatedAt));
+
+                renderWatchlistBar();
+                syncChartControlButtons();
+                renderDrawingToolbarState();
+
+                if (chartEngineMode === "STRAT") {
+                    if (symbolOrTfChanged) {
+                        destroySubChartInstances();
+                        initLightweightChart();
+                        fetchAndRenderStrategyChart(false);
+                    } else {
+                        renderAllLwPriceLines();
+                        renderDrawOverlay();
+                    }
+                }
+            } finally {
+                isApplyingRemoteState = false;
+            }
+        }
+
+        async function pushCloudSyncPayload(snapshotObj) {
+            const room = getCloudSyncRoom();
+            if (!room) return false;
+
+            // 通道 A：免配置公共云端通道 (jb:xxxx -> jsonblob.com)
+            if (room.startsWith("jb:")) {
+                const blobId = room.slice(3).trim();
+                if (!blobId) return false;
+                const targetUrl = `https://jsonblob.com/api/jsonBlob/${encodeURIComponent(blobId)}`;
+                const relayBase = getCustomRelayBase();
+                const fetchUrl = relayBase ? buildRelayTargetUrl(relayBase, targetUrl) : targetUrl;
+                const res = await fetch(fetchUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                    body: JSON.stringify(snapshotObj)
+                });
+                return res.ok;
+            }
+
+            // 通道 B：用户私有 Cloudflare Worker 自定义域名 (/sync?room=xxx)
+            const relayBase = getCustomRelayBase() || LEGACY_WORKERS_DEV_URL;
+            const syncUrl = `${relayBase}/sync?room=${encodeURIComponent(room)}`;
+            const res = await fetch(syncUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(snapshotObj)
+            });
+            if (!res.ok) return false;
+            const j = await res.json();
+            return Boolean(j && j.ok);
+        }
+
+        async function fetchRemoteCloudSyncPayload() {
+            const room = getCloudSyncRoom();
+            if (!room) return null;
+
+            // 通道 A：免配置公共云端通道 (jb:xxxx)
+            if (room.startsWith("jb:")) {
+                const blobId = room.slice(3).trim();
+                if (!blobId) return null;
+                const targetUrl = `https://jsonblob.com/api/jsonBlob/${encodeURIComponent(blobId)}`;
+                const relayBase = getCustomRelayBase();
+                const fetchUrl = relayBase ? buildRelayTargetUrl(relayBase, targetUrl) : targetUrl;
+                const data = await fetchJsonWithTimeout(fetchUrl, 3500);
+                return data && data.updatedAt ? data : null;
+            }
+
+            // 通道 B：用户私有 Cloudflare Worker 自定义域名 (/sync?room=xxx)
+            const relayBase = getCustomRelayBase() || LEGACY_WORKERS_DEV_URL;
+            const syncUrl = `${relayBase}/sync?room=${encodeURIComponent(room)}`;
+            const data = await fetchJsonWithTimeout(syncUrl, 3500);
+            if (!data || data.empty) return { empty: true };
+            return data.updatedAt ? data : null;
+        }
+
+        function scheduleCloudSyncPush() {
+            if (isApplyingRemoteState) return;
+            const nowTs = Date.now();
+            localStateUpdatedAt = nowTs;
+            localStorage.setItem("quant_sync_updated_at", String(nowTs));
+
+            const room = getCloudSyncRoom();
+            if (!room) return;
+
+            if (cloudPushDebounceTimer) clearTimeout(cloudPushDebounceTimer);
+            cloudPushDebounceTimer = setTimeout(async () => {
+                if (isCloudSyncInFlight) return;
+                isCloudSyncInFlight = true;
+                updateCloudSyncBadgeUI("syncing");
+                try {
+                    const snap = buildFullWorkspaceSnapshot(localStateUpdatedAt);
+                    const ok = await pushCloudSyncPayload(snap);
+                    const tStr = new Date().toTimeString().slice(0, 8);
+                    updateCloudSyncBadgeUI(ok ? "synced" : "error", ok ? `已推送 (${tStr})` : "推送超时，将自动重试");
+                } catch (e) {
+                    updateCloudSyncBadgeUI("error", "网络波动，稍后重试");
+                } finally {
+                    isCloudSyncInFlight = false;
+                }
+            }, 1100);
+        }
+
+        async function pullCloudSyncState(silent = true) {
+            const room = getCloudSyncRoom();
+            if (!room || isCloudSyncInFlight || activeHandleDrag || activeDrawTool !== "none") return;
+
+            isCloudSyncInFlight = true;
+            if (!silent) updateCloudSyncBadgeUI("syncing");
+            try {
+                const remote = await fetchRemoteCloudSyncPayload();
+                const tStr = new Date().toTimeString().slice(0, 8);
+                if (!remote) {
+                    updateCloudSyncBadgeUI("error", "连接云端失败");
+                    return;
+                }
+                if (remote.empty) {
+                    // 云端尚无数据，若本机已有画线则主动初始化上传
+                    const snap = buildFullWorkspaceSnapshot(localStateUpdatedAt || Date.now());
+                    await pushCloudSyncPayload(snap);
+                    updateCloudSyncBadgeUI("synced", `已初始化上传 (${tStr})`);
+                    return;
+                }
+                if (Number(remote.updatedAt) > Number(localStateUpdatedAt) + 200) {
+                    applyRemoteWorkspaceSnapshot(remote);
+                    updateCloudSyncBadgeUI("synced", `已同步 ${remote.sourceDevice || "远程"} (${tStr})`);
+                    showToast(`☁️ 已从 ${remote.sourceDevice || "另一端"} 同步最新画线与页面操作！`);
+                } else {
+                    updateCloudSyncBadgeUI("synced", `已是最新 (${tStr})`);
+                    if (!silent) showToast("✅ 当前页面画线与操作已是云端最新版本");
+                }
+            } catch (e) {
+                updateCloudSyncBadgeUI("error", "同步超时");
+            } finally {
+                isCloudSyncInFlight = false;
+            }
+        }
+
+        async function saveAndConnectCloudSync() {
+            const inp = document.getElementById("cloudSyncRoomInput");
+            if (!inp) return;
+            const val = inp.value.trim();
+            if (!val) {
+                showToast("请输入自定义同步口令（如 mao888）或点【✨ 一键新建房间】");
+                return;
+            }
+            cloudSyncRoom = val;
+            localStorage.setItem("quant_cloud_sync_room", val);
+            updateCloudSyncBadgeUI("syncing");
+            await pullCloudSyncState(false);
+        }
+
+        async function createZeroConfigCloudRoom() {
+            updateCloudSyncBadgeUI("syncing");
+            showToast("⏳ 正在创建免配置云端同步房间...");
+            try {
+                const initSnap = buildFullWorkspaceSnapshot(Date.now());
+                const targetUrl = "https://jsonblob.com/api/jsonBlob";
+                const relayBase = getCustomRelayBase();
+                const fetchUrl = relayBase ? buildRelayTargetUrl(relayBase, targetUrl) : targetUrl;
+                const res = await fetch(fetchUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                    body: JSON.stringify(initSnap)
+                });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                const loc = res.headers.get("Location") || res.headers.get("X-jsonblob") || "";
+                const blobId = loc.split("/").filter(Boolean).pop();
+                if (!blobId) throw new Error("No blob ID returned");
+
+                const roomToken = `jb:${blobId}`;
+                cloudSyncRoom = roomToken;
+                localStorage.setItem("quant_cloud_sync_room", roomToken);
+                localStateUpdatedAt = initSnap.updatedAt;
+                localStorage.setItem("quant_sync_updated_at", String(localStateUpdatedAt));
+
+                const inp = document.getElementById("cloudSyncRoomInput");
+                if (inp) inp.value = roomToken;
+                updateCloudSyncBadgeUI("synced", "新建房间并已上传本机状态");
+                showToast(`✅ 云端同步房间创建成功！口令：${roomToken}（可点【📱 复制手机同步链接】发微信一键绑定手机）`);
+            } catch (err) {
+                // 若 jsonblob 不可达，自动生成私有中继口令
+                const fallbackRoom = "quant-" + Math.random().toString(36).slice(2, 8);
+                cloudSyncRoom = fallbackRoom;
+                localStorage.setItem("quant_cloud_sync_room", fallbackRoom);
+                const inp = document.getElementById("cloudSyncRoomInput");
+                if (inp) inp.value = fallbackRoom;
+                updateCloudSyncBadgeUI("idle", "已生成私有中继口令（需先配置自定义中继域名）");
+                showToast(`已生成私有同步口令：${fallbackRoom}（请确认已配置【🌐 中继路由】自定义域名）`);
+            }
+        }
+
+        async function manualForcePushCloudSync() {
+            const room = getCloudSyncRoom();
+            if (!room) {
+                showToast("请先连接或新建云端同步口令");
+                return;
+            }
+            updateCloudSyncBadgeUI("syncing");
+            const nowTs = Date.now();
+            localStateUpdatedAt = nowTs;
+            localStorage.setItem("quant_sync_updated_at", String(nowTs));
+            const snap = buildFullWorkspaceSnapshot(nowTs);
+            const ok = await pushCloudSyncPayload(snap);
+            const tStr = new Date().toTimeString().slice(0, 8);
+            updateCloudSyncBadgeUI(ok ? "synced" : "error", ok ? `强制推送成功 (${tStr})` : "推送失败");
+            showToast(ok ? "⬆️ 已将本机全部画线、颜色与沙盒设置推送到云端！" : "⚠️ 推送失败，请检查网络或中继路由配置");
+        }
+
+        async function manualForcePullCloudSync() {
+            const room = getCloudSyncRoom();
+            if (!room) {
+                showToast("请先连接或新建云端同步口令");
+                return;
+            }
+            // 重置本地时间戳以强制拉取覆盖
+            localStateUpdatedAt = 0;
+            await pullCloudSyncState(false);
+        }
+
+        function copyMobileSyncMagicLink() {
+            const room = getCloudSyncRoom();
+            if (!room) {
+                showToast("请先输入同步口令或点【✨ 一键新建房间】后再生成链接");
+                return;
+            }
+            const baseUrl = window.location.origin + window.location.pathname;
+            const params = new URLSearchParams();
+            const relay = getCustomRelayBase();
+            if (relay) params.set("relay", relay);
+            params.set("sync", room);
+            const magicUrl = `${baseUrl}?${params.toString()}`;
+            navigator.clipboard.writeText(magicUrl)
+                .then(() => showToast("📱 已复制手机端同步链接！发到微信点开即可自动绑定并同步所有画线"))
+                .catch(() => showToast("复制受限，请手动复制：" + magicUrl));
+        }
+
+        function disconnectCloudSync() {
+            localStorage.removeItem("quant_cloud_sync_room");
+            cloudSyncRoom = "";
+            const inp = document.getElementById("cloudSyncRoomInput");
+            if (inp) inp.value = "";
+            updateCloudSyncBadgeUI("idle");
+            showToast("已断开云端同步，当前为本机离线存储模式");
+        }
+
         window.addEventListener('DOMContentLoaded', async () => {
+            let hasUrlSyncParam = false;
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 const queryRelay = (urlParams.get("relay") || "").trim().replace(new RegExp("/+$"), "");
                 if (queryRelay && /^https?:\/\//i.test(queryRelay)) {
                     localStorage.setItem("quant_custom_relay_url", queryRelay);
                 }
+                const querySync = (urlParams.get("sync") || "").trim();
+                if (querySync) {
+                    localStorage.setItem("quant_cloud_sync_room", querySync);
+                    cloudSyncRoom = querySync;
+                    hasUrlSyncParam = true;
+                }
             } catch (e) {}
 
             syncRelayHeaderUI();
+            updateCloudSyncBadgeUI("idle");
             loadPositionSandbox();
             initKospiSliderRange(BASE_KOSPI_ANCHOR);
             fetchKospiHistoryData();
@@ -8958,11 +9511,26 @@
             fetchLiveMarketData();
             setInterval(fetchLiveMarketData, 3500);
 
+            // 启动跨端云同步轮询（打开网页立即同步 + 每 5 秒静默检查 + 手机切回前台秒同步）
+            if (getCloudSyncRoom()) {
+                pullCloudSyncState(!hasUrlSyncParam);
+            }
+            setInterval(() => {
+                if (getCloudSyncRoom() && document.visibilityState === "visible") {
+                    pullCloudSyncState(true);
+                }
+            }, 5000);
+            document.addEventListener("visibilitychange", () => {
+                if (document.visibilityState === "visible" && getCloudSyncRoom()) {
+                    pullCloudSyncState(true);
+                }
+            });
+
             if ("serviceWorker" in navigator) {
                 navigator.serviceWorker.register("./sw.js").catch(() => {});
             }
         });
     </script>
 </body>
-<!-- Build: v9.9-price-alerts-sound-popup-and-custom-trendline-colors -->
+<!-- Build: v10.0-cross-device-cloud-sync-mac-mobile -->
 </html>
