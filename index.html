@@ -7529,15 +7529,14 @@ export default {
             const text = String(rawText || "").trim();
             if (!text) return false;
 
-            const lines = text.split(/?
-/).map(l => l.trim()).filter(Boolean);
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
             const parseCsvLine = (row) => {
                 const out = [];
                 let cur = "", inQ = false;
                 for (let i = 0; i < row.length; i++) {
                     const ch = row[i];
                     if (ch === '"') inQ = !inQ;
-                    else if ((ch === ',' || ch === '	') && !inQ) { out.push(cur.trim()); cur = ""; }
+                    else if ((ch === ',' || ch === '\t') && !inQ) { out.push(cur.trim()); cur = ""; }
                     else cur += ch;
                 }
                 out.push(cur.trim());
@@ -7546,7 +7545,7 @@ export default {
             const toNum = (s) => parseFloat(String(s || "").replace(/,/g, "").replace(/%/g, "").replace(/"/g, "").trim());
 
             // 1. 尝试按表格 CSV/TSV 解析（兼容 KRX 成分股/资金表 & 历史指数表）
-            if (lines.length >= 2 && (lines[0].includes(",") || lines[0].includes("	"))) {
+            if (lines.length >= 2 && (lines[0].includes(",") || lines[0].includes("\t"))) {
                 const headers = parseCsvLine(lines[0]).map(h => h.replace(/^"|"$/g, "").trim());
                 const lowerHeaders = headers.map(h => h.toLowerCase());
 
@@ -8054,21 +8053,16 @@ export default {
             const ewyCap = parseFloat(document.getElementById("vdEwyCapInput")?.value) || 30000;
             const koruCap = Math.round(ewyCap / 3);
 
-            const report = `【当日资金与 EWY / KORU 波段作战分析战报】
-` +
-                `• 战略裁决: ${verdict}
-` +
-                `• 核心盘面: KOSPI 200 ${analyticsState.kospiClose.toFixed(2)} | 10EMA ${analyticsState.ema10.toFixed(2)} | 15EMA ${analyticsState.ema15.toFixed(2)} | CHoCH门槛 ${analyticsState.chochLevel.toFixed(2)}
-` +
-                `• 资金与汇率: 主力净流 ${analyticsState.netFlowBillion >= 0 ? "+" : ""}${analyticsState.netFlowBillion} 亿韩元 | 两强权重 ${analyticsState.semiWeightPct}% | USDKRW ${latestUsdKrw.toFixed(2)}
-` +
-                `• 波动率拖累实测 (${r1}% / ${r2}%): EWY(1x) = ${res1x} vs KORU(3x) = ${res3x}
-` +
-                `• 风险平价仓位: EWY 标准仓位 $${ewyCap.toLocaleString()} ↔ KORU 增强上限 $${koruCap.toLocaleString()} (1/3敞口)
-` +
-                `----------------------------------------
-` +
-                `📌 执行策略: ${narrative.trim()}`;
+            const report = [
+                "【当日资金与 EWY / KORU 波段作战分析战报】",
+                `• 战略裁决: ${verdict}`,
+                `• 核心盘面: KOSPI 200 ${analyticsState.kospiClose.toFixed(2)} | 10EMA ${analyticsState.ema10.toFixed(2)} | 15EMA ${analyticsState.ema15.toFixed(2)} | CHoCH门槛 ${analyticsState.chochLevel.toFixed(2)}`,
+                `• 资金与汇率: 主力净流 ${analyticsState.netFlowBillion >= 0 ? "+" : ""}${analyticsState.netFlowBillion} 亿韩元 | 两强权重 ${analyticsState.semiWeightPct}% | USDKRW ${latestUsdKrw.toFixed(2)}`,
+                `• 波动率拖累实测 (${r1}% / ${r2}%): EWY(1x) = ${res1x} vs KORU(3x) = ${res3x}`,
+                `• 风险平价仓位: EWY 标准仓位 $${ewyCap.toLocaleString()} ↔ KORU 增强上限 $${koruCap.toLocaleString()} (1/3敞口)`,
+                "----------------------------------------",
+                `📌 执行策略: ${narrative.trim()}`
+            ].join("\n");
 
             navigator.clipboard.writeText(report)
                 .then(() => showToast("📋 已复制《当日资金与 EWY/KORU 波段作战分析报告》！"))
@@ -10859,5 +10853,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v10.3-capital-flow-ewy-koru-volatility-drag-analyzer -->
+<!-- Build: v10.4-fix-js-regex-syntax-and-capital-flow-analyzer -->
 </html>
