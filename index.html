@@ -304,6 +304,73 @@
             min-height: 0 !important;
             display: block !important;
         }
+        /* 全屏状态下为右上角固定悬浮胶囊预留安全宽度，防止按钮被遮挡 */
+        .tv-fullscreen-card:not(.tags-collapsed) #tvChartTopToolbar {
+            padding-right: 184px !important;
+        }
+        /* 沉浸式看盘：收起上方所有标签与工具栏 */
+        #tvChartCard.tags-collapsed #tvChartTopToolbar,
+        #tvChartCard.tags-collapsed #chartHeightControlBar,
+        #tvChartCard.tags-collapsed #watchlistManagerDrawer,
+        #tvChartCard.tags-collapsed #tvSubHintBar,
+        #tvChartCard.tags-collapsed #chartDrawingToolbar {
+            display: none !important;
+        }
+        /* 右上角固定悬浮控制胶囊（Mac 端 & 手机端通用，支持刘海屏安全区） */
+        .fs-topright-floating-bar {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            z-index: 10060;
+            background: rgba(19, 19, 20, 0.86);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 999px;
+            padding: 4px 8px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .tv-fullscreen-card .fs-topright-floating-bar {
+            display: flex !important;
+            position: fixed !important;
+            top: max(8px, env(safe-area-inset-top)) !important;
+            right: max(10px, env(safe-area-inset-right)) !important;
+        }
+        #tvChartCard.tags-collapsed:not(.tv-fullscreen-card) .fs-topright-floating-bar {
+            display: flex !important;
+            position: absolute !important;
+            top: 8px !important;
+            right: 10px !important;
+        }
+        .fs-floating-pill-btn {
+            border: 1px solid rgba(138, 180, 248, 0.45);
+            background: rgba(30, 31, 32, 0.92);
+            color: #e3e3e3;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+            line-height: 1.2;
+            white-space: nowrap;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fs-floating-pill-btn.exit-fs {
+            background: rgba(239, 68, 68, 0.28);
+            border-color: #ef4444;
+            color: #fecaca;
+        }
+        .fs-floating-pill-btn.enter-fs {
+            background: rgba(6, 182, 212, 0.22);
+            border-color: var(--neon-cyan);
+            color: #67e8f9;
+        }
+        #lwDrawOverlay {
+            touch-action: none !important;
+            -webkit-user-select: none;
+            user-select: none;
+        }
 
         .lw-hud-overlay {
             position: absolute;
@@ -873,8 +940,13 @@
             </div>
 
             <!-- 首页双擎看盘舱：【破阵3.3 + SMC 视觉引擎】与【TV原版画线】一键切换 + 网页全屏 -->
-            <div class="card" id="tvChartCard" style="padding: 12px;">
-                <div class="card-title" style="flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+            <div class="card" id="tvChartCard" style="padding: 12px; position: relative;">
+                <!-- Mac & 手机端固定右上角悬浮胶囊（全屏或收起上方标签时始终固定右上角） -->
+                <div class="fs-topright-floating-bar" id="fsTopRightFloatingBar">
+                    <button type="button" class="fs-floating-pill-btn" id="btnFloatingToggleTags" onclick="toggleImmersiveTags()" title="收起/展开上方所有标签与工具栏，沉浸式看盘">🙈 收起标签</button>
+                    <button type="button" class="fs-floating-pill-btn exit-fs" id="btnFloatingExitFs" onclick="toggleTvFullscreen()" title="退出全屏看盘">✕ 退出全屏</button>
+                </div>
+                <div class="card-title" id="tvChartTopToolbar" style="flex-wrap:wrap; gap:8px; margin-bottom:8px;">
                     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                         <div class="btn-group">
                             <button type="button" class="btn-sm active" id="btnEngineStrat" onclick="switchChartEngine('STRAT', this)">⚔️ 破阵3.3 + SMC</button>
@@ -930,7 +1002,8 @@
                                 </button>
                             </div>
                         </div>
-                        <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
+                        <button type="button" class="btn-sm" id="btnToggleImmersiveTags" onclick="toggleImmersiveTags()" style="border-color:rgba(168,85,247,0.5); color:#d8b4fe; font-weight:700;" title="收起上方所有标签与工具栏，绘图完毕后沉浸式看盘面">🙈 收起标签</button>
+                        <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起图表</button>
                         <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 全屏看盘</button>
                     </div>
                 </div>
@@ -2853,13 +2926,34 @@ export default {
             }
         }
 
-        function toggleSelectedShapeLock() {
-            const target = getActiveEditShape();
-            if (!target) return;
-            const symKey = getCurrentSymKey();
-            const isHLine = (customHorizontalLines[symKey] || []).some(h => h.id === target.id);
-            target.locked = target.locked === false ? true : false;
-            selectedDrawingId = target.id;
+        function setChartInteractionLocked(shouldLock) {
+            if (!lwChart) return;
+            try {
+                lwChart.applyOptions({
+                    handleScroll: !shouldLock,
+                    handleScale: !shouldLock
+                });
+            } catch (e) {}
+        }
+
+        function finalizeLockTransition(target, isHLine, labelText) {
+            const nowLocked = target.locked !== false;
+            activeHandleDrag = null;
+            draftDrawing = null;
+            draftStep = 0;
+            awaitingSecondClick = false;
+            setChartInteractionLocked(false);
+
+            if (nowLocked) {
+                // 锁定后立即取消选中态与锚点高亮，确保后续触摸/拖动完全交给 K 线图表，图形纹丝不动
+                if (selectedDrawingId === target.id) {
+                    selectedDrawingId = null;
+                }
+                isVisibilityEditorOpen = false;
+            } else {
+                selectedDrawingId = target.id;
+            }
+
             if (isHLine) {
                 saveCustomHLinesToStorage();
                 renderAllLwPriceLines();
@@ -2869,17 +2963,20 @@ export default {
             syncOverlayPointerMode(null, null);
             renderDrawingToolbarState();
             renderDrawOverlay();
-            if (isHLine) {
-                showToast(target.locked
-                    ? "🔒 已锁定【水平线】位置（图表平移缩放不会误触，点线体或锁图标可随时解锁）"
-                    : "🔓 已解锁【水平线】：直接按住水平线或中间圆锚上下拖动即可调整价位！");
-                return;
-            }
+            showToast(nowLocked
+                ? `🔒 已锁定【${labelText}】位置（已彻底冻结坐标，拖动盘面绝不会移动）`
+                : `🔓 已解锁【${labelText}】：直接拖动圆锚或线体微调位置`);
+        }
+
+        function toggleSelectedShapeLock() {
+            const target = getActiveEditShape();
+            if (!target) return;
+            const symKey = getCurrentSymKey();
+            const isHLine = (customHorizontalLines[symKey] || []).some(h => h.id === target.id);
+            target.locked = target.locked === false ? true : false;
             const names = { trend: "趋势线段", channel: "平行通道", fib: "斐波那契", rect: "矩形箱体" };
-            const label = names[target.type] || "图形";
-            showToast(target.locked
-                ? `🔒 已锁定【${label}】位置（图表平移缩放不会误触，需要微调时可随时解锁）`
-                : `🔓 已解锁【${label}】：直接拖动圆锚调端点/通道宽度，或拖动本体平移位置`);
+            const label = isHLine ? "水平线" : (names[target.type] || "图形");
+            finalizeLockTransition(target, isHLine, label);
         }
 
         function toggleHLineLockById(id) {
@@ -2888,15 +2985,7 @@ export default {
             const target = list.find(h => h.id === id);
             if (!target) return;
             target.locked = target.locked === false ? true : false;
-            selectedDrawingId = target.id;
-            saveCustomHLinesToStorage();
-            syncOverlayPointerMode(null, null);
-            renderAllLwPriceLines();
-            renderDrawingToolbarState();
-            renderDrawOverlay();
-            showToast(target.locked
-                ? "🔒 已锁定该水平线位置"
-                : "🔓 已解锁该水平线：直接在图上按住水平线上下拖动即可调整价位！");
+            finalizeLockTransition(target, true, "水平线");
         }
 
         function toggleShapeLockById(id) {
@@ -2905,12 +2994,8 @@ export default {
             const target = list.find(d => d.id === id);
             if (!target) return;
             target.locked = target.locked === false ? true : false;
-            selectedDrawingId = target.id;
-            saveCustomShapesToStorage();
-            syncOverlayPointerMode(null, null);
-            renderDrawingToolbarState();
-            renderDrawOverlay();
-            showToast(target.locked ? "🔒 已锁定该图形位置" : "🔓 已解锁该图形，可拖动圆锚或本体微调位置");
+            const names = { trend: "趋势线段", channel: "平行通道", fib: "斐波那契", rect: "矩形箱体" };
+            finalizeLockTransition(target, false, names[target.type] || "图形");
         }
 
         function selectDrawTool(tool) {
@@ -2929,11 +3014,8 @@ export default {
                 isVisibilityEditorOpen = false;
                 selectedDrawingId = null;
             }
-            const overlay = document.getElementById("lwDrawOverlay");
-            if (overlay) {
-                overlay.style.pointerEvents = tool !== "none" ? "auto" : "none";
-                overlay.style.cursor = tool !== "none" ? "crosshair" : "default";
-            }
+            setChartInteractionLocked(tool !== "none");
+            syncOverlayPointerMode(null, null);
             syncChartControlButtons();
             renderDrawOverlay();
 
@@ -4329,6 +4411,15 @@ export default {
         }
 
         // --- 跨周期连续时空坐标转换引擎 (支持 Log 对数坐标与 15m/1H/4H/1D/3D 无缝映射) ---
+        const TF_CANONICAL_SECONDS = {
+            "1": 60, "5": 300, "15": 900, "60": 3600, "240": 14400,
+            "D": 86400, "3D": 259200, "W": 604800, "M": 2592000
+        };
+
+        function getCanonicalBarSeconds() {
+            return TF_CANONICAL_SECONDS[tvInterval] || 3600;
+        }
+
         function timeToOverlayX(ts) {
             if (!lwChart) return null;
             const tsApi = lwChart.timeScale();
@@ -4337,13 +4428,15 @@ export default {
             }
             const cache = lwLastDataCache;
             const n = cache.length;
+            const fallbackDt = getCanonicalBarSeconds();
             let logical = 0;
 
             if (ts <= cache[0].time) {
-                const dt = Math.max(1, cache[1].time - cache[0].time);
+                const dt = Math.max(1, Math.min(fallbackDt * 2, cache[1].time - cache[0].time) || fallbackDt);
                 logical = (ts - cache[0].time) / dt;
             } else if (ts >= cache[n - 1].time) {
-                const dt = Math.max(1, cache[n - 1].time - cache[n - 2].time);
+                const rawDt = cache[n - 1].time - cache[n - 2].time;
+                const dt = (rawDt > 0 && rawDt <= fallbackDt * 2) ? rawDt : fallbackDt;
                 logical = (n - 1) + (ts - cache[n - 1].time) / dt;
             } else {
                 let lo = 0, hi = n - 1;
@@ -4358,26 +4451,43 @@ export default {
             return tsApi.logicalToCoordinate(logical);
         }
 
+        function clampOverlayCoords(x, y) {
+            const mainPane = document.getElementById("lwMainPane");
+            if (!mainPane) return { x, y };
+            const w = Math.max(80, mainPane.clientWidth || 600);
+            const h = Math.max(80, mainPane.clientHeight || 440);
+            const plotW = Math.max(40, w - 62);
+            const plotH = Math.max(40, h - 26);
+            return {
+                x: Math.max(2, Math.min(plotW, x)),
+                y: Math.max(2, Math.min(plotH, y))
+            };
+        }
+
         function screenToChartPoint(x, y) {
             if (!lwChart || !lwCandleSeries) return null;
-            const rawPrice = lwCandleSeries.coordinateToPrice(y);
+            const clamped = clampOverlayCoords(x, y);
+            const rawPrice = lwCandleSeries.coordinateToPrice(clamped.y);
             if (rawPrice === null || !isFinite(rawPrice) || rawPrice <= 0) return null;
 
             const tsApi = lwChart.timeScale();
-            const logical = tsApi.coordinateToLogical(x);
+            const logical = tsApi.coordinateToLogical(clamped.x);
             if (logical === null || !isFinite(logical)) return null;
 
             const cache = lwLastDataCache;
             const n = cache.length;
+            const fallbackDt = getCanonicalBarSeconds();
             let ts = Math.floor(Date.now() / 1000);
             if (n >= 2) {
                 const idx = Math.floor(logical);
                 const frac = logical - idx;
                 if (idx < 0) {
-                    const dt = Math.max(1, cache[1].time - cache[0].time);
+                    const rawDt = cache[1].time - cache[0].time;
+                    const dt = (rawDt > 0 && rawDt <= fallbackDt * 2) ? rawDt : fallbackDt;
                     ts = Math.round(cache[0].time + logical * dt);
                 } else if (idx >= n - 1) {
-                    const dt = Math.max(1, cache[n - 1].time - cache[n - 2].time);
+                    const rawDt = cache[n - 1].time - cache[n - 2].time;
+                    const dt = (rawDt > 0 && rawDt <= fallbackDt * 2) ? rawDt : fallbackDt;
                     ts = Math.round(cache[n - 1].time + (logical - (n - 1)) * dt);
                 } else {
                     const span = cache[idx + 1].time - cache[idx].time;
@@ -4459,44 +4569,48 @@ export default {
             return { x1, y1, x2, y2, handles };
         }
 
-        function hitTestUnlockedHandleOrShape(px, py) {
+        function hitTestUnlockedHandleOrShape(px, py, isTouch = false) {
             const symKey = getCurrentSymKey();
-            // 0. 优先命中未锁定的水平线（支持鼠标/手指直接按住水平线上下拖动）
+            const hTol = isTouch ? 24 : 13;
+            const handleTol = isTouch ? 24 : 13;
+            const bodyTol = isTouch ? 20 : 11;
+
+            // 0. 优先命中【未锁定】的水平线（已锁定水平线严格跳过）
             const hList = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
             for (let i = hList.length - 1; i >= 0; i--) {
                 const hItem = hList[i];
                 if (hItem.locked !== false) continue;
                 const hy = priceToOverlayY(hItem.price);
-                if (hy !== null && Math.abs(py - hy) <= 13) {
+                if (hy !== null && Math.abs(py - hy) <= hTol) {
                     return { shape: hItem, handle: "hline", kind: "hline" };
                 }
             }
 
             const list = (customShapeDrawings[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
-            // 1. 其次命中未锁定图形的端点圆锚 / 通道宽度圆锚
+            // 1. 其次命中【未锁定】图形的端点圆锚 / 通道宽度圆锚（已锁定图形严格跳过）
             for (let i = list.length - 1; i >= 0; i--) {
                 const d = list[i];
                 if (d.locked !== false) continue;
                 const geom = getShapeControlHandlesScreen(d);
                 if (!geom) continue;
                 for (const h of geom.handles) {
-                    const hitR = h.key === "body" ? 10 : 12;
+                    const hitR = h.key === "body" ? (handleTol - 2) : handleTol;
                     if (Math.hypot(px - h.x, py - h.y) <= hitR) {
                         return { shape: d, handle: h.key, kind: "shape" };
                     }
                 }
             }
-            // 2. 再次命中未锁定图形的线段/通道/箱体本体（整根平移）
+            // 2. 再次命中【未锁定】图形的线段/通道/箱体本体（整根平移）
             for (let i = list.length - 1; i >= 0; i--) {
                 const d = list[i];
                 if (d.locked !== false) continue;
-                const hit = hitTestSingleShapeBody(d, px, py);
+                const hit = hitTestSingleShapeBody(d, px, py, bodyTol);
                 if (hit) return { shape: d, handle: "body", kind: "shape" };
             }
             return null;
         }
 
-        function hitTestSingleShapeBody(d, px, py) {
+        function hitTestSingleShapeBody(d, px, py, tol = 10) {
             const x1 = timeToOverlayX(d.p1.time);
             const y1 = priceToOverlayY(d.p1.price);
             const x2 = timeToOverlayX(d.p2.time);
@@ -4504,16 +4618,16 @@ export default {
             if (x1 === null || y1 === null || x2 === null || y2 === null) return false;
 
             if (d.type === "trend") {
-                return distToSegment(px, py, x1, y1, x2, y2) <= 10;
+                return distToSegment(px, py, x1, y1, x2, y2) <= tol;
             } else if (d.type === "channel") {
-                if (distToSegment(px, py, x1, y1, x2, y2) <= 10) return true;
+                if (distToSegment(px, py, x1, y1, x2, y2) <= tol) return true;
                 const cg = getChannelGeometryPrices(d);
                 const y1Par = priceToOverlayY(cg.p1Par);
                 const y2Par = priceToOverlayY(cg.p2Par);
                 const y1Mid = priceToOverlayY(cg.p1Mid);
                 const y2Mid = priceToOverlayY(cg.p2Mid);
-                if (y1Par !== null && y2Par !== null && distToSegment(px, py, x1, y1Par, x2, y2Par) <= 10) return true;
-                if (y1Mid !== null && y2Mid !== null && distToSegment(px, py, x1, y1Mid, x2, y2Mid) <= 9) return true;
+                if (y1Par !== null && y2Par !== null && distToSegment(px, py, x1, y1Par, x2, y2Par) <= tol) return true;
+                if (y1Mid !== null && y2Mid !== null && distToSegment(px, py, x1, y1Mid, x2, y2Mid) <= Math.max(8, tol - 1)) return true;
                 // 判断是否在通道多边形内部
                 if (y1Par !== null && y2Par !== null) {
                     const minX = Math.min(x1, x2) - 4, maxX = Math.max(x1, x2) + 4;
@@ -4526,8 +4640,9 @@ export default {
                 }
                 return false;
             } else if (d.type === "rect" || d.type === "fib") {
-                const minX = Math.min(x1, x2) - 6, maxX = Math.max(x1, x2) + 6;
-                const minY = Math.min(y1, y2) - 6, maxY = Math.max(y1, y2) + 6;
+                const pad = Math.max(6, tol * 0.7);
+                const minX = Math.min(x1, x2) - pad, maxX = Math.max(x1, x2) + pad;
+                const minY = Math.min(y1, y2) - pad, maxY = Math.max(y1, y2) + pad;
                 return px >= minX && px <= maxX && py >= minY && py <= maxY;
             }
             return false;
@@ -4800,35 +4915,46 @@ export default {
             ctx.font = "bold 11px monospace";
 
             const isUnlocked = item.locked === false;
-            const showHandles = isHighlighted || isUnlocked;
+            const showHandles = isUnlocked;
 
             if (item.type === "trend") {
                 const customStroke = resolveItemCustomColor(item, isDark ? "#38bdf8" : "#0284c7");
                 const lineColor = customStroke;
                 ctx.strokeStyle = lineColor;
-                ctx.lineWidth = showHandles ? 2.6 : 2;
+                ctx.lineWidth = (isUnlocked || isHighlighted) ? 2.6 : 2;
                 ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
                 ctx.lineTo(x2, y2);
                 ctx.stroke();
 
-                // 端点圆锚（解锁状态下显示可拖拽放大圆锚与中点平移手柄）
-                [ [x1, y1, item.p1.price], [x2, y2, item.p2.price] ].forEach(([ax, ay, ap], idx) => {
-                    ctx.fillStyle = isUnlocked ? lineColor : (isDark ? "#0b0f19" : "#FAF7EE");
-                    ctx.strokeStyle = (isUnlocked || isHighlighted) ? "#ffffff" : lineColor;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(ax, ay, isUnlocked ? 5.5 : (isHighlighted ? 4.5 : 3.2), 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
+                // 端点圆锚：仅在【未锁定】状态显示圆锚与可调标签；锁定后彻底隐藏圆锚防止误以为可拖
+                if (isUnlocked) {
+                    [ [x1, y1, item.p1.price], [x2, y2, item.p2.price] ].forEach(([ax, ay, ap], idx) => {
+                        ctx.fillStyle = lineColor;
+                        ctx.strokeStyle = "#ffffff";
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(ax, ay, 5.8, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
 
-                    if (showHandles) {
                         const tag = Number(ap).toFixed(dec);
                         ctx.fillStyle = lineColor;
                         ctx.fillText(tag, ax + 8, ay + (idx === 0 ? -6 : 13));
-                    }
-                });
+                    });
+                } else if (isHighlighted) {
+                    const mx = (x1 + x2) * 0.5, my = (y1 + y2) * 0.5;
+                    ctx.fillStyle = isDark ? "rgba(19,19,20,0.88)" : "rgba(250,247,238,0.94)";
+                    ctx.strokeStyle = "#f59e0b";
+                    ctx.lineWidth = 1.2;
+                    ctx.fillRect(mx - 22, my - 10, 44, 16);
+                    ctx.strokeRect(mx - 22, my - 10, 44, 16);
+                    ctx.fillStyle = "#fbbf24";
+                    ctx.font = "bold 9px monospace";
+                    ctx.fillText("🔒已锁", mx - 18, my + 1);
+                    ctx.font = "bold 11px monospace";
+                }
 
                 if (isUnlocked) {
                     const mx = (x1 + x2) * 0.5, my = (y1 + y2) * 0.5;
@@ -4897,27 +5023,27 @@ export default {
                 ctx.fillStyle = baseColor;
                 ctx.fillText(Number(item.p2.price).toFixed(dec), Math.min(plotW - 52, x2 + 6), y2 + 4);
 
-                // 6. 渲染 3 个控制圆锚：p1(基准起点)、p2(基准终点)、p3(平行轨宽度中点锚)
-                [ [x1, y1], [x2, y2] ].forEach(([ax, ay]) => {
-                    ctx.fillStyle = isUnlocked ? "#10b981" : (isDark ? "#0b0f19" : "#FAF7EE");
-                    ctx.strokeStyle = isUnlocked ? "#ffffff" : baseColor;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(ax, ay, isUnlocked ? 5.5 : (isHighlighted ? 4.2 : 3), 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-                });
+                // 6. 仅在【未锁定】状态渲染 3 个控制圆锚：p1(基准起点)、p2(基准终点)、p3(平行轨宽度中点锚)
+                if (isUnlocked) {
+                    [ [x1, y1], [x2, y2] ].forEach(([ax, ay]) => {
+                        ctx.fillStyle = "#10b981";
+                        ctx.strokeStyle = "#ffffff";
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(ax, ay, 5.8, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                    });
 
-                if (y1Par !== null && y2Par !== null) {
-                    const mxPar = (x1 + x2) * 0.5, myPar = (y1Par + y2Par) * 0.5;
-                    ctx.fillStyle = isUnlocked ? "#f59e0b" : (isDark ? "#0b0f19" : "#FAF7EE");
-                    ctx.strokeStyle = isUnlocked ? "#ffffff" : baseColor;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(mxPar, myPar, isUnlocked ? 5.5 : (isHighlighted ? 4 : 2.8), 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-                    if (isUnlocked) {
+                    if (y1Par !== null && y2Par !== null) {
+                        const mxPar = (x1 + x2) * 0.5, myPar = (y1Par + y2Par) * 0.5;
+                        ctx.fillStyle = "#f59e0b";
+                        ctx.strokeStyle = "#ffffff";
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(mxPar, myPar, 5.8, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
                         ctx.fillStyle = "#fbbf24";
                         ctx.fillText("↕调宽", mxPar + 7, myPar + 4);
                     }
@@ -5102,7 +5228,7 @@ export default {
             }
 
             if (sx !== null && sy !== null) {
-                const hit = hitTestUnlockedHandleOrShape(sx, sy);
+                const hit = hitTestUnlockedHandleOrShape(sx, sy, false);
                 if (hit) {
                     overlay.style.pointerEvents = "auto";
                     overlay.style.cursor = (hit.handle === "hline" || hit.handle === "p3") ? "ns-resize" : (hit.handle === "body" ? "grab" : "crosshair");
@@ -5114,9 +5240,13 @@ export default {
         }
 
         function beginUnlockedShapeDrag(hit, sx, sy, pointerId, overlay) {
+            // 严格守卫：已锁定图形或水平线绝不允许进入拖拽状态
+            if (!hit || !hit.shape || hit.shape.locked !== false) return;
             const pt = screenToChartPoint(sx, sy);
             if (!pt) return;
             selectedDrawingId = hit.shape.id;
+            setChartInteractionLocked(true);
+
             if (hit.kind === "hline" || hit.handle === "hline") {
                 activeHandleDrag = {
                     shapeId: hit.shape.id,
@@ -5151,6 +5281,40 @@ export default {
             if (!overlay || overlay.dataset.bound === "1") return;
             overlay.dataset.bound = "1";
 
+            let overlayRafPending = false;
+            const scheduleOverlayDraw = () => {
+                if (overlayRafPending) return;
+                overlayRafPending = true;
+                requestAnimationFrame(() => {
+                    overlayRafPending = false;
+                    renderDrawOverlay();
+                });
+            };
+
+            const finishOrAbortActiveDrag = (pointerId, sx = null, sy = null) => {
+                if (activeHandleDrag) {
+                    const wasHLine = activeHandleDrag.kind === "hline" || activeHandleDrag.handle === "hline";
+                    if (pointerId !== undefined) {
+                        try { overlay.releasePointerCapture(pointerId); } catch (err) {}
+                    }
+                    activeHandleDrag = null;
+                    setChartInteractionLocked(activeDrawTool !== "none");
+                    if (wasHLine) {
+                        const symKey = getCurrentSymKey();
+                        if (Array.isArray(customHorizontalLines[symKey])) {
+                            customHorizontalLines[symKey].sort((a, b) => Number(b.price) - Number(a.price));
+                        }
+                        saveCustomHLinesToStorage();
+                        renderAllLwPriceLines();
+                    } else {
+                        saveCustomShapesToStorage();
+                    }
+                    renderDrawingToolbarState();
+                    renderDrawOverlay();
+                    syncOverlayPointerMode(sx, sy);
+                }
+            };
+
             // 主图容器级联动：平移/缩放刷新覆盖层 + 悬停/触摸未锁定圆锚时自动激活拖拽
             if (mainPane) {
                 mainPane.addEventListener("pointermove", (e) => {
@@ -5160,12 +5324,14 @@ export default {
                 });
 
                 mainPane.addEventListener("pointerdown", (e) => {
+                    if (e.isPrimary === false) return;
                     if (activeDrawTool === "none" && !activeHandleDrag) {
                         const rect = overlay.getBoundingClientRect();
                         const sx = e.clientX - rect.left;
                         const sy = e.clientY - rect.top;
-                        const hit = hitTestUnlockedHandleOrShape(sx, sy);
-                        if (hit) {
+                        const isTouch = e.pointerType === "touch";
+                        const hit = hitTestUnlockedHandleOrShape(sx, sy, isTouch);
+                        if (hit && hit.shape && hit.shape.locked === false) {
                             e.preventDefault();
                             e.stopPropagation();
                             beginUnlockedShapeDrag(hit, sx, sy, e.pointerId, overlay);
@@ -5185,21 +5351,26 @@ export default {
                 window.addEventListener("pointerup", () => {
                     isChartPointerDown = false;
                 });
+                window.addEventListener("pointercancel", () => {
+                    isChartPointerDown = false;
+                });
 
                 mainPane.addEventListener("wheel", () => {
-                    requestAnimationFrame(() => renderDrawOverlay());
+                    scheduleOverlayDraw();
                 }, { passive: true });
             }
 
             overlay.addEventListener("pointerdown", (e) => {
+                if (e.isPrimary === false) return;
                 const rect = overlay.getBoundingClientRect();
                 const sx = e.clientX - rect.left;
                 const sy = e.clientY - rect.top;
+                const isTouch = e.pointerType === "touch";
 
                 // 1. 未锁定图形的句柄/本体拖拽调整
                 if (activeDrawTool === "none") {
-                    const hit = hitTestUnlockedHandleOrShape(sx, sy);
-                    if (hit) {
+                    const hit = hitTestUnlockedHandleOrShape(sx, sy, isTouch);
+                    if (hit && hit.shape && hit.shape.locked === false) {
                         e.preventDefault();
                         e.stopPropagation();
                         beginUnlockedShapeDrag(hit, sx, sy, e.pointerId, overlay);
@@ -5211,10 +5382,14 @@ export default {
 
                 e.preventDefault();
                 e.stopPropagation();
+                setChartInteractionLocked(true);
+                try { overlay.setPointerCapture(e.pointerId); } catch (err) {}
+
                 const pt = screenToChartPoint(sx, sy);
                 if (!pt) return;
 
                 if (activeDrawTool === "hline") {
+                    try { overlay.releasePointerCapture(e.pointerId); } catch (err) {}
                     addCustomHLineValue(pt.price, true);
                     return;
                 }
@@ -5224,6 +5399,7 @@ export default {
                     const baseMid = (draftDrawing.p1.price + draftDrawing.p2.price) * 0.5;
                     const dec = getActiveSymbolDecimals(pt.price);
                     draftDrawing.channelOffsetPrice = parseFloat((pt.price - baseMid).toFixed(dec));
+                    try { overlay.releasePointerCapture(e.pointerId); } catch (err) {}
                     finalizeCurrentDraftDrawing();
                     return;
                 }
@@ -5237,10 +5413,11 @@ export default {
                         draftDownScreen = null;
                         draftDrawing.channelOffsetPrice = 0;
                         renderDrawingToolbarState();
-                        renderDrawOverlay();
+                        scheduleOverlayDraw();
                         showToast("请上下移动光标拉开平行通道宽度，再次点击确认！");
                         return;
                     }
+                    try { overlay.releasePointerCapture(e.pointerId); } catch (err) {}
                     finalizeCurrentDraftDrawing();
                     return;
                 }
@@ -5258,16 +5435,18 @@ export default {
                     color: activeDrawColor || "#38bdf8",
                     colorVariant: rectColorPreset
                 };
-                renderDrawOverlay();
+                scheduleOverlayDraw();
             });
 
             overlay.addEventListener("pointermove", (e) => {
+                if (e.isPrimary === false) return;
                 const rect = overlay.getBoundingClientRect();
                 const sx = e.clientX - rect.left;
                 const sy = e.clientY - rect.top;
 
                 // 1. 正在拖动已画图形的圆锚、水平线或平移本体
                 if (activeHandleDrag) {
+                    e.preventDefault();
                     const pt = screenToChartPoint(sx, sy);
                     if (!pt) return;
                     const symKey = getCurrentSymKey();
@@ -5275,15 +5454,27 @@ export default {
 
                     if (activeHandleDrag.kind === "hline" || activeHandleDrag.handle === "hline") {
                         const hObj = (customHorizontalLines[symKey] || []).find(h => h.id === activeHandleDrag.shapeId);
-                        if (!hObj) return;
+                        // 硬性防漂移守卫：一旦已锁定，立即终止拖拽
+                        if (!hObj || hObj.locked !== false) {
+                            activeHandleDrag = null;
+                            setChartInteractionLocked(false);
+                            syncOverlayPointerMode(null, null);
+                            return;
+                        }
                         hObj.price = parseFloat(Math.max(0.000001, pt.price).toFixed(dec));
                         renderAllLwPriceLines();
-                        renderDrawOverlay();
+                        scheduleOverlayDraw();
                         return;
                     }
 
                     const shape = (customShapeDrawings[symKey] || []).find(d => d.id === activeHandleDrag.shapeId);
-                    if (!shape) return;
+                    // 硬性防漂移守卫：一旦已锁定，立即终止拖拽，绝不改写坐标
+                    if (!shape || shape.locked !== false) {
+                        activeHandleDrag = null;
+                        setChartInteractionLocked(false);
+                        syncOverlayPointerMode(null, null);
+                        return;
+                    }
 
                     if (activeHandleDrag.handle === "p1") {
                         shape.p1 = pt;
@@ -5310,7 +5501,7 @@ export default {
                             logical: newL2
                         };
                     }
-                    renderDrawOverlay();
+                    scheduleOverlayDraw();
                     return;
                 }
 
@@ -5319,6 +5510,7 @@ export default {
                     syncOverlayPointerMode(sx, sy);
                     return;
                 }
+                e.preventDefault();
                 const pt = screenToChartPoint(sx, sy);
                 if (!pt) return;
 
@@ -5329,7 +5521,7 @@ export default {
                 } else {
                     draftDrawing.p2 = pt;
                 }
-                renderDrawOverlay();
+                scheduleOverlayDraw();
             });
 
             overlay.addEventListener("pointerup", (e) => {
@@ -5338,25 +5530,11 @@ export default {
                 const sy = e.clientY - rect.top;
 
                 if (activeHandleDrag) {
-                    const wasHLine = activeHandleDrag.kind === "hline" || activeHandleDrag.handle === "hline";
-                    try { overlay.releasePointerCapture(e.pointerId); } catch (err) {}
-                    activeHandleDrag = null;
-                    if (wasHLine) {
-                        const symKey = getCurrentSymKey();
-                        if (Array.isArray(customHorizontalLines[symKey])) {
-                            customHorizontalLines[symKey].sort((a, b) => Number(b.price) - Number(a.price));
-                        }
-                        saveCustomHLinesToStorage();
-                        renderAllLwPriceLines();
-                    } else {
-                        saveCustomShapesToStorage();
-                    }
-                    renderDrawingToolbarState();
-                    renderDrawOverlay();
-                    syncOverlayPointerMode(sx, sy);
+                    finishOrAbortActiveDrag(e.pointerId, sx, sy);
                     return;
                 }
 
+                try { overlay.releasePointerCapture(e.pointerId); } catch (err) {}
                 if (activeDrawTool === "none" || !draftDrawing || !draftDownScreen) return;
                 const movedDist = Math.hypot(sx - draftDownScreen.x, sy - draftDownScreen.y);
 
@@ -5364,7 +5542,6 @@ export default {
                     const pt = screenToChartPoint(sx, sy);
                     if (pt) draftDrawing.p2 = pt;
                     if (activeDrawTool === "channel") {
-                        // 拖拽完成基准线后，自动进入第3步或赋予默认初始通道宽度并进入解锁微调
                         draftStep = 2;
                         draftDownScreen = null;
                         awaitingSecondClick = false;
@@ -5376,6 +5553,18 @@ export default {
                     finalizeCurrentDraftDrawing();
                 } else {
                     // 单击起点后等待移动并点击终点
+                    awaitingSecondClick = true;
+                }
+            });
+
+            overlay.addEventListener("pointercancel", (e) => {
+                if (activeHandleDrag) {
+                    finishOrAbortActiveDrag(e.pointerId, null, null);
+                    return;
+                }
+                try { overlay.releasePointerCapture(e.pointerId); } catch (err) {}
+                if (draftDrawing && draftStep === 1 && !awaitingSecondClick) {
+                    // 触摸被系统打断时自动转为等待第2次点击，避免画线卡死
                     awaitingSecondClick = true;
                 }
             });
@@ -6571,6 +6760,60 @@ export default {
             }
         }
 
+        let isTopTagsCollapsed = false;
+
+        function syncImmersiveTopTagsUI() {
+            const card = document.getElementById("tvChartCard");
+            const btnToolbar = document.getElementById("btnToggleImmersiveTags");
+            const btnFloatTags = document.getElementById("btnFloatingToggleTags");
+            const btnFloatFs = document.getElementById("btnFloatingExitFs");
+
+            if (card) {
+                card.classList.toggle("tags-collapsed", isTopTagsCollapsed);
+            }
+            if (btnToolbar) {
+                btnToolbar.textContent = isTopTagsCollapsed ? "👁️ 展开标签" : "🙈 收起标签";
+                btnToolbar.classList.toggle("active", isTopTagsCollapsed);
+            }
+            if (btnFloatTags) {
+                btnFloatTags.textContent = isTopTagsCollapsed ? "👁️ 展开标签" : "🙈 收起标签";
+            }
+            if (btnFloatFs) {
+                if (isTvFullscreen) {
+                    btnFloatFs.textContent = "✕ 退出全屏";
+                    btnFloatFs.className = "fs-floating-pill-btn exit-fs";
+                } else {
+                    btnFloatFs.textContent = "⛶ 全屏看盘";
+                    btnFloatFs.className = "fs-floating-pill-btn enter-fs";
+                }
+            }
+        }
+
+        function toggleImmersiveTags(forceState) {
+            const shell = document.getElementById("tvChartShell");
+            const collapseBtn = document.getElementById("btnTvCollapse");
+            if (isTvCollapsed) {
+                isTvCollapsed = false;
+                if (shell) shell.classList.remove("collapsed");
+                if (collapseBtn) collapseBtn.textContent = "🔽 收起图表";
+            }
+            isTopTagsCollapsed = typeof forceState === "boolean" ? forceState : !isTopTagsCollapsed;
+            syncImmersiveTopTagsUI();
+            applyCustomChartHeights();
+            requestAnimationFrame(() => {
+                if (lwChart) {
+                    const mc = document.getElementById("lwChartContainer");
+                    if (mc && mc.clientWidth > 0 && mc.clientHeight > 0) {
+                        lwChart.applyOptions({ width: mc.clientWidth, height: mc.clientHeight });
+                    }
+                }
+                resizeAndRenderDrawOverlay();
+            });
+            showToast(isTopTagsCollapsed
+                ? "🧘 已收起上方所有标签，进入沉浸式看盘（点击右上角【👁️ 展开标签】随时恢复）"
+                : "👁️ 已展开上方全部功能标签与画线工具栏");
+        }
+
         function applyTvFullscreenUIState(active) {
             const card = document.getElementById("tvChartCard");
             const shell = document.getElementById("tvChartShell");
@@ -6582,7 +6825,7 @@ export default {
                 if (isTvCollapsed) {
                     isTvCollapsed = false;
                     shell.classList.remove("collapsed");
-                    if (collapseBtn) collapseBtn.textContent = "🔽 收起";
+                    if (collapseBtn) collapseBtn.textContent = "🔽 收起图表";
                 }
                 card.classList.add("tv-fullscreen-card");
                 document.body.style.overflow = "hidden";
@@ -6602,6 +6845,7 @@ export default {
                     btn.style.color = "#67e8f9";
                 }
             }
+            syncImmersiveTopTagsUI();
             applyCustomChartHeights();
         }
 
@@ -6610,16 +6854,20 @@ export default {
             const hint = document.getElementById("tvSubHintBar");
             const btn = document.getElementById("btnTvCollapse");
             if (isTvFullscreen) toggleTvFullscreen();
+            if (isTopTagsCollapsed) {
+                isTopTagsCollapsed = false;
+                syncImmersiveTopTagsUI();
+            }
 
             isTvCollapsed = !isTvCollapsed;
             if (isTvCollapsed) {
                 shell.classList.add("collapsed");
                 if (hint) hint.style.display = "none";
-                if (btn) btn.textContent = "🔼 展开";
+                if (btn) btn.textContent = "🔼 展开图表";
             } else {
                 shell.classList.remove("collapsed");
                 if (hint) hint.style.display = "flex";
-                if (btn) btn.textContent = "🔽 收起";
+                if (btn) btn.textContent = "🔽 收起图表";
                 if (chartEngineMode === "STRAT") fetchAndRenderStrategyChart(true);
             }
             applyCustomChartHeights();
@@ -9532,5 +9780,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v10.0-cross-device-cloud-sync-mac-mobile -->
+<!-- Build: v10.1-smooth-draw-lock-immersive-topright-exit -->
 </html>
