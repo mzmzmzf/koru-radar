@@ -801,6 +801,73 @@
             color: #93c5fd;
         }
 
+
+        /* 资金与波段分析板块 (EWY vs KORU 量化决策舱) */
+        .analytics-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .analytics-param-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .analytics-sim-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        @media (max-width: 640px) {
+            .analytics-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .analytics-param-grid { grid-template-columns: repeat(2, 1fr); }
+            .analytics-sim-grid { grid-template-columns: 1fr; }
+        }
+        .kpi-mini-box {
+            background: #131314;
+            border: 1px solid #282a2c;
+            border-radius: 6px;
+            padding: 9px 10px;
+        }
+        .kpi-mini-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 3px;
+        }
+        .kpi-mini-val {
+            font-size: 15px;
+            font-weight: 800;
+            font-family: monospace;
+            color: #fff;
+        }
+        .kpi-mini-sub {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .matrix-col-highlight {
+            background: rgba(16, 185, 129, 0.09) !important;
+            border-left: 2px solid rgba(16, 185, 129, 0.45);
+            border-right: 2px solid rgba(16, 185, 129, 0.45);
+        }
+        .matrix-col-warn {
+            background: rgba(245, 158, 11, 0.08) !important;
+            border-left: 2px solid rgba(245, 158, 11, 0.4);
+            border-right: 2px solid rgba(245, 158, 11, 0.4);
+        }
+        .flow-bar-track {
+            width: 100%;
+            height: 8px;
+            background: #282a2c;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            margin: 6px 0;
+        }
+
         #appToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #282a2c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 12px; border: 1px solid var(--neon-emerald); display: none; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
     </style>
 </head>
@@ -874,6 +941,7 @@
     <main class="view-panel active" id="view-koru">
         <div class="koru-subtabs">
             <button class="subtab-btn active" data-subtab="overview" onclick="switchKoruSubTab('overview', this)">📊 核心总览</button>
+            <button class="subtab-btn" data-subtab="analytics" onclick="switchKoruSubTab('analytics', this)">🔬 资金与波段分析 (EWY/KORU)</button>
             <button class="subtab-btn" data-subtab="mapping" onclick="switchKoruSubTab('mapping', this)">🎯 逐档映射 (混合双轨)</button>
             <button class="subtab-btn" data-subtab="chart" onclick="switchKoruSubTab('chart', this)">📈 市值走势图 (自动核算)</button>
             <button class="subtab-btn" data-subtab="fx" onclick="switchKoruSubTab('fx', this)">💱 汇率总阀与衍生品情绪</button>
@@ -1260,6 +1328,271 @@
                 <div class="rule-item"><b>1. 恪守“三买一不买之防 FOMO”</b>：大阳线绝不追涨。加仓仅在 10/15 EMA 缩量回踩并出现反包阳线后执行。</div>
                 <div class="rule-item"><b>2. 战术保本推进守则</b>：接单后价格一旦覆盖 +1R 风险空间，立即将止损单上推至真实保本价（BEP）。</div>
                 <div class="rule-item"><b>3. 杠杆 ETF 严禁长持死扛</b>：波段触碰 8.331 锁定 50% 利润；冲刺 9.80–10.00 全仓凯旋，拒绝承受日度再平衡的波动损耗。</div>
+            </div>
+        </div>
+
+
+        <!-- 子模块 1.5: 资金与波段分析 (EWY vs KORU 量化决策引擎) -->
+        <div class="koru-subview" id="subview-analytics">
+            <!-- 顶部上传当日资金/成分股数据与核心结构参数输入舱 -->
+            <div class="card" style="background: linear-gradient(180deg, #232426, #1e1f20); border-color: #3c4043;">
+                <div class="card-title" style="flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span>🔬 当日资金数据上传与 EWY / KORU 波段裁决台</span>
+                        <span class="badge active" id="analyticsDataSourceBadge">● 实时盘面联动</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                        <input type="file" id="dailyCapitalCsvInput" accept=".csv,.tsv,.txt" style="display:none;" onchange="handleDailyCapitalCsvUpload(event)">
+                        <button type="button" class="btn-sm" onclick="document.getElementById('dailyCapitalCsvInput').click()" style="background:rgba(16,185,129,0.2); border-color:var(--neon-emerald); color:#34d399; font-weight:800; padding:4px 10px;">📂 上传当日资金/成分股CSV</button>
+                        <button type="button" class="btn-sm" onclick="togglePasteCapitalDrawer()" style="border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">📋 粘贴文本分析</button>
+                        <button type="button" class="btn-sm" onclick="loadSampleCapitalDataset()" style="border-color:rgba(245,158,11,0.45); color:#fcd34d;" title="一键载入包含三星/海力士权重与外资机构资金流的演示数据">🧪 演示样例</button>
+                        <button type="button" class="btn-sm" onclick="syncAnalyticsFromLiveHistory(true)" title="同步最新 KOSPI 200 历史日线与实时汇率">🔄 同步盘面</button>
+                    </div>
+                </div>
+
+                <!-- 可折叠文本粘贴快速解析区 -->
+                <div id="pasteCapitalDrawer" style="display:none; background:#131314; border:1px solid #3c4043; border-radius:6px; padding:9px; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:11px;">
+                        <span style="color:var(--neon-cyan); font-weight:700;">📋 粘贴当日资金流 / KRX 表格内容 / 指数均线数据（自动识别数字与中韩英列名）：</span>
+                        <button type="button" class="btn-sm" onclick="togglePasteCapitalDrawer(false)" style="color:var(--text-muted);">收起 ✕</button>
+                    </div>
+                    <textarea id="pasteCapitalTextarea" rows="4" placeholder="支持直接粘贴 CSV 文本、券商资金流摘要，或例如：&#10;KOSPI 770.74, 10EMA 820.22, 15EMA 838.28, CHoCH 838.32, 外资净买入 -4200亿, 机构净买入 +1850亿, 两强权重 51.41%" style="width:100%; background:#18191a; border:1px solid var(--border-color); border-radius:5px; color:#e3e3e3; padding:7px 9px; font-size:11px; font-family:monospace; resize:vertical; outline:none;"></textarea>
+                    <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:6px;">
+                        <button type="button" class="btn-sm" onclick="parsePastedCapitalText()" style="background:rgba(16,185,129,0.22); border-color:var(--neon-emerald); color:#34d399; font-weight:800; padding:4px 12px;">⚡ 立即解析并生成分析</button>
+                    </div>
+                </div>
+
+                <!-- 核心盘面与资金参数输入栏（支持上传自动填充或手动修改秒算） -->
+                <div class="analytics-param-grid">
+                    <div class="form-group">
+                        <label class="form-label"><span>KOSPI 200 现点</span><span id="anaIndexVsChochTag" style="color:var(--neon-amber);">--</span></label>
+                        <input type="number" id="anaKospiClose" step="0.01" value="832.50" class="form-input" style="padding:5px 8px; font-size:13px;" oninput="recomputeEwyKoruAnalytics()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><span>CHoCH 结构突破高点</span><span style="color:var(--text-muted);">右侧门槛</span></label>
+                        <input type="number" id="anaChochLevel" step="0.01" value="838.32" class="form-input" style="padding:5px 8px; font-size:13px; color:var(--neon-amber);" oninput="recomputeEwyKoruAnalytics()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><span>前期波段低点 (Spring)</span><span style="color:var(--text-muted);">左侧吸筹锚</span></label>
+                        <input type="number" id="anaSwingLow" step="0.01" value="758.63" class="form-input" style="padding:5px 8px; font-size:13px; color:var(--neon-cyan);" oninput="recomputeEwyKoruAnalytics()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><span>日线 10 EMA</span><span id="anaEma10Status" style="color:var(--text-muted);">--</span></label>
+                        <input type="number" id="anaEma10" step="0.01" value="826.40" class="form-input" style="padding:5px 8px; font-size:13px; color:#facc15;" oninput="recomputeEwyKoruAnalytics()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><span>日线 15 EMA</span><span id="anaEma15Status" style="color:var(--text-muted);">--</span></label>
+                        <input type="number" id="anaEma15" step="0.01" value="822.10" class="form-input" style="padding:5px 8px; font-size:13px; color:#38bdf8;" oninput="recomputeEwyKoruAnalytics()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><span>主力资金净流 (亿韩元)</span><span id="anaFlowMoodTag" style="color:var(--neon-emerald);">外资+机构</span></label>
+                        <input type="number" id="anaNetFlowBillion" step="10" value="1250" class="form-input" style="padding:5px 8px; font-size:13px;" oninput="recomputeEwyKoruAnalytics()">
+                    </div>
+                </div>
+
+                <!-- 参谋部即时战略裁决横幅 -->
+                <div id="ewyKoruRulingBanner" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.42); border-left: 4px solid var(--neon-amber); border-radius: 6px; padding: 11px 12px; margin-bottom: 10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:5px;">
+                        <span id="ewyKoruVerdictTitle" style="font-size:13px; font-weight:800; color:#fff;">🟡 威科夫吸筹过渡期 · 仅限 EWY 左侧分批（暂禁开 KORU）</span>
+                        <span class="badge" id="ewyKoruPhaseBadge" style="color:#fbbf24; border-color:#f59e0b;">Phase B/C 结构蓄势</span>
+                    </div>
+                    <div id="ewyKoruVerdictNarrative" style="font-size:11.5px; color:#e2e8f0; line-height:1.6;">
+                        正在根据最新盘面与资金流计算执行边界...
+                    </div>
+                </div>
+
+                <!-- 4项核心诊断指标卡 -->
+                <div class="analytics-kpi-grid">
+                    <div class="kpi-mini-box">
+                        <div class="kpi-mini-label">当前最优作战工具</div>
+                        <div class="kpi-mini-val" id="kpiBestTool" style="color:var(--neon-cyan);">EWY (1x)</div>
+                        <div class="kpi-mini-sub" id="kpiBestToolSub">零日度再平衡损耗</div>
+                    </div>
+                    <div class="kpi-mini-box">
+                        <div class="kpi-mini-label">CHoCH 突破与均线斜率</div>
+                        <div class="kpi-mini-val" id="kpiStructureGap">-0.69%</div>
+                        <div class="kpi-mini-sub" id="kpiStructureSub">10EMA vs 15EMA 扫描中</div>
+                    </div>
+                    <div class="kpi-mini-box">
+                        <div class="kpi-mini-label">两强权重 & 资金驱动</div>
+                        <div class="kpi-mini-val" id="kpiSemiWeight" style="color:var(--neon-amber);">51.41%</div>
+                        <div class="kpi-mini-sub" id="kpiFlowSummarySub">三星+海力士主导结构</div>
+                    </div>
+                    <div class="kpi-mini-box">
+                        <div class="kpi-mini-label">风险平价等波动仓位</div>
+                        <div class="kpi-mini-val" id="kpiParityCap" style="color:var(--neon-emerald);">$10,000</div>
+                        <div class="kpi-mini-sub" id="kpiParitySub">对应 $30,000 EWY 敞口</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 当日上传资金流向 & 权重股明细透视卡片 -->
+            <div class="card" id="uploadedCapitalDetailCard">
+                <div class="card-title" style="flex-wrap:wrap; gap:6px;">
+                    <span>📊 当日资金流向与权重股集中度透视</span>
+                    <span class="badge" id="uploadedFileMetaBadge">内置基准样本 · 可随时上传当日CSV替换</span>
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:8px;">
+                    <div class="kpi-mini-box">
+                        <div class="kpi-mini-label">外资净买卖 (Foreign)</div>
+                        <div class="kpi-mini-val" id="flowForeignVal" style="color:var(--neon-emerald);">+820 亿</div>
+                        <div class="kpi-mini-sub" id="flowForeignSub">韩元汇率协同校验</div>
+                    </div>
+                    <div class="kpi-mini-box">
+                        <div class="kpi-mini-label">机构净买卖 (Institution)</div>
+                        <div class="kpi-mini-val" id="flowInstVal" style="color:#60a5fa;">+430 亿</div>
+                        <div class="kpi-mini-sub" id="flowInstSub">金融投资/养老金动向</div>
+                    </div>
+                    <div class="kpi-mini-box">
+                        <div class="kpi-mini-label">两强(三星+海力士)合力</div>
+                        <div class="kpi-mini-val" id="flowSemiImpactVal" style="color:var(--neon-amber);">51.41%</div>
+                        <div class="kpi-mini-sub" id="flowSemiImpactSub">半导体周期景气主导</div>
+                    </div>
+                </div>
+
+                <div class="flow-bar-track" title="外资+机构买盘 vs 抛压结构比例">
+                    <div id="flowBuyRatioBar" style="width:62%; height:100%; background:var(--neon-emerald); transition:width 0.35s;"></div>
+                    <div id="flowSellRatioBar" style="width:38%; height:100%; background:var(--neon-red); transition:width 0.35s;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-bottom:8px;">
+                    <span id="flowRatioLeftLabel">主力买盘占比: 62.0%</span>
+                    <span id="flowClimaxAlertLabel" style="color:var(--neon-cyan); font-weight:700;">● 筹码健康，无 Buying Climax 放量滞涨警报</span>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="tactical-table" id="capitalConstituentsTable">
+                        <thead>
+                            <tr>
+                                <th>代码 / 标的</th>
+                                <th>收盘价</th>
+                                <th>日涨跌</th>
+                                <th>市值 / 权重</th>
+                                <th>资金净流 / 性质</th>
+                            </tr>
+                        </thead>
+                        <tbody id="capitalConstituentsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3X 杠杆波动率拖累 (Volatility Drag) 与风险平价模拟器 -->
+            <div class="card">
+                <div class="card-title" style="flex-wrap:wrap; gap:6px;">
+                    <span>🧮 3X 杠杆波动率拖累 (Volatility Drag) 与风险平价模拟器</span>
+                    <button type="button" class="btn-sm" onclick="resetVolatilityDragExample()" style="border-color:var(--neon-cyan); color:var(--neon-cyan);">↺ 还原 +10% / -9.09% 算例</button>
+                </div>
+
+                <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">
+                    💡 <b>核心原理</b>：KORU 每日 3 倍重置杠杆。只要涨势变成“进二退一”的宽幅震荡，即便底层指数最终回本（<code>0.00%</code>），KORU 净值也会被波动率拖累严重磨损。
+                </div>
+
+                <div class="analytics-param-grid">
+                    <div class="form-group">
+                        <label class="form-label"><span>第 1 日底层涨跌 (r1 %)</span></label>
+                        <input type="number" id="vdR1Input" step="0.1" value="10.0" class="form-input" style="padding:5px 8px; font-size:13px; color:var(--neon-emerald);" oninput="updateVolatilityDragSimulator()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span>第 2 日底层涨跌 (r2 %)</span>
+                            <button type="button" onclick="setBreakevenR2()" style="background:none; border:none; color:var(--neon-cyan); font-size:10px; font-weight:700; cursor:pointer; text-decoration:underline;">设为1x回本跌幅</button>
+                        </label>
+                        <input type="number" id="vdR2Input" step="0.01" value="-9.09" class="form-input" style="padding:5px 8px; font-size:13px; color:var(--neon-red);" oninput="updateVolatilityDragSimulator()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><span>EWY 标准目标仓位 ($)</span></label>
+                        <input type="number" id="vdEwyCapInput" step="1000" value="30000" class="form-input" style="padding:5px 8px; font-size:13px; color:#fff;" oninput="updateVolatilityDragSimulator()">
+                    </div>
+                </div>
+
+                <div class="analytics-sim-grid">
+                    <div class="kpi-mini-box" style="border-top:2px solid var(--neon-cyan);">
+                        <div class="kpi-mini-label">EWY (1倍现货) 两日累计</div>
+                        <div class="kpi-mini-val" id="vd1xResult" style="color:var(--neon-emerald);">0.00%</div>
+                        <div class="kpi-mini-sub" id="vd1xNavSub">净值: $10,000 → $10,000</div>
+                    </div>
+                    <div class="kpi-mini-box" style="border-top:2px solid var(--neon-amber);">
+                        <div class="kpi-mini-label">KORU (3倍每日杠杆) 两日累计</div>
+                        <div class="kpi-mini-val" id="vd3xResult" style="color:var(--neon-red);">-5.45%</div>
+                        <div class="kpi-mini-sub" id="vd3xDragSub">纯粹波动率磨损: -5.45%</div>
+                    </div>
+                    <div class="kpi-mini-box" style="border-top:2px solid var(--neon-emerald);">
+                        <div class="kpi-mini-label">风险平价对等 KORU 上限 (1/3)</div>
+                        <div class="kpi-mini-val" id="vdParityKoruAmt" style="color:var(--neon-amber);">$10,000</div>
+                        <div class="kpi-mini-sub" id="vdParityLossSub">等波动敞口 · 管理费 1.25%+ vs 0.59%</div>
+                    </div>
+                </div>
+
+                <!-- 连续震荡箱体压力测试 -->
+                <div style="background:#131314; border:1px dashed #3c4043; border-radius:6px; padding:9px 11px; margin-top:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:11px;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="color:var(--neon-amber); font-weight:700;">📦 威科夫吸筹箱体磨损推演:</span>
+                        <span>假设横盘震荡</span>
+                        <input type="number" id="vdChopDaysInput" value="10" min="2" max="60" class="form-input" style="width:54px; padding:2px 5px; font-size:11px; text-align:center;" oninput="updateVolatilityDragSimulator()">
+                        <span>个来回，单日振幅 ±</span>
+                        <input type="number" id="vdChopAmpInput" value="3.0" step="0.5" min="0.5" max="15" class="form-input" style="width:54px; padding:2px 5px; font-size:11px; text-align:center;" oninput="updateVolatilityDragSimulator()">
+                        <span>%</span>
+                    </div>
+                    <div id="vdChopSummaryText" style="font-family:monospace; color:#fca5a5; font-weight:700;">
+                        指数回本 (0.00%) 时，KORU 净值磨损 -8.65%
+                    </div>
+                </div>
+            </div>
+
+            <!-- EWY vs KORU 全维度实战对照决策表 -->
+            <div class="card">
+                <div class="card-title" style="flex-wrap:wrap; gap:6px;">
+                    <span>📋 EWY（1倍）vs KORU（3倍）全维度实战对照决策表</span>
+                    <span class="badge" id="matrixHighlightLegend" style="color:var(--neon-emerald); border-color:#10b981;">高亮列 = 当前盘面适配策略</span>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="tactical-table" id="ewyKoruComparisonTable">
+                        <thead>
+                            <tr>
+                                <th style="width:18%;">决策维度</th>
+                                <th id="thColEwy" style="width:41%;">🛡️ EWY（1倍 MSCI 韩国 ETF）</th>
+                                <th id="thColKoru" style="width:41%;">🚀 KORU（3倍每日做多韩国 ETF）</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:700; color:#fff;">适用阶段</td>
+                                <td class="col-ewy">威科夫 Phase B/C（底部震荡吸筹、Spring 弹簧测试后）及整轮半导体景气周期</td>
+                                <td class="col-koru">威科夫 Phase D/E（放量突破箱体后的主升浪加速段，低回撤顺畅推升）</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:700; color:#fff;">持仓周期</td>
+                                <td class="col-ewy">数周至数季度（波段长持，享约 1.5%–2% 股息补偿，费率约 0.59%）</td>
+                                <td class="col-koru">数日至数周（纯动量波段，绝不死扛宽幅震荡，费率约 1.25%+）</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:700; color:#fff;">图表锚定信号</td>
+                                <td class="col-ewy" id="cellEwyAnchor">758.63 前低附近出现底背离 / 放量止跌阳线即可分批试探建仓</td>
+                                <td class="col-koru" id="cellKoruAnchor">KOSPI 200 站稳 838.32 且 10 EMA &gt; 15 EMA 向上发散</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:700; color:#fff;">风控 / 止损方式</td>
+                                <td class="col-ewy">跌破大周期吸筹箱体下沿止损（全部看 EWY 或 KOSPI 200 图表）</td>
+                                <td class="col-koru">底层指数收盘跌破 15 EMA 或放量长上影滞涨（Buying Climax）立即退出</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:700; color:#fff;">建议单笔仓位</td>
+                                <td class="col-ewy" id="cellEwyPos">100% 标准目标仓位（如 $30,000）</td>
+                                <td class="col-koru" id="cellKoruPos">30%–35% 标准仓位（风险平价：名义本金约 EWY 的 1/3，如 $10,000）</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:700; color:#fff;">汇率与周期约束</td>
+                                <td class="col-ewy">无汇率对冲（做多韩元，需防韩元贬值侵蚀）；半导体两强权重 &gt;40%，景气高潮派发期逐步止盈</td>
+                                <td class="col-koru">禁止看 KORU 自身 K 线画图（跳空与再平衡失真），全部风控与画线锚定底层指数</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <button type="button" class="btn-action" onclick="copyEwyKoruAnalyticsReport()" style="margin-top:12px; background: linear-gradient(135deg, #0284c7, #0369a1);">
+                    📋 一键复制《当日资金与 EWY/KORU 波段作战分析报告》
+                </button>
             </div>
         </div>
 
@@ -7089,6 +7422,659 @@ export default {
             narrativeEl.textContent = `${fxPhrase}，首尔最新成分股总市值 ${closeCap.toFixed(2)} 万亿韩元（单日 ${capSign}${capDelta.toFixed(1)} 万亿），半导体两强垄断 51.41% 权重主导波段结构。`;
         }
 
+
+        // =========================================================================
+        // 资金与波段分析引擎 (EWY 1x vs KORU 3x 决策矩阵 + 当日资金CSV解析 + 波动率拖累)
+        // =========================================================================
+        let analyticsState = {
+            kospiClose: 832.50,
+            chochLevel: 838.32,
+            swingLow: 758.63,
+            ema10: 826.40,
+            ema15: 822.10,
+            netFlowBillion: 1250,
+            foreignBillion: 820,
+            instBillion: 430,
+            semiWeightPct: 51.41,
+            sourceLabel: "实时盘面联动",
+            constituents: [
+                { code: "005930", name: "三星电子 (Samsung)", close: 59800, chgPct: 1.36, weightPct: 28.65, netFlowB: 540, role: "半导体权重第一极" },
+                { code: "000660", name: "SK海力士 (SK Hynix)", close: 194500, chgPct: 2.48, weightPct: 22.76, netFlowB: 490, role: "HBM 景气度弹性核心" },
+                { code: "373220", name: "LG新能源 (LGES)", close: 392000, chgPct: -0.76, weightPct: 5.42, netFlowB: -85, role: "二次电池权重" },
+                { code: "207940", name: "三星生物制剂", close: 985000, chgPct: 0.51, weightPct: 4.18, netFlowB: 65, role: "防御医药权重" },
+                { code: "005380", name: "现代汽车 (Hyundai)", close: 218500, chgPct: 0.92, weightPct: 3.45, netFlowB: 120, role: "出口汇率敏感权重" },
+                { code: "105560", name: "KB金融集团", close: 89400, chgPct: 1.13, weightPct: 2.84, netFlowB: 120, role: "外资价值回流风向标" }
+            ]
+        };
+
+        function togglePasteCapitalDrawer(forceState) {
+            const drawer = document.getElementById("pasteCapitalDrawer");
+            if (!drawer) return;
+            const isOpen = drawer.style.display !== "none";
+            const nextOpen = typeof forceState === "boolean" ? forceState : !isOpen;
+            drawer.style.display = nextOpen ? "block" : "none";
+            if (nextOpen) {
+                const ta = document.getElementById("pasteCapitalTextarea");
+                if (ta) setTimeout(() => ta.focus(), 50);
+            }
+        }
+
+        function computeEmaFromSeries(arr, period) {
+            if (!Array.isArray(arr) || arr.length === 0) return null;
+            const k = 2 / (period + 1);
+            let ema = Number(arr[0]);
+            for (let i = 1; i < arr.length; i++) {
+                ema = Number(arr[i]) * k + ema * (1 - k);
+            }
+            return ema;
+        }
+
+        function syncAnalyticsFromLiveHistory(showNotice = false) {
+            const hist = (Array.isArray(fullKospiHistoryCache) && fullKospiHistoryCache.length > 0)
+                ? fullKospiHistoryCache
+                : DEFAULT_KOSPI_HISTORY;
+            const points = hist.map(x => Number(x.point)).filter(v => isFinite(v) && v > 0);
+            if (points.length >= 2) {
+                const latestPt = points[points.length - 1];
+                const ema10Val = computeEmaFromSeries(points, 10) || latestPt;
+                const ema15Val = computeEmaFromSeries(points, 15) || latestPt;
+                const recent20 = points.slice(-20);
+                const maxRecent = Math.max(...recent20);
+                const minRecent = Math.min(...recent20);
+
+                document.getElementById("anaKospiClose").value = latestPt.toFixed(2);
+                document.getElementById("anaEma10").value = ema10Val.toFixed(2);
+                document.getElementById("anaEma15").value = ema15Val.toFixed(2);
+                if (maxRecent > 0) document.getElementById("anaChochLevel").value = maxRecent.toFixed(2);
+                if (minRecent > 0) document.getElementById("anaSwingLow").value = minRecent.toFixed(2);
+            }
+            const badge = document.getElementById("analyticsDataSourceBadge");
+            if (badge) badge.textContent = "● 实时盘面联动";
+            recomputeEwyKoruAnalytics();
+            updateVolatilityDragSimulator();
+            if (showNotice) showToast("✅ 已同步最新 KOSPI 200 日线均线与汇率数据");
+        }
+
+        function loadSampleCapitalDataset() {
+            document.getElementById("anaKospiClose").value = "770.74";
+            document.getElementById("anaEma10").value = "820.22";
+            document.getElementById("anaEma15").value = "838.28";
+            document.getElementById("anaChochLevel").value = "838.32";
+            document.getElementById("anaSwingLow").value = "758.63";
+            document.getElementById("anaNetFlowBillion").value = "-2350";
+
+            analyticsState.foreignBillion = -4200;
+            analyticsState.instBillion = 1850;
+            analyticsState.semiWeightPct = 51.41;
+            analyticsState.sourceLabel = "当日资金实战样例 (回调测试态)";
+            analyticsState.constituents = [
+                { code: "005930", name: "三星电子 (Samsung)", close: 55400, chgPct: -2.81, weightPct: 28.40, netFlowB: -2150, role: "外资集中抛压 · 等待Spring" },
+                { code: "000660", name: "SK海力士 (SK Hynix)", close: 178200, chgPct: -3.42, weightPct: 23.01, netFlowB: -1680, role: "高弹性存储回调 · 拖累指数" },
+                { code: "373220", name: "LG新能源 (LGES)", close: 381000, chgPct: -1.55, weightPct: 5.38, netFlowB: -310, role: "机构小幅减持" },
+                { code: "005380", name: "现代汽车 (Hyundai)", close: 221000, chgPct: 1.14, weightPct: 3.52, netFlowB: 620, role: "机构逆势护盘低吸" },
+                { code: "105560", name: "KB金融集团", close: 91200, chgPct: 1.67, weightPct: 2.91, netFlowB: 540, role: "金融权重对冲支撑" },
+                { code: "207940", name: "三星生物制剂", close: 992000, chgPct: 0.71, weightPct: 4.22, netFlowB: 290, role: "避险防御资金流入" }
+            ];
+
+            const badge = document.getElementById("analyticsDataSourceBadge");
+            if (badge) badge.textContent = "● 已载入当日资金样例";
+            const fileBadge = document.getElementById("uploadedFileMetaBadge");
+            if (fileBadge) fileBadge.textContent = "样例: KOSPI 770.74 · 两强权重 51.41%";
+
+            recomputeEwyKoruAnalytics();
+            showToast("🧪 已载入当日资金回调样例：自动判定禁止碰 KORU，等待 EWY 企稳！");
+        }
+
+        function parseCapitalDataText(rawText, fileName = "粘贴文本") {
+            const text = String(rawText || "").trim();
+            if (!text) return false;
+
+            const lines = text.split(/?
+/).map(l => l.trim()).filter(Boolean);
+            const parseCsvLine = (row) => {
+                const out = [];
+                let cur = "", inQ = false;
+                for (let i = 0; i < row.length; i++) {
+                    const ch = row[i];
+                    if (ch === '"') inQ = !inQ;
+                    else if ((ch === ',' || ch === '	') && !inQ) { out.push(cur.trim()); cur = ""; }
+                    else cur += ch;
+                }
+                out.push(cur.trim());
+                return out;
+            };
+            const toNum = (s) => parseFloat(String(s || "").replace(/,/g, "").replace(/%/g, "").replace(/"/g, "").trim());
+
+            // 1. 尝试按表格 CSV/TSV 解析（兼容 KRX 成分股/资金表 & 历史指数表）
+            if (lines.length >= 2 && (lines[0].includes(",") || lines[0].includes("	"))) {
+                const headers = parseCsvLine(lines[0]).map(h => h.replace(/^"|"$/g, "").trim());
+                const lowerHeaders = headers.map(h => h.toLowerCase());
+
+                const dateIdx = lowerHeaders.findIndex(h => h.includes("일자") || h.includes("날짜") || h.includes("date") || h.includes("日期"));
+                const codeIdx = lowerHeaders.findIndex(h => h.includes("종목코드") || h.includes("code") || h.includes("代码") || h.includes("ticker"));
+                const nameIdx = lowerHeaders.findIndex(h => h.includes("종목명") || h.includes("name") || h.includes("名称") || h.includes("标的"));
+                const closeIdx = lowerHeaders.findIndex(h => h === "종가" || h.includes("현재가") || h.includes("close") || h.includes("收盘") || h.includes("现价"));
+                const chgIdx = lowerHeaders.findIndex(h => h.includes("등락률") || h.includes("chg") || h.includes("change") || h.includes("涨跌"));
+                const capIdx = lowerHeaders.findIndex(h => h.includes("상장시가총액") || h.includes("시가총액") || h.includes("cap") || h.includes("市值"));
+                const valIdx = lowerHeaders.findIndex(h => h.includes("거래대금") || h.includes("amount") || h.includes("成交额"));
+                const foreignIdx = lowerHeaders.findIndex(h => h.includes("외국인") || h.includes("foreign") || h.includes("外资"));
+                const instIdx = lowerHeaders.findIndex(h => h.includes("기관") || h.includes("inst") || h.includes("机构"));
+                const flowIdx = lowerHeaders.findIndex(h => h.includes("순매수") || h.includes("netflow") || h.includes("flow") || h.includes("净流入") || h.includes("资金"));
+
+                // 情况 A: 多日历史指数趋势表 (同时同步走势图 + 计算 10/15 EMA)
+                if (dateIdx !== -1 && (capIdx !== -1 || closeIdx !== -1)) {
+                    const histParsed = parseKrxCsvTextToHistory(text, fileName);
+                    if (histParsed.length > 0) {
+                        fullKospiHistoryCache = histParsed;
+                        localStorage.setItem("quant_kospi_history_cache", JSON.stringify(histParsed));
+                        switchKospiChartSpan(kospiChartSpan);
+                        renderMappingTable();
+                        syncAnalyticsFromLiveHistory(false);
+                        analyticsState.sourceLabel = `历史趋势文件: ${fileName}`;
+                        const fileBadge = document.getElementById("uploadedFileMetaBadge");
+                        if (fileBadge) fileBadge.textContent = `已导入 ${fileName} (${histParsed.length}日)`;
+                        recomputeEwyKoruAnalytics();
+                        return true;
+                    }
+                }
+
+                // 情况 B: 单日成分股 / 资金流明细表
+                if (capIdx !== -1 || valIdx !== -1 || foreignIdx !== -1 || instIdx !== -1 || flowIdx !== -1 || nameIdx !== -1) {
+                    const items = [];
+                    let totalCap = 0;
+                    let totalForeignB = 0;
+                    let totalInstB = 0;
+                    let totalGenericFlowB = 0;
+                    let hasExplicitFlowCol = (foreignIdx !== -1 || instIdx !== -1 || flowIdx !== -1);
+
+                    // 智能判断资金单位（韩元 원 vs 百万韩元 백만원 vs 亿韩元）
+                    const rawFlowSamples = [];
+                    for (let i = 1; i < Math.min(lines.length, 25); i++) {
+                        const cols = parseCsvLine(lines[i]);
+                        const fSample = foreignIdx !== -1 ? toNum(cols[foreignIdx]) : (flowIdx !== -1 ? toNum(cols[flowIdx]) : NaN);
+                        if (isFinite(fSample) && fSample !== 0) rawFlowSamples.push(Math.abs(fSample));
+                    }
+                    const maxSample = rawFlowSamples.length ? Math.max(...rawFlowSamples) : 0;
+                    const flowDivisor = maxSample > 1e8 ? 1e8 : (maxSample > 1e4 ? 100 : 1);
+
+                    for (let i = 1; i < lines.length; i++) {
+                        const cols = parseCsvLine(lines[i]);
+                        if (cols.length < 2) continue;
+                        const code = codeIdx !== -1 ? cols[codeIdx].replace(/"/g, "").trim() : `#${i}`;
+                        const name = nameIdx !== -1 ? cols[nameIdx].replace(/"/g, "").trim() : code;
+                        if (!name || name.includes("합계") || name.includes("총계")) continue;
+
+                        const closeP = closeIdx !== -1 ? toNum(cols[closeIdx]) : 0;
+                        const chgP = chgIdx !== -1 ? toNum(cols[chgIdx]) : 0;
+                        const capRaw = capIdx !== -1 ? toNum(cols[capIdx]) : 0;
+                        const capVal = isFinite(capRaw) && capRaw > 0 ? capRaw : 0;
+                        totalCap += capVal;
+
+                        const fRaw = foreignIdx !== -1 ? toNum(cols[foreignIdx]) : 0;
+                        const iRaw = instIdx !== -1 ? toNum(cols[instIdx]) : 0;
+                        const gRaw = flowIdx !== -1 ? toNum(cols[flowIdx]) : 0;
+
+                        const fB = isFinite(fRaw) ? (fRaw / flowDivisor) : 0;
+                        const iB = isFinite(iRaw) ? (iRaw / flowDivisor) : 0;
+                        const gB = isFinite(gRaw) ? (gRaw / flowDivisor) : 0;
+
+                        totalForeignB += fB;
+                        totalInstB += iB;
+                        totalGenericFlowB += gB;
+
+                        const rowNetB = (foreignIdx !== -1 || instIdx !== -1) ? (fB + iB) : gB;
+                        items.push({
+                            code,
+                            name,
+                            close: isFinite(closeP) ? closeP : 0,
+                            chgPct: isFinite(chgP) ? chgP : 0,
+                            capVal,
+                            weightPct: 0,
+                            netFlowB: parseFloat(rowNetB.toFixed(1)),
+                            role: ""
+                        });
+                    }
+
+                    if (items.length > 0) {
+                        let semiWeight = 0;
+                        items.forEach(it => {
+                            it.weightPct = totalCap > 0 ? parseFloat(((it.capVal / totalCap) * 100).toFixed(2)) : 0;
+                            const isSemi = it.code.includes("005930") || it.code.includes("000660") ||
+                                it.name.includes("삼성전자") || it.name.includes("SK하이닉스") ||
+                                /samsung\s*elec|sk\s*hynix|三星|海力士/i.test(it.name);
+                            if (isSemi) {
+                                semiWeight += it.weightPct;
+                                it.role = "半导体核心权重";
+                            } else if (it.netFlowB > 0) {
+                                it.role = "资金净流入";
+                            } else if (it.netFlowB < 0) {
+                                it.role = "资金净流出";
+                            } else {
+                                it.role = it.chgPct >= 0 ? "跟随走强" : "随市整固";
+                            }
+                        });
+
+                        items.sort((a, b) => (b.capVal || Math.abs(b.netFlowB)) - (a.capVal || Math.abs(a.netFlowB)));
+
+                        let finalNetFlow = 0;
+                        if (foreignIdx !== -1 || instIdx !== -1) {
+                            analyticsState.foreignBillion = Math.round(totalForeignB);
+                            analyticsState.instBillion = Math.round(totalInstB);
+                            finalNetFlow = Math.round(totalForeignB + totalInstB);
+                        } else if (flowIdx !== -1) {
+                            analyticsState.foreignBillion = Math.round(totalGenericFlowB * 0.65);
+                            analyticsState.instBillion = Math.round(totalGenericFlowB * 0.35);
+                            finalNetFlow = Math.round(totalGenericFlowB);
+                        } else {
+                            // 若表格仅含价格与市值/成交额，按权重加权涨跌推算资金净推动方向
+                            const weightedChg = items.reduce((acc, x) => acc + (x.chgPct * (x.weightPct || (100 / items.length)) / 100), 0);
+                            finalNetFlow = Math.round(weightedChg * 1200);
+                            analyticsState.foreignBillion = Math.round(finalNetFlow * 0.65);
+                            analyticsState.instBillion = Math.round(finalNetFlow * 0.35);
+                        }
+
+                        if (semiWeight > 0) {
+                            analyticsState.semiWeightPct = parseFloat(semiWeight.toFixed(2));
+                        }
+                        analyticsState.netFlowBillion = finalNetFlow;
+                        analyticsState.constituents = items.slice(0, 8);
+                        analyticsState.sourceLabel = `已上传: ${fileName} (${items.length}只标的)`;
+
+                        document.getElementById("anaNetFlowBillion").value = String(finalNetFlow);
+                        const badge = document.getElementById("analyticsDataSourceBadge");
+                        if (badge) badge.textContent = `● 已解析 ${fileName}`;
+                        const fileBadge = document.getElementById("uploadedFileMetaBadge");
+                        if (fileBadge) fileBadge.textContent = `数据源: ${fileName} · 共 ${items.length} 条记录`;
+
+                        recomputeEwyKoruAnalytics();
+                        return true;
+                    }
+                }
+            }
+
+            // 2. 自由文本关键指标提取（适配从研报/对话/网页复制的片段）
+            let matchedAny = false;
+            const extractNum = (regex) => {
+                const m = text.match(regex);
+                return m ? parseFloat(m[1].replace(/,/g, "")) : null;
+            };
+            const kVal = extractNum(/(?:KOSPI\s*200|KOSPI|指数|现点|收盘)[^\d\-+]{0,12}(\d{3,4}(?:\.\d+)?)/i);
+            const e10Val = extractNum(/(?:10\s*EMA|EMA\s*10)[^\d\-+]{0,12}(\d{3,4}(?:\.\d+)?)/i);
+            const e15Val = extractNum(/(?:15\s*EMA|EMA\s*15)[^\d\-+]{0,12}(\d{3,4}(?:\.\d+)?)/i);
+            const chochVal = extractNum(/(?:CHoCH|突破高点|前高|站稳)[^\d\-+]{0,12}(\d{3,4}(?:\.\d+)?)/i);
+            const lowVal = extractNum(/(?:前低|Spring|支撑低点)[^\d\-+]{0,12}(\d{3,4}(?:\.\d+)?)/i);
+            const fVal = extractNum(/(?:外资|Foreign)[^\d\-+]{0,12}([+\-]?\d+(?:\.\d+)?)/i);
+            const iVal = extractNum(/(?:机构|Inst)[^\d\-+]{0,12}([+\-]?\d+(?:\.\d+)?)/i);
+            const wVal = extractNum(/(?:权重|两强)[^\d\-+]{0,12}(\d{1,2}(?:\.\d+)?)\s*%/i);
+
+            if (kVal) { document.getElementById("anaKospiClose").value = kVal.toFixed(2); matchedAny = true; }
+            if (e10Val) { document.getElementById("anaEma10").value = e10Val.toFixed(2); matchedAny = true; }
+            if (e15Val) { document.getElementById("anaEma15").value = e15Val.toFixed(2); matchedAny = true; }
+            if (chochVal) { document.getElementById("anaChochLevel").value = chochVal.toFixed(2); matchedAny = true; }
+            if (lowVal) { document.getElementById("anaSwingLow").value = lowVal.toFixed(2); matchedAny = true; }
+            if (fVal !== null || iVal !== null) {
+                const fb = fVal !== null ? fVal : 0;
+                const ib = iVal !== null ? iVal : 0;
+                analyticsState.foreignBillion = fb;
+                analyticsState.instBillion = ib;
+                document.getElementById("anaNetFlowBillion").value = String(Math.round(fb + ib));
+                matchedAny = true;
+            }
+            if (wVal) { analyticsState.semiWeightPct = wVal; matchedAny = true; }
+
+            if (matchedAny) {
+                analyticsState.sourceLabel = `自定义文本解析 (${fileName})`;
+                const badge = document.getElementById("analyticsDataSourceBadge");
+                if (badge) badge.textContent = "● 已解析文本参数";
+                recomputeEwyKoruAnalytics();
+                return true;
+            }
+            return false;
+        }
+
+        function handleDailyCapitalCsvUpload(evt) {
+            const file = evt.target && evt.target.files && evt.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const buf = reader.result;
+                let text = new TextDecoder("utf-8").decode(buf);
+                let ok = parseCapitalDataText(text, file.name);
+                if (!ok) {
+                    try {
+                        text = new TextDecoder("euc-kr").decode(buf);
+                        ok = parseCapitalDataText(text, file.name);
+                    } catch (e) {}
+                }
+                evt.target.value = "";
+                if (ok) {
+                    showToast(`✅ 已成功解析 ${file.name} 并更新 EWY / KORU 作战分析！`);
+                } else {
+                    showToast("⚠️ 未能自动识别文件列格式，可尝试点击【📋 粘贴文本分析】直接粘贴内容");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parsePastedCapitalText() {
+            const ta = document.getElementById("pasteCapitalTextarea");
+            if (!ta || !ta.value.trim()) {
+                showToast("请先粘贴当日资金流或盘面数据文本");
+                return;
+            }
+            const ok = parseCapitalDataText(ta.value, "粘贴数据");
+            if (ok) {
+                togglePasteCapitalDrawer(false);
+                showToast("✅ 已成功解析文本并生成 EWY / KORU 波段裁决！");
+            } else {
+                showToast("⚠️ 未检测到有效数字或表格列，请包含点位/均线或资金流数值");
+            }
+        }
+
+        function recomputeEwyKoruAnalytics() {
+            const closeP = parseFloat(document.getElementById("anaKospiClose")?.value) || 832.50;
+            const chochP = parseFloat(document.getElementById("anaChochLevel")?.value) || 838.32;
+            const swingLowP = parseFloat(document.getElementById("anaSwingLow")?.value) || 758.63;
+            const ema10 = parseFloat(document.getElementById("anaEma10")?.value) || 826.40;
+            const ema15 = parseFloat(document.getElementById("anaEma15")?.value) || 822.10;
+            const netFlowB = parseFloat(document.getElementById("anaNetFlowBillion")?.value) || 0;
+
+            analyticsState.kospiClose = closeP;
+            analyticsState.chochLevel = chochP;
+            analyticsState.swingLow = swingLowP;
+            analyticsState.ema10 = ema10;
+            analyticsState.ema15 = ema15;
+            analyticsState.netFlowBillion = netFlowB;
+
+            const ewyCap = parseFloat(document.getElementById("vdEwyCapInput")?.value) || 30000;
+            const koruParityCap = Math.round(ewyCap / 3);
+
+            const aboveChoch = closeP >= chochP;
+            const maBullish = ema10 > ema15 && closeP >= ema10;
+            const belowBothMas = closeP < ema10 && closeP < ema15;
+            const nearSpringLow = closeP <= swingLowP * 1.035;
+            const fxHealthy = (latestUsdKrw || 1335.04) < 1340.0;
+
+            const chochDiffPct = ((closeP - chochP) / chochP) * 100;
+            const emaSpreadPct = ((ema10 - ema15) / ema15) * 100;
+
+            const gapTag = document.getElementById("anaIndexVsChochTag");
+            if (gapTag) {
+                gapTag.textContent = `${chochDiffPct >= 0 ? "+" : ""}${chochDiffPct.toFixed(2)}% vs CHoCH`;
+                gapTag.style.color = aboveChoch ? "var(--neon-emerald)" : "var(--neon-amber)";
+            }
+            const e10Tag = document.getElementById("anaEma10Status");
+            if (e10Tag) {
+                e10Tag.textContent = closeP >= ema10 ? "站上10EMA" : "压在10EMA下";
+                e10Tag.style.color = closeP >= ema10 ? "var(--neon-emerald)" : "var(--neon-red)";
+            }
+            const e15Tag = document.getElementById("anaEma15Status");
+            if (e15Tag) {
+                e15Tag.textContent = ema10 > ema15 ? "金叉多头" : "死叉空头";
+                e15Tag.style.color = ema10 > ema15 ? "var(--neon-emerald)" : "var(--neon-red)";
+            }
+
+            // 判定当前市场阶段与 EWY vs KORU 执行边界
+            const banner = document.getElementById("ewyKoruRulingBanner");
+            const vTitle = document.getElementById("ewyKoruVerdictTitle");
+            const vBadge = document.getElementById("ewyKoruPhaseBadge");
+            const vNarr = document.getElementById("ewyKoruVerdictNarrative");
+            const bestToolEl = document.getElementById("kpiBestTool");
+            const bestToolSubEl = document.getElementById("kpiBestToolSub");
+
+            let regime = "ACCUMULATION"; // 'MARKUP_KORU' | 'ACCUMULATION' | 'FORBIDDEN_WAIT'
+            if (aboveChoch && maBullish && fxHealthy) {
+                regime = "MARKUP_KORU";
+            } else if (belowBothMas && !nearSpringLow) {
+                regime = "FORBIDDEN_WAIT";
+            } else {
+                regime = "ACCUMULATION";
+            }
+
+            if (regime === "MARKUP_KORU") {
+                if (banner) {
+                    banner.style.background = "rgba(16, 185, 129, 0.12)";
+                    banner.style.borderColor = "rgba(16, 185, 129, 0.45)";
+                    banner.style.borderLeftColor = "var(--neon-emerald)";
+                }
+                if (vTitle) vTitle.textContent = "🟢 威科夫 Phase D/E 主升浪确认 · 允许切入 KORU 30%–35% 增强";
+                if (vBadge) { vBadge.textContent = "主升浪加速 · 双条件满足"; vBadge.style.color = "#34d399"; vBadge.style.borderColor = "#10b981"; }
+                if (vNarr) {
+                    vNarr.innerHTML = `KOSPI 200（<b>${closeP.toFixed(2)}</b>）已放量站稳 CHoCH 突破位（<b>${chochP.toFixed(2)}</b>），且日线 10 EMA（<b>${ema10.toFixed(2)}</b>）金叉 15 EMA（<b>${ema15.toFixed(2)}</b>）向上发散，USDKRW（<b>${latestUsdKrw.toFixed(2)}</b>）处于红利区。可执行 <b>EWY 底仓 + KORU（上限 $${koruParityCap.toLocaleString()}，约 33% 风险平价仓位）</b> 顺势推升；一旦底层指数收盘跌破 15 EMA（${ema15.toFixed(2)}）无条件平掉 KORU。`;
+                }
+                if (bestToolEl) { bestToolEl.textContent = "EWY + KORU"; bestToolEl.style.color = "var(--neon-emerald)"; }
+                if (bestToolSubEl) bestToolSubEl.textContent = `KORU 限额 $${koruParityCap.toLocaleString()} (1/3敞口)`;
+            } else if (regime === "FORBIDDEN_WAIT") {
+                if (banner) {
+                    banner.style.background = "rgba(239, 68, 68, 0.12)";
+                    banner.style.borderColor = "rgba(239, 68, 68, 0.45)";
+                    banner.style.borderLeftColor = "var(--neon-red)";
+                }
+                if (vTitle) vTitle.textContent = "🔴 严禁触碰 KORU · EWY 等待右侧企稳信号";
+                if (vBadge) { vBadge.textContent = "空头压制 · 规避3X磨损"; vBadge.style.color = "#f87171"; vBadge.style.borderColor = "#ef4444"; }
+                if (vNarr) {
+                    vNarr.innerHTML = `当前 KOSPI 200（<b>${closeP.toFixed(2)}</b>）仍压在 10 EMA（<b>${ema10.toFixed(2)}</b>）和 15 EMA（<b>${ema15.toFixed(2)}</b>）下方，属于<b>“EWY 等右侧企稳、KORU 完全禁止触碰”</b>的阶段。此时买入 KORU 会承受严重的宽幅震荡波动率拖累。建议先等底层指数在 <b>${swingLowP.toFixed(2)}</b> 前低附近确认底部结构后用 EWY 打底仓；等放量冲过 <b>${chochP.toFixed(2)}</b> 且 10/15 EMA 完成金叉后再切入 KORU。`;
+                }
+                if (bestToolEl) { bestToolEl.textContent = "空仓等待 / EWY"; bestToolEl.style.color = "var(--neon-red)"; }
+                if (bestToolSubEl) bestToolSubEl.textContent = "KORU 完全禁止触碰";
+            } else {
+                if (banner) {
+                    banner.style.background = "rgba(245, 158, 11, 0.12)";
+                    banner.style.borderColor = "rgba(245, 158, 11, 0.42)";
+                    banner.style.borderLeftColor = "var(--neon-amber)";
+                }
+                if (vTitle) vTitle.textContent = "🟡 威科夫 Phase B/C 吸筹区 · 仅限 EWY 左侧分批（禁开 KORU）";
+                if (vBadge) { vBadge.textContent = "箱体蓄势 · 仅用1X现货"; vBadge.style.color = "#fbbf24"; vBadge.style.borderColor = "#f59e0b"; }
+                if (vNarr) {
+                    vNarr.innerHTML = `KOSPI 200（<b>${closeP.toFixed(2)}</b>）处于前低 <b>${swingLowP.toFixed(2)}</b> 与 CHoCH 突破线 <b>${chochP.toFixed(2)}</b> 之间的蓄势结构中（距突破尚差 <b>${Math.max(0, chochDiffPct).toFixed(2)}%</b>）。<b>1 倍 EWY</b> 零日内再平衡损耗，适合在此区域左侧分批打底仓（目标仓位 $${ewyCap.toLocaleString()}）；<b>3 倍 KORU 仍需等待有效站稳 ${chochP.toFixed(2)} 后再行切入</b>。`;
+                }
+                if (bestToolEl) { bestToolEl.textContent = "仅限 EWY (1x)"; bestToolEl.style.color = "var(--neon-amber)"; }
+                if (bestToolSubEl) bestToolSubEl.textContent = "左侧分批建仓 · 禁开KORU";
+            }
+
+            // 更新 KPI 小卡片
+            const kpiStruct = document.getElementById("kpiStructureGap");
+            const kpiStructSub = document.getElementById("kpiStructureSub");
+            if (kpiStruct) {
+                kpiStruct.textContent = `${chochDiffPct >= 0 ? "+" : ""}${chochDiffPct.toFixed(2)}%`;
+                kpiStruct.style.color = aboveChoch ? "var(--neon-emerald)" : "var(--neon-amber)";
+            }
+            if (kpiStructSub) {
+                kpiStructSub.textContent = `10/15EMA 差 ${emaSpreadPct >= 0 ? "+" : ""}${emaSpreadPct.toFixed(2)}%`;
+            }
+
+            const kpiSemi = document.getElementById("kpiSemiWeight");
+            const kpiFlowSub = document.getElementById("kpiFlowSummarySub");
+            if (kpiSemi) kpiSemi.textContent = `${analyticsState.semiWeightPct.toFixed(2)}%`;
+            if (kpiFlowSub) {
+                const signF = netFlowB >= 0 ? "+" : "";
+                kpiFlowSub.textContent = `主力净流 ${signF}${netFlowB.toLocaleString()} 亿韩元`;
+                kpiFlowSub.style.color = netFlowB >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
+            }
+
+            const kpiParity = document.getElementById("kpiParityCap");
+            const kpiParitySub = document.getElementById("kpiParitySub");
+            if (kpiParity) kpiParity.textContent = `$${koruParityCap.toLocaleString()}`;
+            if (kpiParitySub) kpiParitySub.textContent = `对应 $${ewyCap.toLocaleString()} EWY (33.3%)`;
+
+            // 更新资金流向卡片与成分股明细表
+            renderCapitalFlowAndConstituents();
+
+            // 同步更新对照表动态锚点与高亮列
+            const cellEwyA = document.getElementById("cellEwyAnchor");
+            const cellKoruA = document.getElementById("cellKoruAnchor");
+            const cellEwyP = document.getElementById("cellEwyPos");
+            const cellKoruP = document.getElementById("cellKoruPos");
+            if (cellEwyA) cellEwyA.textContent = `${swingLowP.toFixed(2)} 前低附近出现底背离 / 放量止跌阳线即可分批试探建仓`;
+            if (cellKoruA) cellKoruA.textContent = `KOSPI 200 站稳 ${chochP.toFixed(2)} 且 10 EMA (${ema10.toFixed(2)}) > 15 EMA (${ema15.toFixed(2)}) 向上发散`;
+            if (cellEwyP) cellEwyP.textContent = `100% 标准目标仓位（$${ewyCap.toLocaleString()}）`;
+            if (cellKoruP) cellKoruP.textContent = `30%–35% 标准仓位（风险平价：名义本金约 $${koruParityCap.toLocaleString()}，即 EWY 的 1/3）`;
+
+            const ewyCells = document.querySelectorAll("#ewyKoruComparisonTable .col-ewy");
+            const koruCells = document.querySelectorAll("#ewyKoruComparisonTable .col-koru");
+            ewyCells.forEach(td => td.className = "col-ewy" + (regime !== "MARKUP_KORU" ? " matrix-col-highlight" : ""));
+            koruCells.forEach(td => td.className = "col-koru" + (regime === "MARKUP_KORU" ? " matrix-col-highlight" : ""));
+        }
+
+        function renderCapitalFlowAndConstituents() {
+            const fEl = document.getElementById("flowForeignVal");
+            const iEl = document.getElementById("flowInstVal");
+            const sEl = document.getElementById("flowSemiImpactVal");
+            const buyBar = document.getElementById("flowBuyRatioBar");
+            const sellBar = document.getElementById("flowSellRatioBar");
+            const ratioLbl = document.getElementById("flowRatioLeftLabel");
+            const climaxLbl = document.getElementById("flowClimaxAlertLabel");
+            const tbody = document.getElementById("capitalConstituentsBody");
+
+            const fB = analyticsState.foreignBillion;
+            const iB = analyticsState.instBillion;
+            if (fEl) {
+                fEl.textContent = `${fB >= 0 ? "+" : ""}${fB.toLocaleString()} 亿`;
+                fEl.style.color = fB >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
+            }
+            if (iEl) {
+                iEl.textContent = `${iB >= 0 ? "+" : ""}${iB.toLocaleString()} 亿`;
+                iEl.style.color = iB >= 0 ? "#60a5fa" : "var(--neon-amber)";
+            }
+            if (sEl) {
+                sEl.textContent = `${analyticsState.semiWeightPct.toFixed(2)}%`;
+            }
+
+            const netTotal = analyticsState.netFlowBillion;
+            const buyPct = Math.max(12, Math.min(88, Math.round(50 + (netTotal / 8000) * 38)));
+            const sellPct = 100 - buyPct;
+            if (buyBar) buyBar.style.width = `${buyPct}%`;
+            if (sellBar) sellBar.style.width = `${sellPct}%`;
+            if (ratioLbl) ratioLbl.textContent = `主力买盘动能占比: ${buyPct}% (净流 ${netTotal >= 0 ? "+" : ""}${netTotal.toLocaleString()} 亿韩元)`;
+
+            if (climaxLbl) {
+                if (netTotal < -2000) {
+                    climaxLbl.textContent = "⚠️ 主力资金净流出明显 · 谨防惯性下探测试支撑";
+                    climaxLbl.style.color = "#f87171";
+                } else if (netTotal > 3500 && analyticsState.kospiClose < analyticsState.chochLevel) {
+                    climaxLbl.textContent = "⚠️ 放量冲高未破 CHoCH · 警惕 Buying Climax 滞涨";
+                    climaxLbl.style.color = "var(--neon-amber)";
+                } else {
+                    climaxLbl.textContent = "● 筹码与资金结构健康，无 Buying Climax 放量滞涨警报";
+                    climaxLbl.style.color = "var(--neon-cyan)";
+                }
+            }
+
+            if (tbody) {
+                tbody.innerHTML = (analyticsState.constituents || []).map(item => {
+                    const chgColor = item.chgPct >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
+                    const flowColor = item.netFlowB >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
+                    const isSemi = item.weightPct >= 15 || item.role.includes("半导体");
+                    return `
+                        <tr ${isSemi ? "class='row-highlight'" : ""}>
+                            <td style="font-weight:700; color:#fff;">${item.name} <span style="color:var(--text-muted); font-size:10px;">${item.code}</span></td>
+                            <td>${item.close > 0 ? item.close.toLocaleString() : "--"}</td>
+                            <td style="color:${chgColor}; font-weight:700;">${item.chgPct >= 0 ? "+" : ""}${item.chgPct.toFixed(2)}%</td>
+                            <td style="color:var(--neon-amber);">${item.weightPct > 0 ? item.weightPct.toFixed(2) + "%" : "--"}</td>
+                            <td><span style="color:${flowColor}; font-weight:700;">${item.netFlowB >= 0 ? "+" : ""}${item.netFlowB}亿</span> <span style="font-size:10px; color:var(--text-muted);">(${item.role})</span></td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+        }
+
+        function setBreakevenR2() {
+            const r1 = (parseFloat(document.getElementById("vdR1Input")?.value) || 10) / 100;
+            if (1 + r1 <= 0) return;
+            const r2Pct = ((1 / (1 + r1)) - 1) * 100;
+            const r2El = document.getElementById("vdR2Input");
+            if (r2El) r2El.value = r2Pct.toFixed(2);
+            updateVolatilityDragSimulator();
+        }
+
+        function resetVolatilityDragExample() {
+            document.getElementById("vdR1Input").value = "10.0";
+            document.getElementById("vdR2Input").value = "-9.09";
+            document.getElementById("vdEwyCapInput").value = "30000";
+            document.getElementById("vdChopDaysInput").value = "10";
+            document.getElementById("vdChopAmpInput").value = "3.0";
+            updateVolatilityDragSimulator();
+            recomputeEwyKoruAnalytics();
+            showToast("↺ 已还原 +10% / -9.09% 波动率拖累标准算例");
+        }
+
+        function updateVolatilityDragSimulator() {
+            const r1 = (parseFloat(document.getElementById("vdR1Input")?.value) || 0) / 100;
+            const r2 = (parseFloat(document.getElementById("vdR2Input")?.value) || 0) / 100;
+            const ewyCap = parseFloat(document.getElementById("vdEwyCapInput")?.value) || 30000;
+            const chopCycles = Math.max(1, Math.min(100, parseInt(document.getElementById("vdChopDaysInput")?.value || "10", 10) || 10));
+            const chopAmp = Math.max(0.1, Math.min(25, parseFloat(document.getElementById("vdChopAmpInput")?.value) || 3.0)) / 100;
+
+            const base1x = ((1 + r1) * (1 + r2)) - 1;
+            const lev3x = ((1 + 3 * r1) * (1 + 3 * r2)) - 1;
+            const dragLoss = lev3x - (base1x * 3);
+
+            const res1xEl = document.getElementById("vd1xResult");
+            const nav1xEl = document.getElementById("vd1xNavSub");
+            const res3xEl = document.getElementById("vd3xResult");
+            const drag3xEl = document.getElementById("vd3xDragSub");
+            const parityAmtEl = document.getElementById("vdParityKoruAmt");
+
+            if (res1xEl) {
+                res1xEl.textContent = `${base1x >= 0 ? "+" : ""}${(base1x * 100).toFixed(2)}%`;
+                res1xEl.style.color = base1x >= -0.0005 ? "var(--neon-emerald)" : "var(--neon-red)";
+            }
+            if (nav1xEl) {
+                const endNav = Math.round(10000 * (1 + base1x));
+                nav1xEl.textContent = `净值: $10,000 → $${endNav.toLocaleString()}`;
+            }
+            if (res3xEl) {
+                res3xEl.textContent = `${lev3x >= 0 ? "+" : ""}${(lev3x * 100).toFixed(2)}%`;
+                res3xEl.style.color = lev3x >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
+            }
+            if (drag3xEl) {
+                drag3xEl.textContent = `相对3倍线性预期偏差: ${dragLoss >= 0 ? "+" : ""}${(dragLoss * 100).toFixed(2)}%`;
+            }
+            if (parityAmtEl) {
+                parityAmtEl.textContent = `$${Math.round(ewyCap / 3).toLocaleString()}`;
+            }
+
+            // 连续来回震荡且底层指数刚好回本时的 KORU 净值衰减
+            const downAmp = (1 / (1 + chopAmp)) - 1;
+            const singleCycle3x = (1 + 3 * chopAmp) * (1 + 3 * downAmp);
+            const totalChop3xReturn = Math.pow(Math.max(0.01, singleCycle3x), chopCycles) - 1;
+            const chopSummaryEl = document.getElementById("vdChopSummaryText");
+            if (chopSummaryEl) {
+                chopSummaryEl.textContent = `指数来回 ${chopCycles} 次回本 (0.00%) 时，KORU 净值磨损 ${(totalChop3xReturn * 100).toFixed(2)}%`;
+            }
+        }
+
+        function copyEwyKoruAnalyticsReport() {
+            const verdict = document.getElementById("ewyKoruVerdictTitle")?.textContent || "";
+            const narrative = document.getElementById("ewyKoruVerdictNarrative")?.textContent || "";
+            const r1 = document.getElementById("vdR1Input")?.value || "10.0";
+            const r2 = document.getElementById("vdR2Input")?.value || "-9.09";
+            const res1x = document.getElementById("vd1xResult")?.textContent || "0.00%";
+            const res3x = document.getElementById("vd3xResult")?.textContent || "-5.45%";
+            const ewyCap = parseFloat(document.getElementById("vdEwyCapInput")?.value) || 30000;
+            const koruCap = Math.round(ewyCap / 3);
+
+            const report = `【当日资金与 EWY / KORU 波段作战分析战报】
+` +
+                `• 战略裁决: ${verdict}
+` +
+                `• 核心盘面: KOSPI 200 ${analyticsState.kospiClose.toFixed(2)} | 10EMA ${analyticsState.ema10.toFixed(2)} | 15EMA ${analyticsState.ema15.toFixed(2)} | CHoCH门槛 ${analyticsState.chochLevel.toFixed(2)}
+` +
+                `• 资金与汇率: 主力净流 ${analyticsState.netFlowBillion >= 0 ? "+" : ""}${analyticsState.netFlowBillion} 亿韩元 | 两强权重 ${analyticsState.semiWeightPct}% | USDKRW ${latestUsdKrw.toFixed(2)}
+` +
+                `• 波动率拖累实测 (${r1}% / ${r2}%): EWY(1x) = ${res1x} vs KORU(3x) = ${res3x}
+` +
+                `• 风险平价仓位: EWY 标准仓位 $${ewyCap.toLocaleString()} ↔ KORU 增强上限 $${koruCap.toLocaleString()} (1/3敞口)
+` +
+                `----------------------------------------
+` +
+                `📌 执行策略: ${narrative.trim()}`;
+
+            navigator.clipboard.writeText(report)
+                .then(() => showToast("📋 已复制《当日资金与 EWY/KORU 波段作战分析报告》！"))
+                .catch(() => showToast("复制受限，请手动复制"));
+        }
+
         // 1. 混合双轨映射矩阵
         function switchMappingMode(mode) {
             mappingMode = mode;
@@ -9820,8 +10806,11 @@ export default {
             updateCloudSyncBadgeUI("idle");
             loadPositionSandbox();
             initKospiSliderRange(BASE_KOSPI_ANCHOR);
-            fetchKospiHistoryData();
+            fetchKospiHistoryData().then(() => {
+                syncAnalyticsFromLiveHistory(false);
+            });
             setupChartInspect();
+            updateVolatilityDragSimulator();
 
             renderWatchlistBar();
             bindChartPaneResizers();
@@ -9870,5 +10859,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v10.2-line-width-selector-smooth-draw-immersive -->
+<!-- Build: v10.3-capital-flow-ewy-koru-volatility-drag-analyzer -->
 </html>
