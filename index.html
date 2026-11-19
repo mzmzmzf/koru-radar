@@ -851,7 +851,7 @@
                     </div>
                     <div class="metric-val" style="color:var(--neon-cyan); display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">
                         <span id="usdkrwVal">1,335.04</span>
-                        <span id="usdjpyBadge" style="font-size:12px; font-weight:700; color:#93c5fd; font-family:monospace;">¥--</span>
+                        <span id="usdjpyBadge" style="font-size:11px; font-weight:800; color:#93c5fd; font-family:monospace; padding:1px 6px; border-radius:4px; border:1px solid transparent;">¥--</span>
                     </div>
                     <div class="metric-desc" id="usdkrwDesc" style="color:var(--neon-emerald);">▼ 破位升值 (红利区 &lt;1,340)</div>
                 </div>
@@ -1331,9 +1331,31 @@
                         <div id="fxBarFill" style="width:49.9%; height:100%; background:linear-gradient(90deg, #ef4444 0%, #f59e0b 40%, #10b981 100%); transition: width 0.4s ease;"></div>
                     </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); border-top:1px dashed #333537; padding-top:8px;">
+                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); border-top:1px dashed #333537; padding-top:8px; margin-bottom:12px;">
                     <span>距 1,340 生死线安全垫: <b id="fxBufferVal" style="color:var(--neon-emerald); font-family:monospace;">-4.96 韩元</b></span>
                     <span>更新频率: <b style="color:var(--neon-cyan);">60s 实时外汇直连</b></span>
+                </div>
+
+                <div style="border-top:1px solid #282a2c; padding-top:12px;">
+                    <div class="card-title" style="margin-bottom:6px;">
+                        <span>💴 USDJPY 日元套息交易警戒监测 (155 分水岭)</span>
+                        <span class="badge" id="usdjpyZoneBadge" style="color:var(--neon-emerald); border-color:#10b981;">套息安全区</span>
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--text-muted);">
+                            <span>158 干预高压</span>
+                            <span style="color:var(--neon-red); font-weight:800;">155 警戒分水岭</span>
+                            <span id="usdjpyBarCurrentLabel" style="color:var(--neon-emerald); font-weight:800;">当前 ¥-- (安全)</span>
+                            <span>148 宽松安全</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:#282a2c; border-radius:4px; overflow:hidden; position:relative;">
+                            <div id="usdjpyBarFill" style="width:55%; height:100%; background:linear-gradient(90deg, #ef4444 0%, #f59e0b 38%, #10b981 100%); transition: width 0.4s ease;"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); padding-top:4px;">
+                        <span>距 155.00 警戒线距离: <b id="usdjpyBufferVal" style="color:var(--neon-emerald); font-family:monospace;">-- 日元</b></span>
+                        <span>联动逻辑: <b style="color:#93c5fd;">防套息平仓抽血亚太风险资产</b></span>
+                    </div>
                 </div>
             </div>
 
@@ -7781,14 +7803,64 @@ export default {
 
         let latestUsdJpy = parseFloat(localStorage.getItem("quant_usdjpy")) || 0;
 
+        function updateUsdJpyUI(jpy) {
+            if (!jpy || jpy < 80 || jpy > 250) return;
+            latestUsdJpy = jpy;
+            const jpyEl = document.getElementById("usdjpyBadge");
+            const jpyZoneBadge = document.getElementById("usdjpyZoneBadge");
+            const jpyBarLabel = document.getElementById("usdjpyBarCurrentLabel");
+            const jpyBarFill = document.getElementById("usdjpyBarFill");
+            const jpyBufferEl = document.getElementById("usdjpyBufferVal");
+
+            const isAlert = jpy >= 155.0;
+            const isWatch = !isAlert && jpy >= 152.0;
+            const jpyStr = `¥${jpy.toFixed(2)}`;
+
+            if (jpyEl) {
+                if (isAlert) {
+                    jpyEl.textContent = `🚨 ${jpyStr} 警戒`;
+                    jpyEl.style.color = "#fca5a5";
+                    jpyEl.style.background = "rgba(239, 68, 68, 0.16)";
+                    jpyEl.style.borderColor = "rgba(239, 68, 68, 0.45)";
+                } else if (isWatch) {
+                    jpyEl.textContent = `⚠️ ${jpyStr}`;
+                    jpyEl.style.color = "#fcd34d";
+                    jpyEl.style.background = "rgba(245, 158, 11, 0.14)";
+                    jpyEl.style.borderColor = "rgba(245, 158, 11, 0.4)";
+                } else {
+                    jpyEl.textContent = jpyStr;
+                    jpyEl.style.color = "#34d399";
+                    jpyEl.style.background = "rgba(16, 185, 129, 0.10)";
+                    jpyEl.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                }
+            }
+
+            const deltaJpy = (jpy - 155.0).toFixed(2);
+            const statusCol = isAlert ? "var(--neon-red)" : (isWatch ? "var(--neon-amber)" : "var(--neon-emerald)");
+            if (jpyZoneBadge) {
+                jpyZoneBadge.textContent = isAlert ? "🚨 破155警戒区" : (isWatch ? "⚠️ 逼近155警戒" : "套息安全区 (<155)");
+                jpyZoneBadge.style.color = statusCol;
+                jpyZoneBadge.style.borderColor = isAlert ? "#ef4444" : (isWatch ? "#f59e0b" : "#10b981");
+            }
+            if (jpyBarLabel) {
+                jpyBarLabel.textContent = `当前 ${jpyStr} (${isAlert ? "破155警戒" : (isWatch ? "逼近155" : "安全")})`;
+                jpyBarLabel.style.color = statusCol;
+            }
+            if (jpyBufferEl) {
+                jpyBufferEl.textContent = `${deltaJpy >= 0 ? "+" : ""}${deltaJpy} 日元`;
+                jpyBufferEl.style.color = statusCol;
+            }
+            if (jpyBarFill) {
+                // 158 (左侧危险 0%) -> 155 (分水岭 30%) -> 148 (右侧安全 100%)
+                jpyBarFill.style.width = `${Math.max(5, Math.min(95, ((158.0 - jpy) / 10.0) * 100)).toFixed(1)}%`;
+            }
+        }
+
         function renderFxRateUI(rate, jpyRate = null, sourceTag = "") {
             if (jpyRate && jpyRate > 80 && jpyRate < 250) {
-                latestUsdJpy = jpyRate;
-                const jpyEl = document.getElementById("usdjpyBadge");
-                if (jpyEl) jpyEl.textContent = `¥${jpyRate.toFixed(2)}`;
+                updateUsdJpyUI(jpyRate);
             } else if (latestUsdJpy > 0) {
-                const jpyEl = document.getElementById("usdjpyBadge");
-                if (jpyEl) jpyEl.textContent = `¥${latestUsdJpy.toFixed(2)}`;
+                updateUsdJpyUI(latestUsdJpy);
             }
             if (sourceTag) {
                 const srcEl = document.getElementById("fxFeedSource");
@@ -7804,10 +7876,16 @@ export default {
             if (valEl) valEl.textContent = formatted;
 
             const isBullishZone = rate < 1340.0;
+            const jpyWarn = latestUsdJpy >= 155.0;
             const deltaLine = (rate - 1340.0).toFixed(2);
             if (descEl) {
-                descEl.textContent = isBullishZone ? `▼ 破位升值 (红利区 <1,340)` : `▲ 突破承压 (预警区 ≥1,340)`;
-                descEl.style.color = isBullishZone ? "var(--neon-emerald)" : "var(--neon-red)";
+                if (isBullishZone && jpyWarn) {
+                    descEl.textContent = `▼ 韩元红利 (<1,340) · 🚨 日元破155警戒`;
+                    descEl.style.color = "var(--neon-amber)";
+                } else {
+                    descEl.textContent = isBullishZone ? `▼ 破位升值 (红利区 <1,340)` : `▲ 突破承压 (预警区 ≥1,340)`;
+                    descEl.style.color = isBullishZone ? "var(--neon-emerald)" : "var(--neon-red)";
+                }
             }
             if (bufferEl) {
                 bufferEl.textContent = `${deltaLine >= 0 ? '+' : ''}${deltaLine} 韩元`;
@@ -7911,22 +7989,30 @@ export default {
             const box = document.getElementById("fxSentimentSynergyBox"), title = document.getElementById("synergyTitle"), desc = document.getElementById("synergyDesc");
             if (!box || !title || !desc) return;
             const fxBullish = latestUsdKrw < 1340.0, fundingCrowded = latestFundingRate > 0.0005, fundingNeg = latestFundingRate < 0;
+            const jpyAlert = latestUsdJpy >= 155.0;
+            const jpyNote = latestUsdJpy > 0
+                ? (jpyAlert ? `；⚠️ USDJPY 升破 155（当前 ¥${latestUsdJpy.toFixed(2)}），需防范日元干预及套息平仓冲击` : `；USDJPY 报 ¥${latestUsdJpy.toFixed(2)}（<155 安全）`)
+                : "";
             const fngSuffix = latestFngData && isFinite(latestFngData.value)
                 ? `；全网恐慌贪婪指数 ${latestFngData.value}（${classifyFngScore(latestFngData.value).cnLabel}）。`
                 : "。";
 
-            if (fxBullish && !fundingCrowded) {
+            if (fxBullish && !fundingCrowded && !jpyAlert) {
                 box.style.background = "rgba(16, 185, 129, 0.1)"; box.style.borderColor = "rgba(16, 185, 129, 0.35)"; box.style.borderLeftColor = "var(--neon-emerald)";
                 title.textContent = fundingNeg ? "🟢 强力多头共振：韩元升值红利 + 合约负费率空头挤压" : "🟢 多因子多头共振：外资红利流入 + 衍生品筹码健康";
-                desc.textContent = `USDKRW (${latestUsdKrw.toFixed(2)}) 稳守 1,340 红利区下方，且 OKX 资金费率 (${(latestFundingRate * 100).toFixed(4)}%) 未出现过度拥挤，宏观汇率与衍生品结构正向共振，回踩均线支撑优先低吸${fngSuffix}`;
-            } else if (fxBullish && fundingCrowded) {
+                desc.textContent = `USDKRW (${latestUsdKrw.toFixed(2)}) 稳守 1,340 红利区下方${jpyNote}，且 OKX 资金费率 (${(latestFundingRate * 100).toFixed(4)}%) 未出现过度拥挤，宏观汇率与衍生品结构正向共振，回踩均线支撑优先低吸${fngSuffix}`;
+            } else if (fxBullish && (fundingCrowded || jpyAlert)) {
                 box.style.background = "rgba(245, 158, 11, 0.1)"; box.style.borderColor = "rgba(245, 158, 11, 0.35)"; box.style.borderLeftColor = "var(--neon-amber)";
-                title.textContent = "🟡 宏观顺风但合约拥挤：汇率偏多 × 资金费率偏热";
-                desc.textContent = `USDKRW (${latestUsdKrw.toFixed(2)}) 仍处红利区，但 OKX 资金费率升至 ${(latestFundingRate * 100).toFixed(4)}%，短线杠杆多头偏挤，谨防向下插针清理高倍多单后再拉升${fngSuffix}`;
+                title.textContent = jpyAlert
+                    ? "🟡 韩元红利但日元破 155 警戒：防范亚太套息波动外溢"
+                    : "🟡 宏观顺风但合约拥挤：汇率偏多 × 资金费率偏热";
+                desc.textContent = `USDKRW (${latestUsdKrw.toFixed(2)}) 仍处红利区${jpyNote}，OKX 资金费率为 ${(latestFundingRate * 100).toFixed(4)}%，建议持仓上推移动保本止损，严防盘中突发性插针洗盘${fngSuffix}`;
             } else {
                 box.style.background = "rgba(239, 68, 68, 0.1)"; box.style.borderColor = "rgba(239, 68, 68, 0.35)"; box.style.borderLeftColor = "var(--neon-red)";
-                title.textContent = "🔴 汇率承压预警：USDKRW 突破 1,340 分水岭";
-                desc.textContent = `离岸汇率升破 1,340（当前 ${latestUsdKrw.toFixed(2)}），韩元走弱触发外资流出压力，自动收缩做多战线并严格执行结构止损${fngSuffix}`;
+                title.textContent = jpyAlert
+                    ? "🚨 亚太双汇承压预警：USDKRW 破 1,340 × USDJPY 破 155"
+                    : "🔴 汇率承压预警：USDKRW 突破 1,340 分水岭";
+                desc.textContent = `离岸汇率升破 1,340（当前 ${latestUsdKrw.toFixed(2)}）${jpyNote}，韩元走弱触发外资流出压力，自动收缩做多战线并严格执行结构止损${fngSuffix}`;
             }
         }
 
@@ -9749,5 +9835,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v10.2-alternative-me-fear-greed-index-integration -->
+<!-- Build: v10.3-usdjpy-155-carry-alert-gauge -->
 </html>
