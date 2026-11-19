@@ -304,6 +304,64 @@
             min-height: 0 !important;
             display: block !important;
         }
+        /* 沉浸式看图模式：一键收起全部顶部按钮与画线栏，最大化 K 线视野 */
+        #tvChartCard.immersive-chart-mode > .card-title,
+        #tvChartCard.immersive-chart-mode > #chartHeightControlBar,
+        #tvChartCard.immersive-chart-mode > #watchlistManagerDrawer,
+        #tvChartCard.immersive-chart-mode > #tvSubHintBar,
+        #tvChartCard.immersive-chart-mode > #chartDrawingToolbar {
+            display: none !important;
+        }
+        #tvChartCard.tv-fullscreen-card.immersive-chart-mode {
+            padding: max(2px, env(safe-area-inset-top)) 2px max(2px, env(safe-area-inset-bottom)) 2px !important;
+        }
+        .immersive-restore-bar {
+            position: absolute;
+            top: 8px;
+            right: 76px;
+            z-index: 25;
+            display: none;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: rgba(19, 19, 20, 0.78);
+            border: 1px solid rgba(138, 180, 248, 0.45);
+            backdrop-filter: blur(6px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+            opacity: 0.82;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+        .immersive-restore-bar:hover {
+            opacity: 1;
+        }
+        #tvChartCard.immersive-chart-mode .immersive-restore-bar {
+            display: inline-flex;
+        }
+        .immersive-restore-btn {
+            background: transparent;
+            border: none;
+            color: #e3e3e3;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 999px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
+        }
+        .immersive-restore-btn:hover {
+            background: rgba(138, 180, 248, 0.2);
+            color: #ffffff;
+        }
+        .immersive-restore-btn.exit-fs {
+            color: #fca5a5;
+            border-left: 1px solid rgba(154, 160, 166, 0.25);
+            border-radius: 0 999px 999px 0;
+            padding-left: 8px;
+        }
 
         .lw-hud-overlay {
             position: absolute;
@@ -933,7 +991,8 @@
                                 </button>
                             </div>
                         </div>
-                        <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()">🔽 收起</button>
+                        <button type="button" class="btn-sm" id="btnImmersiveChartMode" onclick="toggleImmersiveChartMode()" style="border-color:rgba(168,85,247,0.55); color:#d8b4fe; font-weight:700;" title="一键收起全部顶部标签与画线栏，进入沉浸式看图模式 (快捷键 H)">🙈 沉浸看图</button>
+                        <button type="button" class="btn-sm" id="btnTvCollapse" onclick="toggleTvCollapse()" title="折叠/展开整个K线看盘卡片">🔽 收起</button>
                         <button type="button" class="btn-sm" id="btnTvFullscreen" onclick="toggleTvFullscreen()" style="background:rgba(6,182,212,0.18); border-color:var(--neon-cyan); color:#67e8f9; font-weight:800;">⛶ 全屏看盘</button>
                     </div>
                 </div>
@@ -1058,6 +1117,11 @@
                 </div>
 
                 <div class="tv-chart-shell" id="tvChartShell">
+                    <div class="immersive-restore-bar" id="immersiveRestoreBar">
+                        <button type="button" class="immersive-restore-btn" onclick="toggleImmersiveChartMode(false)" title="恢复显示顶部工具栏与周期标签 (快捷键 H)">👁️ 展开顶栏</button>
+                        <button type="button" class="immersive-restore-btn" onclick="captureChartSnapshot('copy')" title="一键复制高清快照 (⇧⌘S)">📷</button>
+                        <button type="button" class="immersive-restore-btn exit-fs" id="btnImmersiveExitFs" onclick="toggleTvFullscreen()" style="display:none;" title="退出全屏看盘">✕ 退出全屏</button>
+                    </div>
                     <div id="lwChartWrapper" style="width:100%; height:100%; display:flex; flex-direction:column; position:relative;">
                         <div id="lwMainPane" style="width:100%; flex:1; min-height:0; position:relative;">
                             <div class="lw-hud-overlay" id="lwHudOverlay">
@@ -2798,8 +2862,23 @@ export default {
 
         function toggleDrawingToolbar(forceState) {
             isDrawingToolbarOpen = typeof forceState === "boolean" ? forceState : !isDrawingToolbarOpen;
-            if (!isDrawingToolbarOpen && activeDrawTool !== "none") {
-                selectDrawTool("none");
+            if (!isDrawingToolbarOpen) {
+                if (activeDrawTool !== "none") {
+                    selectDrawTool("none");
+                }
+                selectedDrawingId = null;
+                isVisibilityEditorOpen = false;
+                // 若存在未锁定图形，收起画线工具栏时自动锁定以防手滑误触
+                const symKey = getCurrentSymKey();
+                let lockedAny = false;
+                (customShapeDrawings[symKey] || []).forEach(d => { if (d.locked === false) { d.locked = true; lockedAny = true; } });
+                (customHorizontalLines[symKey] || []).forEach(h => { if (h.locked === false) { h.locked = true; lockedAny = true; } });
+                if (lockedAny) {
+                    saveCustomShapesToStorage();
+                    saveCustomHLinesToStorage();
+                    renderAllLwPriceLines();
+                }
+                renderDrawOverlay();
             }
             syncChartControlButtons();
         }
@@ -3034,7 +3113,11 @@ export default {
             const activeEditShape = getActiveEditShape();
             const activeAny = getActiveTargetDrawingAny();
             const hasAnyUnlocked = sList.some(d => d.locked === false) || hList.some(h => h.locked === false);
-            const shouldShow = isDrawingToolbarOpen || activeDrawTool !== "none" || totalAllTfCount > 0 || activeAny !== null || hasAnyUnlocked;
+            const drawBtnEl = document.getElementById("btnToggleDrawBar");
+            if (drawBtnEl) {
+                drawBtnEl.textContent = totalAllTfCount > 0 ? `✏️ 画线(${totalAllTfCount})` : "✏️ 画线工具";
+            }
+            const shouldShow = isDrawingToolbarOpen || activeDrawTool !== "none" || activeAny !== null || hasAnyUnlocked;
             bar.style.display = shouldShow ? "flex" : "none";
             if (!shouldShow) return;
 
@@ -6614,6 +6697,40 @@ export default {
             }
         }
 
+        let isImmersiveChartMode = false;
+
+        function syncImmersiveModeUI() {
+            const card = document.getElementById("tvChartCard");
+            const btn = document.getElementById("btnImmersiveChartMode");
+            const exitFsBtn = document.getElementById("btnImmersiveExitFs");
+            if (card) {
+                card.classList.toggle("immersive-chart-mode", isImmersiveChartMode);
+            }
+            if (btn) {
+                btn.classList.toggle("active", isImmersiveChartMode);
+                btn.textContent = isImmersiveChartMode ? "👁️ 展开顶栏" : "🙈 沉浸看图";
+            }
+            if (exitFsBtn) {
+                exitFsBtn.style.display = isTvFullscreen ? "inline-flex" : "none";
+            }
+            requestAnimationFrame(() => {
+                applyCustomChartHeights();
+                resizeAndRenderDrawOverlay();
+            });
+        }
+
+        function toggleImmersiveChartMode(forceState) {
+            const next = typeof forceState === "boolean" ? forceState : !isImmersiveChartMode;
+            isImmersiveChartMode = next;
+            if (isImmersiveChartMode && isTvCollapsed) {
+                toggleTvCollapse();
+            }
+            syncImmersiveModeUI();
+            if (isImmersiveChartMode) {
+                showToast("🙈 已进入沉浸式看图（点右上角【👁️ 展开顶栏】或按 H / ESC 恢复）");
+            }
+        }
+
         function applyTvFullscreenUIState(active) {
             const card = document.getElementById("tvChartCard");
             const shell = document.getElementById("tvChartShell");
@@ -6638,6 +6755,9 @@ export default {
             } else {
                 card.classList.remove("tv-fullscreen-card");
                 document.body.style.overflow = "";
+                if (isImmersiveChartMode) {
+                    isImmersiveChartMode = false;
+                }
                 if (btn) {
                     btn.textContent = "⛶ 全屏看盘";
                     btn.style.background = "rgba(6, 182, 212, 0.18)";
@@ -6645,7 +6765,7 @@ export default {
                     btn.style.color = "#67e8f9";
                 }
             }
-            applyCustomChartHeights();
+            syncImmersiveModeUI();
         }
 
         function toggleTvCollapse() {
@@ -6725,7 +6845,14 @@ export default {
                     renderDrawOverlay();
                     return;
                 }
+                if (isImmersiveChartMode) {
+                    toggleImmersiveChartMode(false);
+                    return;
+                }
                 if (isTvFullscreen) toggleTvFullscreen();
+            } else if (!isInput && !modKey && !e.altKey && !e.shiftKey && e.key && e.key.toLowerCase() === "h") {
+                e.preventDefault();
+                toggleImmersiveChartMode();
             } else if (e.key === "Enter" && !isInput) {
                 const editShape = getActiveEditShape();
                 if (editShape && editShape.locked === false) {
@@ -9835,5 +9962,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v10.3-usdjpy-155-carry-alert-gauge -->
+<!-- Build: v10.4-immersive-chart-mode-and-collapsible-draw-bar -->
 </html>
