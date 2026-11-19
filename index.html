@@ -880,7 +880,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div>
                         <span id="bannerRegimeBadge" style="background:rgba(16,185,129,0.15); color:#34d399; font-size:11px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #10b981;">🛡️ CHoCH 多头蓄势</span>
-                        <span id="bannerHeadlineText" style="font-size:13px; font-weight:800; margin-left:6px;">首尔母体收盘 832.50 点 (-0.69%) · 盘中映射 833.45 点</span>
+                        <span id="bannerHeadlineText" style="font-size:13px; font-weight:800; margin-left:6px;">首尔母体 11/19 收盘 799.57 点 (+1.51%) · 盘中映射 799.57 点</span>
                     </div>
                     <div style="text-align:right; flex-shrink:0;">
                         <div style="font-size:10px; color:var(--text-muted);">波段目标锚点</div>
@@ -888,7 +888,7 @@
                     </div>
                 </div>
                 <p id="bannerNarrativeText" style="font-size:11px; color:var(--text-muted); margin-top:8px; line-height:1.5;">
-                    USDKRW 稳守 1,340 红利区下方（实时 1,335.04），首尔最新成分股总市值 2,030.24 万亿韩元（单日 -14.2 万亿），半导体两强垄断 51.41% 权重主导波段结构。
+                    USDKRW 稳守 1,340 红利区下方（实时 1,332.22），首尔最新成分股总市值 3,877.47 万亿韩元（单日 +53.4 万亿），半导体两强垄断 51.41% 权重主导波段结构。
                 </p>
             </div>
 
@@ -1246,17 +1246,17 @@
                         </span>
                     </div>
                     <div>
-                        <b style="color:var(--neon-cyan); font-family:monospace; font-size:14px;" id="simKospiDisplay">832.50 点</b>
+                        <b style="color:var(--neon-cyan); font-family:monospace; font-size:14px;" id="simKospiDisplay">799.57 点</b>
                     </div>
                 </div>
 
-                <input type="range" id="kospiSimSlider" step="0.2" value="832.50" 
+                <input type="range" id="kospiSimSlider" step="0.2" value="799.57" 
                        style="width:100%; accent-color:var(--neon-emerald); cursor:pointer;" 
                        oninput="onKospiSliderChange(this.value)">
 
                 <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-top:2px;">
                     <span id="sliderMinLabel">707.6 (-15%)</span>
-                    <span id="sliderMidLabel" style="color:var(--neon-amber);">832.50 (基准)</span>
+                    <span id="sliderMidLabel" style="color:var(--neon-amber);">799.57 (基准)</span>
                     <span id="sliderMaxLabel">957.4 (+15%)</span>
                 </div>
 
@@ -1293,7 +1293,7 @@
                 </div>
 
                 <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px; line-height:1.5;" id="mappingModeTip">
-                    💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (832.50点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。
+                    💡 <b>挂单定桩模式</b>：以首尔收盘日基准 (799.57点) 固定测算，价格标尺全天不漂移，用于在券商提前埋伏条件单。
                 </div>
 
                 <div style="overflow-x:auto;">
@@ -2072,45 +2072,146 @@ export default {
         const ALTERNATIVE_FNG_URL = "https://api.alternative.me/fng/?limit=2";
         const DOMESTIC_FALLBACK_BTC_URL = "https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD";
         const DOMESTIC_FALLBACK_KLINES_URL = "https://min-api.cryptocompare.com/data/v2/histohour?fsym=BTC&tsym=USD&limit=60";
-        let BASE_KOSPI_ANCHOR = 832.50;
+        let BASE_KOSPI_ANCHOR = 799.57;
 
         const DEFAULT_KOSPI_HISTORY = [
-            { date: "10/08", cap: 2090.25, point: 865.20 },
-            { date: "10/10", cap: 2070.10, point: 855.10 },
-            { date: "10/12", cap: 2035.00, point: 840.00 },
-            { date: "10/14", cap: 2032.55, point: 839.20 },
-            { date: "10/16", cap: 1990.20, point: 820.50 },
-            { date: "10/18", cap: 2002.50, point: 825.00 },
-            { date: "10/20", cap: 2010.40, point: 828.60 },
-            { date: "10/22", cap: 1990.10, point: 819.40 },
-            { date: "10/24", cap: 2007.80, point: 826.80 },
-            { date: "10/26", cap: 1987.50, point: 818.20 },
-            { date: "10/28", cap: 1990.00, point: 819.00 },
-            { date: "10/30", cap: 1982.60, point: 815.40 },
-            { date: "11/01", cap: 1997.50, point: 822.00 },
-            { date: "11/02", cap: 2034.25, point: 838.00 },
-            { date: "11/03", cap: 2027.60, point: 835.40 },
-            { date: "11/04", cap: 2007.50, point: 826.00 },
-            { date: "11/05", cap: 2020.25, point: 831.20 },
-            { date: "11/06", cap: 2000.10, point: 823.00 },
-            { date: "11/07", cap: 2004.00, point: 824.50 },
-            { date: "11/08", cap: 1975.20, point: 811.20 },
-            { date: "11/09", cap: 1907.50, point: 782.40 },
-            { date: "11/10", cap: 1915.10, point: 785.60 },
-            { date: "11/11", cap: 2044.43, point: 838.32 },
-            { date: "11/12", cap: 2030.24, point: 832.50 }
+            { date: "05/19", cap: 5507.74, point: 1132.42 },
+            { date: "05/20", cap: 5465.59, point: 1125.51 },
+            { date: "05/21", cap: 5937.37, point: 1225.22 },
+            { date: "05/22", cap: 5954.94, point: 1226.03 },
+            { date: "05/26", cap: 6112.23, point: 1260.53 },
+            { date: "05/27", cap: 6266.03, point: 1298.86 },
+            { date: "05/28", cap: 6235.50, point: 1292.57 },
+            { date: "05/29", cap: 6470.57, point: 1342.82 },
+            { date: "06/01", cap: 6722.64, point: 1399.91 },
+            { date: "06/02", cap: 6738.08, point: 1407.23 },
+            { date: "06/04", cap: 6605.69, point: 1379.56 },
+            { date: "06/05", cap: 6231.44, point: 1297.02 },
+            { date: "06/08", cap: 5710.10, point: 1186.54 },
+            { date: "06/09", cap: 6183.17, point: 1293.40 },
+            { date: "06/10", cap: 5893.94, point: 1227.12 },
+            { date: "06/11", cap: 5915.68, point: 1231.54 },
+            { date: "06/12", cap: 6208.16, point: 1291.32 },
+            { date: "06/15", cap: 6537.58, point: 1360.26 },
+            { date: "06/16", cap: 6678.40, point: 1391.74 },
+            { date: "06/17", cap: 6786.94, point: 1416.97 },
+            { date: "06/18", cap: 6952.09, point: 1459.23 },
+            { date: "06/19", cap: 6950.39, point: 1459.48 },
+            { date: "06/22", cap: 7005.70, point: 1477.22 },
+            { date: "06/23", cap: 6294.83, point: 1321.70 },
+            { date: "06/24", cap: 6506.51, point: 1369.62 },
+            { date: "06/25", cap: 6872.41, point: 1454.15 },
+            { date: "06/26", cap: 6466.58, point: 1366.49 },
+            { date: "06/29", cap: 6442.58, point: 1352.54 },
+            { date: "06/30", cap: 6507.87, point: 1370.73 },
+            { date: "07/01", cap: 6363.00, point: 1335.36 },
+            { date: "07/02", cap: 5850.55, point: 1219.62 },
+            { date: "07/03", cap: 6198.90, point: 1299.30 },
+            { date: "07/06", cap: 6169.79, point: 1293.13 },
+            { date: "07/07", cap: 5860.15, point: 1225.57 },
+            { date: "07/08", cap: 5542.95, point: 1158.37 },
+            { date: "07/09", cap: 5580.88, point: 1169.73 },
+            { date: "07/10", cap: 5717.98, point: 1196.69 },
+            { date: "07/13", cap: 5192.83, point: 1078.78 },
+            { date: "07/14", cap: 5236.44, point: 1092.23 },
+            { date: "07/15", cap: 5569.30, point: 1163.90 },
+            { date: "07/16", cap: 5204.40, point: 1080.36 },
+            { date: "07/20", cap: 4970.73, point: 1032.52 },
+            { date: "07/21", cap: 5153.31, point: 1073.39 },
+            { date: "07/22", cap: 5191.40, point: 1080.22 },
+            { date: "07/23", cap: 5418.66, point: 1126.33 },
+            { date: "07/24", cap: 5101.63, point: 1055.58 },
+            { date: "07/27", cap: 5155.88, point: 1069.22 },
+            { date: "07/28", cap: 4587.72, point: 945.69 },
+            { date: "07/29", cap: 4337.33, point: 887.20 },
+            { date: "07/30", cap: 4280.69, point: 872.49 },
+            { date: "07/31", cap: 5068.15, point: 1046.81 },
+            { date: "08/03", cap: 4798.68, point: 986.72 },
+            { date: "08/04", cap: 4872.84, point: 1000.03 },
+            { date: "08/05", cap: 5057.94, point: 1038.59 },
+            { date: "08/06", cap: 4817.21, point: 982.92 },
+            { date: "08/07", cap: 4786.49, point: 974.73 },
+            { date: "08/10", cap: 4814.07, point: 977.84 },
+            { date: "08/11", cap: 4850.84, point: 987.40 },
+            { date: "08/12", cap: 5035.55, point: 1029.43 },
+            { date: "08/13", cap: 5222.19, point: 1071.24 },
+            { date: "08/14", cap: 5349.81, point: 1098.18 },
+            { date: "08/18", cap: 5267.63, point: 1082.00 },
+            { date: "08/19", cap: 4952.52, point: 1012.61 },
+            { date: "08/20", cap: 5254.55, point: 1080.98 },
+            { date: "08/21", cap: 5308.30, point: 1096.25 },
+            { date: "08/24", cap: 5132.85, point: 1054.01 },
+            { date: "08/25", cap: 5165.64, point: 1060.68 },
+            { date: "08/26", cap: 5215.68, point: 1071.16 },
+            { date: "08/27", cap: 5297.53, point: 1088.61 },
+            { date: "08/28", cap: 5197.62, point: 1065.70 },
+            { date: "08/31", cap: 5222.83, point: 1071.85 },
+            { date: "09/01", cap: 5235.36, point: 1075.30 },
+            { date: "09/02", cap: 5022.34, point: 1031.53 },
+            { date: "09/03", cap: 5035.76, point: 1032.82 },
+            { date: "09/04", cap: 5119.97, point: 1051.52 },
+            { date: "09/07", cap: 5363.81, point: 1105.19 },
+            { date: "09/08", cap: 5333.20, point: 1100.08 },
+            { date: "09/09", cap: 5407.45, point: 1114.61 },
+            { date: "09/10", cap: 5393.59, point: 1112.13 },
+            { date: "09/11", cap: 5294.44, point: 1090.22 },
+            { date: "09/14", cap: 5115.59, point: 1050.83 },
+            { date: "09/15", cap: 5071.41, point: 1042.46 },
+            { date: "09/16", cap: 5143.81, point: 1060.05 },
+            { date: "09/17", cap: 5141.13, point: 1058.27 },
+            { date: "09/18", cap: 5280.79, point: 1090.23 },
+            { date: "09/21", cap: 5372.57, point: 1112.16 },
+            { date: "09/22", cap: 5379.08, point: 1113.30 },
+            { date: "09/23", cap: 5429.72, point: 1126.12 },
+            { date: "09/28", cap: 5275.54, point: 1089.28 },
+            { date: "09/29", cap: 5261.08, point: 1088.15 },
+            { date: "09/30", cap: 5234.72, point: 1081.82 },
+            { date: "10/01", cap: 5338.02, point: 1104.48 },
+            { date: "10/02", cap: 5361.73, point: 1109.05 },
+            { date: "10/06", cap: 5309.88, point: 1095.83 },
+            { date: "10/07", cap: 5201.21, point: 1073.63 },
+            { date: "10/08", cap: 5061.36, point: 1044.52 },
+            { date: "10/12", cap: 4875.44, point: 1004.92 },
+            { date: "10/13", cap: 4598.56, point: 942.07 },
+            { date: "10/14", cap: 4576.77, point: 936.82 },
+            { date: "10/15", cap: 4223.84, point: 860.70 },
+            { date: "10/16", cap: 4311.11, point: 878.16 },
+            { date: "10/19", cap: 4387.14, point: 891.30 },
+            { date: "10/20", cap: 4219.24, point: 858.78 },
+            { date: "10/21", cap: 4364.25, point: 891.04 },
+            { date: "10/22", cap: 4206.16, point: 858.02 },
+            { date: "10/23", cap: 4222.72, point: 862.77 },
+            { date: "10/26", cap: 4163.39, point: 851.51 },
+            { date: "10/27", cap: 4295.16, point: 881.07 },
+            { date: "10/28", cap: 4589.68, point: 946.40 },
+            { date: "10/29", cap: 4532.22, point: 935.87 },
+            { date: "10/30", cap: 4371.37, point: 899.78 },
+            { date: "11/02", cap: 4470.22, point: 920.63 },
+            { date: "11/03", cap: 4307.26, point: 885.67 },
+            { date: "11/04", cap: 4332.74, point: 889.25 },
+            { date: "11/05", cap: 4100.04, point: 837.78 },
+            { date: "11/06", cap: 3847.20, point: 783.23 },
+            { date: "11/09", cap: 3815.11, point: 778.35 },
+            { date: "11/10", cap: 3983.82, point: 814.31 },
+            { date: "11/11", cap: 4088.85, point: 838.32 },
+            { date: "11/12", cap: 4064.82, point: 833.57 },
+            { date: "11/13", cap: 4023.35, point: 824.78 },
+            { date: "11/16", cap: 3875.28, point: 791.56 },
+            { date: "11/17", cap: 3747.46, point: 770.74 },
+            { date: "11/18", cap: 3824.06, point: 787.71 },
+            { date: "11/19", cap: 3877.47, point: 799.57 }
         ];
 
         let currentKospiHistory = DEFAULT_KOSPI_HISTORY;
 
         let mappingMode = 'ANCHOR';
         const STRATEGIC_TRENCHES = [
-            { point: 780.00, tag: "系统止损防线", tagClass: "color:var(--neon-red); border-color:#ef4444;", staticPrice: 7.150, type: "SL", orderType: "STOP (条件止损单)", desc: "跌破机械全仓清仓" },
-            { point: 795.50, tag: "梯形加权建仓线", tagClass: "color:var(--neon-cyan); border-color:#06b6d4;", staticPrice: 7.435, type: "BUY", orderType: "LIMIT (限价买单)", desc: "深度黄金回踩埋伏 (30%)" },
-            { point: 832.50, tag: "收复突破基准", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 8.173, isBase: true, type: "BASE", orderType: "BENCHMARK", desc: "当前日线基准中枢" },
-            { point: 850.00, tag: "第二目标区 (TP2)", tagClass: "color:var(--neon-amber); border-color:#f59e0b;", staticPrice: 8.850, type: "TP", orderType: "LIMIT (限价卖单)", desc: "分批减持兑现 50%" },
-            { point: 875.00, tag: "波段强阻力带", tagClass: "color:#cbd5e1; border-color:#475569;", staticPrice: 9.500, type: "TP", orderType: "LIMIT (限价卖单)", desc: "分批减持兑现 25%" },
-            { point: 900.00, tag: "战略清仓凯旋", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 10.200, type: "TP", orderType: "LIMIT (限价卖单)", desc: "全军班师全仓出清" }
+            { point: 767.09, tag: "系统止损防线", tagClass: "color:var(--neon-red); border-color:#ef4444;", staticPrice: 6.337, type: "SL", orderType: "STOP (条件止损单)", desc: "跌破11/18双针底机械清仓" },
+            { point: 785.00, tag: "梯形加权建仓线", tagClass: "color:var(--neon-cyan); border-color:#06b6d4;", staticPrice: 6.822, type: "BUY", orderType: "LIMIT (限价买单)", desc: "缩量回踩需求区埋伏 (30%)" },
+            { point: 799.57, tag: "收复突破基准", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 7.217, isBase: true, type: "BASE", orderType: "BENCHMARK", desc: "11/19最新日线基准中枢" },
+            { point: 814.31, tag: "第一目标区 (TP1)", tagClass: "color:var(--neon-amber); border-color:#f59e0b;", staticPrice: 7.616, type: "TP", orderType: "LIMIT (限价卖单)", desc: "日线EMA10压力带减持 30%" },
+            { point: 838.32, tag: "第二目标区 (TP2)", tagClass: "color:#cbd5e1; border-color:#475569;", staticPrice: 8.266, type: "TP", orderType: "LIMIT (限价卖单)", desc: "11/11前高与EMA15强阻减持 40%" },
+            { point: 885.67, tag: "战略清仓凯旋", tagClass: "color:var(--neon-emerald); border-color:#10b981;", staticPrice: 9.548, type: "TP", orderType: "LIMIT (限价卖单)", desc: "破位前供给中枢全仓凯旋" }
         ];
 
         let sandboxData = {
@@ -2126,7 +2227,7 @@ export default {
         let customKoruCost = 8.008;
         let overviewRrMode = 'LIVE_ENTRY';
         let currentBtcLivePrice = parseFloat(localStorage.getItem("quant_btc")) || 73800.0;
-        let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 8.201;
+        let lastValidKoru = parseFloat(localStorage.getItem("quant_koru")) || 7.217;
         let latestUsdKrw = parseFloat(localStorage.getItem("quant_usdkrw")) || 1335.04;
         let latestFundingRate = 0.0001;
         let latestOiDeltaWan = 0;
@@ -6885,7 +6986,7 @@ export default {
             const prevCap = parseFloat(prev.cap) || closeCap;
             const capDelta = closeCap - prevCap;
 
-            const anchorKoru = 8.347 * (1 + 3.0 * ((closePt - 838.32) / 838.32));
+            const anchorKoru = 7.217 * (1 + 3.0 * ((closePt - 799.57) / 799.57));
             const liveKoru = lastValidKoru || anchorKoru;
             const intradayImpliedPct = anchorKoru > 0 ? ((liveKoru - anchorKoru) / anchorKoru) / 3.0 : 0;
             const impliedPt = closePt * (1 + intradayImpliedPct);
@@ -6965,7 +7066,7 @@ export default {
             if (!tbody) return;
 
             const baseK = BASE_KOSPI_ANCHOR || 832.50;
-            const liveKoru = lastValidKoru || 8.201;
+            const liveKoru = lastValidKoru || 7.217;
 
             let html = "";
             STRATEGIC_TRENCHES.forEach(item => {
@@ -7022,7 +7123,7 @@ export default {
 
         function copyKoruOrderPlan() {
             const baseK = BASE_KOSPI_ANCHOR || 832.50;
-            const liveK = lastValidKoru || 8.201;
+            const liveK = lastValidKoru || 7.217;
             const bep = customKoruCost * 1.002;
             const modeName = mappingMode === 'ANCHOR' ? '🏛️ 日线基准定桩 (挂单死锚点)' : '⚡ 现价弹性推演 (盘中动量弹性)';
 
@@ -7371,6 +7472,7 @@ export default {
                 }
             } catch (e) {}
 
+            const defaultLatest = DEFAULT_KOSPI_HISTORY[DEFAULT_KOSPI_HISTORY.length - 1]?.date || "";
             try {
                 const res = await fetch(`data/kospi_history.json?t=${Date.now()}`, { cache: "no-store" });
                 if (res.ok) {
@@ -7378,9 +7480,14 @@ export default {
                     if (Array.isArray(remoteData) && remoteData.length > 0) {
                         const remoteLatest = remoteData[remoteData.length - 1]?.date || "";
                         const localLatest = localCached ? (localCached[localCached.length - 1]?.date || "") : "";
-                        const chosen = (localCached && localCached.length >= remoteData.length && localLatest > remoteLatest)
-                            ? localCached
-                            : remoteData;
+                        let chosen = remoteData;
+                        if (localCached && localCached.length >= chosen.length && localLatest > remoteLatest) {
+                            chosen = localCached;
+                        }
+                        const chosenLatest = chosen[chosen.length - 1]?.date || "";
+                        if (DEFAULT_KOSPI_HISTORY.length > chosen.length && defaultLatest >= chosenLatest) {
+                            chosen = DEFAULT_KOSPI_HISTORY;
+                        }
                         applyLoadedKospiHistory(chosen);
                         if (forceRefresh) {
                             showToast(`已同步最新历史数据（最新日期: ${chosen[chosen.length - 1].date}，共 ${chosen.length} 日）`);
@@ -7391,8 +7498,12 @@ export default {
             } catch (e) {}
 
             if (localCached) {
-                applyLoadedKospiHistory(localCached);
-                if (forceRefresh) showToast("已加载本地导入的 KOSPI 历史数据");
+                const localLatest = localCached[localCached.length - 1]?.date || "";
+                const chosen = (DEFAULT_KOSPI_HISTORY.length > localCached.length && defaultLatest >= localLatest)
+                    ? DEFAULT_KOSPI_HISTORY
+                    : localCached;
+                applyLoadedKospiHistory(chosen);
+                if (forceRefresh) showToast(`已加载历史数据（最新日期: ${chosen[chosen.length - 1].date}，共 ${chosen.length} 日）`);
                 return;
             }
             applyLoadedKospiHistory(DEFAULT_KOSPI_HISTORY);
@@ -7569,7 +7680,7 @@ export default {
 
             const deltaIndexPct = (simK - base) / base;
             const deltaKoruPct = deltaIndexPct * 3.0;
-            const baseKoru = lastValidKoru || 8.201;
+            const baseKoru = lastValidKoru || 7.217;
             const simP = baseKoru * (1 + deltaKoruPct);
             const cost = customKoruCost || 8.008;
             const simRoi = ((simP - cost) / cost) * 100;
@@ -7585,21 +7696,21 @@ export default {
             roiEl.style.color = simRoi >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
 
             const adviceEl = document.getElementById("simTacticalAdvice");
-            if (simK <= 780.0) {
+            if (simK <= 767.1) {
                 adviceEl.style.background = "rgba(239,68,68,0.15)"; adviceEl.style.borderColor = "var(--neon-red)"; adviceEl.style.color = "#fca5a5";
-                adviceEl.textContent = "🚨 跌破 780 破位生死线：母体下破结构支撑，执行机械清仓止损，规避杠杆损耗！";
-            } else if (simK < 838.0) {
+                adviceEl.textContent = "🚨 跌破 767.09 双针探底生死线：母体创半年新低破位，执行机械清仓止损，规避 3X 杠杆损耗！";
+            } else if (simK < 814.0) {
                 adviceEl.style.background = "rgba(245,158,11,0.15)"; adviceEl.style.borderColor = "var(--neon-amber)"; adviceEl.style.color = "#fcd34d";
-                adviceEl.textContent = "🛡️ 回踩区间：大盘处于 800~830 震荡回踩测试，底仓启动保本防御，不盲目追单。";
-            } else if (simK >= 875.0) {
+                adviceEl.textContent = "🛡️ 底部震荡蓄势区 (767~814 点)：大盘处于双针探底后的缩量修复阶段，仅在 785 点附近低吸，绝不追高。";
+            } else if (simK >= 885.0) {
                 adviceEl.style.background = "rgba(16,185,129,0.15)"; adviceEl.style.borderColor = "var(--neon-emerald)"; adviceEl.style.color = "#6ee7b7";
-                adviceEl.textContent = "🏆 冲刺 875+ 终极战略阻力区：对应 KORU 接近 9.5~10 刀，全仓凯旋出清，绝不长持！";
-            } else if (simK >= 850.0) {
+                adviceEl.textContent = "🏆 冲刺 885.67 终极供给阻力带：对应 KORU 接近 9.55 刀，全仓凯旋出清，绝不长持！";
+            } else if (simK >= 838.0) {
                 adviceEl.style.background = "rgba(6,182,212,0.15)"; adviceEl.style.borderColor = "var(--neon-cyan)"; adviceEl.style.color = "#67e8f9";
-                adviceEl.textContent = "🎯 突破第一阻力带 (850 点)：KORU 触碰 8.8~9.0 区域，严格执行移动止损向上保护。";
+                adviceEl.textContent = "🎯 突破 838.32 强阻 (日线 EMA15)：KORU 站上 8.26+ 区域，主升浪开启，将止损上推至保本线以上。";
             } else {
-                adviceEl.style.background = "rgba(30,41,59,0.5)"; adviceEl.style.borderColor = "var(--border-color)"; adviceEl.style.color = "var(--text-muted)";
-                adviceEl.textContent = "💡 当前母体中枢平衡位，耐心持有浮盈底仓。";
+                adviceEl.style.background = "rgba(6,182,212,0.12)"; adviceEl.style.borderColor = "rgba(6,182,212,0.4)"; adviceEl.style.color = "#67e8f9";
+                adviceEl.textContent = "⚡ 测试 814.31 第一阻力带 (日线 EMA10)：KORU 逼近 7.62 区域，关注成交额是否放大至 17 万亿以上。";
             }
         }
 
@@ -9962,5 +10073,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v10.4-immersive-chart-mode-and-collapsible-draw-bar -->
+<!-- Build: v10.6-recalibrated-79957-koru-7217-mapping -->
 </html>
