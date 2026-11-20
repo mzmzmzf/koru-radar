@@ -149,7 +149,12 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+            overflow-x: auto;
+            scrollbar-width: none;
+            min-height: 18px;
+            font-variant-numeric: tabular-nums;
             font-size: 11.5px;
             color: var(--text-muted);
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -158,7 +163,11 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+            overflow-x: auto;
+            scrollbar-width: none;
+            min-height: 20px;
             font-size: 11px;
             color: var(--text-muted);
             margin-top: 1px;
@@ -176,7 +185,12 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+            overflow-x: auto;
+            scrollbar-width: none;
+            min-height: 18px;
+            font-variant-numeric: tabular-nums;
             font-size: 11px;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             margin-top: 1px;
@@ -370,7 +384,7 @@
         }
         .header-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; color: var(--text-main); }
         .logo-icon { width: 24px; height: 24px; background: linear-gradient(135deg, #10b981, #06b6d4); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #fff; }
-        .header-status { font-size: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+        .header-status { font-size: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; white-space: nowrap; overflow-x: auto; scrollbar-width: none; font-variant-numeric: tabular-nums; justify-content: flex-end; }
         .badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-subtle); color: var(--text-muted); }
         .badge.active { color: var(--neon-emerald); border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.12); }
 
@@ -5299,47 +5313,87 @@ export default {
                     structureLines,
                     marketBias
                 } = computeBreakout33AndSmc(candles);
+                const prevCache = Array.isArray(lwLastDataCache) ? lwLastDataCache : [];
+                const prevLastTime = prevCache.length >= 2 ? prevCache[prevCache.length - 1].time : null;
+                const newLastTime = enriched.length >= 2 ? enriched[enriched.length - 1].time : null;
+                const canSameBarUpdate = preserveViewport
+                    && prevCache.length === enriched.length
+                    && prevCache.length >= 2
+                    && prevCache[0].time === enriched[0].time
+                    && prevLastTime === newLastTime;
+                const tailOverlapIdx = (preserveViewport && !canSameBarUpdate && prevLastTime !== null && newLastTime !== null && newLastTime > prevLastTime)
+                    ? enriched.findIndex(x => x.time === prevLastTime)
+                    : -1;
+                const canTailAppendUpdate = tailOverlapIdx >= 1 && tailOverlapIdx >= enriched.length - 4;
+                const canIncrementalUpdate = canSameBarUpdate || canTailAppendUpdate;
+
                 lwLastDataCache = enriched;
                 lwLastSmcSnapshot = { lastSH, lastSL, supplyBlocks, demandBlocks, structureLines, marketBias };
 
-                let savedRange = null;
-                if (preserveViewport && !isChartPointerDown && !activeHandleDrag) {
-                    try { savedRange = lwChart.timeScale().getVisibleLogicalRange(); } catch (e) {}
-                }
-
-                lwCandleSeries.setData(enriched.map(x => ({
-                    time: x.time, open: x.open, high: x.high, low: x.low, close: x.close
-                })));
-
-                lwEma10Series.setData(enriched.map(x => ({ time: x.time, value: x.ema10 })));
-                lwEma15Series.setData(enriched.map(x => ({ time: x.time, value: x.ema15 })));
-                lwMa50Series.setData(enriched.filter(x => x.ma50 !== null).map(x => ({ time: x.time, value: x.ma50 })));
-
                 const p = getChartPalette();
-                lwVolSeries.setData(enriched.map(x => ({
-                    time: x.time,
-                    value: x.vol,
-                    color: x.close >= x.open ? p.volUp : p.volDown
-                })));
+                let targetViewportRange = null;
 
-                lwCandleSeries.setMarkers(markers);
-                renderAllLwPriceLines();
+                if (canIncrementalUpdate) {
+                    const startUpdateIdx = canTailAppendUpdate ? tailOverlapIdx : (enriched.length - 1);
+                    for (let i = startUpdateIdx; i < enriched.length; i++) {
+                        const bar = enriched[i];
+                        lwCandleSeries.update({
+                            time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close
+                        });
+                        lwEma10Series.update({ time: bar.time, value: bar.ema10 });
+                        lwEma15Series.update({ time: bar.time, value: bar.ema15 });
+                        if (bar.ma50 !== null) {
+                            lwMa50Series.update({ time: bar.time, value: bar.ma50 });
+                        }
+                        lwVolSeries.update({
+                            time: bar.time,
+                            value: bar.vol,
+                            color: bar.close >= bar.open ? p.volUp : p.volDown
+                        });
+                    }
+                    if (canTailAppendUpdate) {
+                        lwCandleSeries.setMarkers(markers);
+                        renderAllLwPriceLines();
+                    }
+                } else {
+                    let savedRange = null;
+                    if (preserveViewport) {
+                        try { savedRange = lwChart.timeScale().getVisibleLogicalRange(); } catch (e) {}
+                    }
 
-                let targetViewportRange = savedRange;
-                if (!targetViewportRange && !preserveViewport) {
-                    const totalBars = enriched.length;
-                    const leftPad = Math.max(3, Math.round(totalBars * 0.02));
-                    const rightPad = Math.max(14, Math.round(totalBars * 0.28));
-                    targetViewportRange = {
-                        from: -leftPad,
-                        to: (totalBars - 1) + rightPad
-                    };
-                }
-                if (targetViewportRange) {
-                    lwChart.timeScale().setVisibleLogicalRange(targetViewportRange);
+                    lwCandleSeries.setData(enriched.map(x => ({
+                        time: x.time, open: x.open, high: x.high, low: x.low, close: x.close
+                    })));
+
+                    lwEma10Series.setData(enriched.map(x => ({ time: x.time, value: x.ema10 })));
+                    lwEma15Series.setData(enriched.map(x => ({ time: x.time, value: x.ema15 })));
+                    lwMa50Series.setData(enriched.filter(x => x.ma50 !== null).map(x => ({ time: x.time, value: x.ma50 })));
+
+                    lwVolSeries.setData(enriched.map(x => ({
+                        time: x.time,
+                        value: x.vol,
+                        color: x.close >= x.open ? p.volUp : p.volDown
+                    })));
+
+                    lwCandleSeries.setMarkers(markers);
+                    renderAllLwPriceLines();
+
+                    targetViewportRange = savedRange;
+                    if (!targetViewportRange && !preserveViewport) {
+                        const totalBars = enriched.length;
+                        const leftPad = Math.max(3, Math.round(totalBars * 0.02));
+                        const rightPad = Math.max(14, Math.round(totalBars * 0.28));
+                        targetViewportRange = {
+                            from: -leftPad,
+                            to: (totalBars - 1) + rightPad
+                        };
+                    }
+                    if (targetViewportRange) {
+                        lwChart.timeScale().setVisibleLogicalRange(targetViewportRange);
+                    }
                 }
                 renderDrawOverlay();
-                if (showCvdSubchart || showNetposSubchart) {
+                if ((showCvdSubchart || showNetposSubchart) && !canIncrementalUpdate) {
                     await renderActiveSubcharts(enriched, symObj, reqInterval, targetViewportRange);
                 }
 
@@ -11089,7 +11143,11 @@ export default {
             }
         }
 
-                async function fetchLiveMarketData() {
+        let isLiveMarketFetching = false;
+        async function fetchLiveMarketData() {
+            if (isLiveMarketFetching) return;
+            isLiveMarketFetching = true;
+            try {
             const startT = performance.now();
             let btcDirectOk = false, koruDirectOk = false, viaCustomRelay = false;
 
@@ -11153,7 +11211,7 @@ export default {
             }
             renderKoruFundingAndRangeUI(fRate, high24h, low24h, volCcy24h, lastValidKoru);
 
-            if (chartEngineMode === "STRAT" && !isTvCollapsed) {
+            if (chartEngineMode === "STRAT" && !isTvCollapsed && !isChartPointerDown && !activeHandleDrag && !draftDrawing) {
                 const curSym = getActiveSymbolObj();
                 if (curSym.market !== "US" || (Date.now() - lastUsEquityFetchTs > 30000)) {
                     fetchAndRenderStrategyChart(true);
@@ -11212,6 +11270,9 @@ export default {
             } else {
                 statusEl.textContent = getCustomRelayBase() ? `● 中继重连中 ${timeStr}` : `● 国内备用源 ${timeStr}`;
                 statusEl.className = "badge";
+            }
+            } finally {
+                isLiveMarketFetching = false;
             }
         }
 
@@ -12814,5 +12875,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v11.8-independent-adaptive-trail-volprofile-trendhud -->
+<!-- Build: v11.9-zero-jump-incremental-candle-update -->
 </html>
