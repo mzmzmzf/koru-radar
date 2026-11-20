@@ -933,6 +933,51 @@
             box-shadow: 0 0 6px rgba(56, 189, 248, 0.55);
         }
 
+        /* 右下角独立开关【📋 量化体检】悬浮面板（Apple Liquid Glass 深/浅双主题适配） */
+        .trend-signals-hud-card {
+            position: absolute;
+            right: 74px;
+            bottom: 30px;
+            z-index: 18;
+            min-width: 224px;
+            max-width: 268px;
+            background: var(--glass-bg-elevated);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            border-radius: 10px;
+            padding: 7px 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 10.5px;
+            color: var(--text-main);
+            display: none;
+            pointer-events: auto;
+        }
+        .trend-signals-hud-card.visible { display: block; }
+        .ts-hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 800;
+            font-size: 10px;
+            letter-spacing: 0.4px;
+            color: var(--text-muted);
+            padding-bottom: 4px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .ts-hud-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 2px 0;
+            line-height: 1.35;
+        }
+        .ts-hud-key { color: var(--text-muted); font-weight: 600; }
+        .ts-hud-val { font-weight: 800; text-align: right; }
+
         /* 右侧价格轴：现价 + K线收盘倒计时双行标签 */
         .lw-price-countdown-badge {
             position: absolute;
@@ -1356,7 +1401,10 @@
                             <button type="button" class="btn-sm active" id="btnEngineStrat" onclick="switchChartEngine('STRAT', this)">⚔️ 破阵3.3 + SMC</button>
                             <button type="button" class="btn-sm" id="btnEngineTv" onclick="switchChartEngine('TV', this)">📺 TV原版</button>
                         </div>
-                        <button type="button" class="btn-sm active" id="btnToggleSmcBlocks" onclick="toggleSmcBlocks()">🧱 SMC色块</button>
+                        <button type="button" class="btn-sm active" id="btnToggleSmcBlocks" onclick="toggleSmcBlocks()" title="独立开关：SMC 供需订单块与 BOS/CHoCH 结构线">🧱 SMC色块</button>
+                        <button type="button" class="btn-sm" id="btnToggleAdaptiveTrail" onclick="toggleAdaptiveTrail()" title="独立开关：ATR 自适应趋势追踪丝带（绿多/橙空移动防守带）">🎗️ 追踪丝带</button>
+                        <button type="button" class="btn-sm" id="btnToggleVolProfile" onclick="toggleVolumeProfileZones()" title="独立开关：历史筹码峰与流动性支撑/阻力带（显示成交量K与占比%）">📊 筹码阻力带</button>
+                        <button type="button" class="btn-sm" id="btnToggleTrendPanel" onclick="toggleTrendSignalsPanel()" title="独立开关：右下角量化状态体检面板（信号得分/趋势强度/动量超买超卖）">📋 量化体检</button>
                         <button type="button" class="btn-sm" id="btnSubchartCvd" onclick="toggleCvdSubchart()">📊 CVD资金流</button>
                         <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleNetposSubchart()">⚖️ 净多空持仓</button>
                     </div>
@@ -1481,6 +1529,17 @@
                         <div id="lwPriceCountdownBadge" class="lw-price-countdown-badge">
                             <span class="cd-price" id="lwCdPriceText">--</span>
                             <span class="cd-timer" id="lwCdTimerText">--:--</span>
+                        </div>
+
+                        <!-- 右下角独立开关【📋 量化体检】悬浮面板 -->
+                        <div id="trendSignalsHudCard" class="trend-signals-hud-card">
+                            <div class="ts-hud-header">
+                                <span>TREND SIGNALS · 量化体检</span>
+                                <span style="cursor:pointer; opacity:0.75;" onclick="toggleTrendSignalsPanel(false)" title="收起面板">✕</span>
+                            </div>
+                            <div id="trendSignalsHudBody">
+                                <div class="ts-hud-row"><span class="ts-hud-key">Signal</span><span class="ts-hud-val">--</span></div>
+                            </div>
                         </div>
 
                         <!-- 左下角苹果毛玻璃圆形画笔按钮 & 竖向展开工具坞 -->
@@ -3190,6 +3249,9 @@ export default {
         let chartGridMode = localStorage.getItem("quant_chart_grid") || "none"; // 'none' | 'horz' | 'both'
         let isChartLogScale = localStorage.getItem("quant_chart_log") !== "false"; // 默认开启 Log 对数坐标
         let showSmcBlocks = localStorage.getItem("quant_smc_blocks") !== "false"; // 默认开启 SMC 供需色块与 BOS/CHoCH 结构线
+        let showAdaptiveTrail = localStorage.getItem("quant_adaptive_trail") === "true"; // 独立开关：ATR 自适应追踪丝带
+        let showVolumeProfileZones = localStorage.getItem("quant_vol_profile_zones") === "true"; // 独立开关：历史筹码峰/流动性阻力带
+        let showTrendSignalsPanel = localStorage.getItem("quant_trend_signals_panel") === "true"; // 独立开关：右下角量化体检面板
         let activeDrawTool = "none"; // 'none' | 'hline' | 'trend' | 'fib' | 'rect' | 'ruler'
         let isDrawingToolbarOpen = false;
         const LEGACY_COLOR_MAP = { bull: "#10b981", bear: "#ef4444", neutral: "#38bdf8" };
@@ -4287,6 +4349,22 @@ export default {
             if (smcBlockBtn) {
                 smcBlockBtn.classList.toggle("active", showSmcBlocks);
             }
+            const trailBtn = document.getElementById("btnToggleAdaptiveTrail");
+            if (trailBtn) {
+                trailBtn.classList.toggle("active", showAdaptiveTrail);
+            }
+            const vpBtn = document.getElementById("btnToggleVolProfile");
+            if (vpBtn) {
+                vpBtn.classList.toggle("active", showVolumeProfileZones);
+            }
+            const tsPanelBtn = document.getElementById("btnToggleTrendPanel");
+            if (tsPanelBtn) {
+                tsPanelBtn.classList.toggle("active", showTrendSignalsPanel);
+            }
+            const tsHudCard = document.getElementById("trendSignalsHudCard");
+            if (tsHudCard) {
+                tsHudCard.classList.toggle("visible", showTrendSignalsPanel && chartEngineMode === "STRAT");
+            }
             if (drawBtn) {
                 drawBtn.classList.toggle("active", isDrawingToolbarOpen || activeDrawTool !== "none");
             }
@@ -4503,6 +4581,9 @@ export default {
         }
 
         function updateLwHudText(bar) {
+            if (showTrendSignalsPanel) {
+                updateTrendSignalsHudCard();
+            }
             const ohlcEl = document.getElementById("lwOhlcLine");
             const maEl = document.getElementById("lwMaLine");
             if (!bar) return;
@@ -5754,6 +5835,12 @@ export default {
             const dec = getActiveSymbolDecimals();
             const isDark = tvTheme === "dark";
 
+            if (showVolumeProfileZones) {
+                drawVolumeProfileLiquidityZones(ctx, dec, isDark, plotW);
+            }
+            if (showAdaptiveTrail) {
+                drawAdaptiveTrailRibbon(ctx, dec, isDark, plotW);
+            }
             if (showSmcBlocks) {
                 drawSmcBlocksAndStructures(ctx, dec, isDark, plotW);
             }
@@ -7478,6 +7565,342 @@ export default {
             showToast(showSmcBlocks
                 ? "已显示 SMC 供需订单块（粉色供给块 / 蓝色需求块）与 BOS/CHoCH 结构线"
                 : "已隐藏 SMC 色块，切换为极简裸 K 线与均线视图");
+        }
+
+        function toggleAdaptiveTrail(forceState) {
+            showAdaptiveTrail = typeof forceState === "boolean" ? forceState : !showAdaptiveTrail;
+            localStorage.setItem("quant_adaptive_trail", showAdaptiveTrail ? "true" : "false");
+            syncChartControlButtons();
+            if (chartEngineMode === "STRAT") renderDrawOverlay();
+            showToast(showAdaptiveTrail
+                ? "🎗️ 已开启【ATR 自适应追踪丝带】（绿色多头防守带 / 橙色空头压制带）"
+                : "已隐藏【ATR 自适应追踪丝带】");
+        }
+
+        function toggleVolumeProfileZones(forceState) {
+            showVolumeProfileZones = typeof forceState === "boolean" ? forceState : !showVolumeProfileZones;
+            localStorage.setItem("quant_vol_profile_zones", showVolumeProfileZones ? "true" : "false");
+            syncChartControlButtons();
+            if (chartEngineMode === "STRAT") renderDrawOverlay();
+            showToast(showVolumeProfileZones
+                ? "📊 已开启【历史筹码峰与流动性阻力带】（按成交量密集区自动标注支撑/阻力）"
+                : "已隐藏【历史筹码峰阻力带】");
+        }
+
+        function toggleTrendSignalsPanel(forceState) {
+            showTrendSignalsPanel = typeof forceState === "boolean" ? forceState : !showTrendSignalsPanel;
+            localStorage.setItem("quant_trend_signals_panel", showTrendSignalsPanel ? "true" : "false");
+            syncChartControlButtons();
+            if (showTrendSignalsPanel) updateTrendSignalsHudCard();
+            showToast(showTrendSignalsPanel
+                ? "📋 已开启右下角【TREND SIGNALS 量化体检面板】"
+                : "已收起【TREND SIGNALS 量化体检面板】");
+        }
+
+        // 独立模块 A：ATR 自适应追踪止盈/防守丝带 (Adaptive Trail + Trail Buffer Edge)
+        function computeAdaptiveTrailSeries(candles, atrLen = 14, mult = 2.6) {
+            const n = candles.length;
+            if (n < 5) return [];
+            const tr = new Array(n).fill(0);
+            const atr = new Array(n).fill(0);
+            for (let i = 0; i < n; i++) {
+                const c = candles[i];
+                if (i === 0) {
+                    tr[i] = c.high - c.low;
+                    atr[i] = tr[i];
+                } else {
+                    const pc = candles[i - 1].close;
+                    tr[i] = Math.max(c.high - c.low, Math.abs(c.high - pc), Math.abs(c.low - pc));
+                    atr[i] = ((atr[i - 1] * (atrLen - 1)) + tr[i]) / atrLen;
+                }
+            }
+
+            const out = [];
+            let dir = 1; // 1 = 多头绿带, -1 = 空头橙带
+            let trail = candles[0].close - atr[0] * mult;
+
+            for (let i = 0; i < n; i++) {
+                const c = candles[i];
+                const bandDist = Math.max(atr[i] * mult, c.close * 0.002);
+                const bufferDist = atr[i] * 0.85;
+
+                if (dir === 1) {
+                    const candidate = c.close - bandDist;
+                    trail = Math.max(trail, candidate);
+                    if (c.close < trail) {
+                        dir = -1;
+                        trail = c.close + bandDist;
+                    }
+                } else {
+                    const candidate = c.close + bandDist;
+                    trail = Math.min(trail, candidate);
+                    if (c.close > trail) {
+                        dir = 1;
+                        trail = c.close - bandDist;
+                    }
+                }
+
+                const edge = dir === 1 ? (trail - bufferDist) : (trail + bufferDist);
+                out.push({
+                    time: c.time,
+                    dir,
+                    trail,
+                    edge
+                });
+            }
+            return out;
+        }
+
+        function drawAdaptiveTrailRibbon(ctx, dec, isDark, plotW) {
+            const candles = lwLastDataCache;
+            if (!Array.isArray(candles) || candles.length < 10) return;
+            const series = computeAdaptiveTrailSeries(candles);
+            if (!series.length) return;
+
+            ctx.save();
+            // 按趋势方向分段绘制丝带填充与双轨线
+            let segStart = 0;
+            while (segStart < series.length) {
+                const curDir = series[segStart].dir;
+                let segEnd = segStart;
+                while (segEnd + 1 < series.length && series[segEnd + 1].dir === curDir) {
+                    segEnd++;
+                }
+
+                const ptsTrail = [];
+                const ptsEdge = [];
+                for (let k = segStart; k <= segEnd; k++) {
+                    const x = timeToOverlayX(series[k].time);
+                    const yT = priceToOverlayY(series[k].trail);
+                    const yE = priceToOverlayY(series[k].edge);
+                    if (x !== null && yT !== null && yE !== null) {
+                        ptsTrail.push({ x, y: yT });
+                        ptsEdge.push({ x, y: yE });
+                    }
+                }
+
+                if (ptsTrail.length >= 2) {
+                    const isBull = curDir === 1;
+                    const fillCol = isBull
+                        ? (isDark ? "rgba(16, 185, 129, 0.14)" : "rgba(5, 150, 105, 0.14)")
+                        : (isDark ? "rgba(245, 158, 11, 0.14)" : "rgba(217, 119, 6, 0.14)");
+                    const mainStroke = isBull
+                        ? (isDark ? "rgba(52, 211, 153, 0.85)" : "rgba(5, 150, 105, 0.85)")
+                        : (isDark ? "rgba(251, 146, 60, 0.88)" : "rgba(217, 119, 6, 0.88)");
+                    const edgeStroke = isBull
+                        ? (isDark ? "rgba(52, 211, 153, 0.42)" : "rgba(5, 150, 105, 0.42)")
+                        : (isDark ? "rgba(251, 146, 60, 0.42)" : "rgba(217, 119, 6, 0.42)");
+
+                    ctx.fillStyle = fillCol;
+                    ctx.beginPath();
+                    ctx.moveTo(ptsTrail[0].x, ptsTrail[0].y);
+                    for (let i = 1; i < ptsTrail.length; i++) ctx.lineTo(ptsTrail[i].x, ptsTrail[i].y);
+                    for (let i = ptsEdge.length - 1; i >= 0; i--) ctx.lineTo(ptsEdge[i].x, ptsEdge[i].y);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.strokeStyle = mainStroke;
+                    ctx.lineWidth = 1.6;
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.moveTo(ptsTrail[0].x, ptsTrail[0].y);
+                    for (let i = 1; i < ptsTrail.length; i++) ctx.lineTo(ptsTrail[i].x, ptsTrail[i].y);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = edgeStroke;
+                    ctx.lineWidth = 1.1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(ptsEdge[0].x, ptsEdge[0].y);
+                    for (let i = 1; i < ptsEdge.length; i++) ctx.lineTo(ptsEdge[i].x, ptsEdge[i].y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                segStart = segEnd + 1;
+            }
+
+            // 在最新一根处标注 Adaptive Trail 数值标签
+            const lastPt = series[series.length - 1];
+            const lastX = timeToOverlayX(lastPt.time);
+            const lastY = priceToOverlayY(lastPt.trail);
+            if (lastX !== null && lastY !== null) {
+                const isBull = lastPt.dir === 1;
+                const tagCol = isBull ? "#10b981" : "#f59e0b";
+                ctx.font = "bold 9.5px monospace";
+                ctx.fillStyle = tagCol;
+                const txt = `Trail ${Number(lastPt.trail).toFixed(dec)}`;
+                ctx.fillText(txt, Math.min(plotW - 76, Math.max(8, lastX + 6)), lastY - 4);
+            }
+            ctx.restore();
+        }
+
+        // 独立模块 B：历史筹码峰与流动性支撑/阻力带 (Volume Profile Liquidity Bands，含买/卖成交量比例与右端数值%)
+        function drawVolumeProfileLiquidityZones(ctx, dec, isDark, plotW) {
+            const candles = lwLastDataCache;
+            if (!Array.isArray(candles) || candles.length < 20) return;
+
+            let minP = Infinity, maxP = -Infinity, totalVol = 0;
+            candles.forEach(c => {
+                if (c.low < minP) minP = c.low;
+                if (c.high > maxP) maxP = c.high;
+                totalVol += (c.vol || 0);
+            });
+            if (!isFinite(minP) || !isFinite(maxP) || maxP <= minP || totalVol <= 0) return;
+
+            const binsCount = 28;
+            const binStep = (maxP - minP) / binsCount;
+            const bins = Array.from({ length: binsCount }, (_, idx) => ({
+                idx,
+                low: minP + idx * binStep,
+                high: minP + (idx + 1) * binStep,
+                mid: minP + (idx + 0.5) * binStep,
+                buyVol: 0,
+                sellVol: 0,
+                totVol: 0,
+                firstTime: null
+            }));
+
+            candles.forEach(c => {
+                const v = c.vol || 0;
+                if (v <= 0) return;
+                const isBullBar = c.close >= c.open;
+                const startBin = Math.max(0, Math.min(binsCount - 1, Math.floor((c.low - minP) / binStep)));
+                const endBin = Math.max(0, Math.min(binsCount - 1, Math.floor((c.high - minP) / binStep)));
+                const span = Math.max(1, endBin - startBin + 1);
+                const share = v / span;
+                for (let b = startBin; b <= endBin; b++) {
+                    bins[b].totVol += share;
+                    if (isBullBar) bins[b].buyVol += share;
+                    else bins[b].sellVol += share;
+                    if (bins[b].firstTime === null) bins[b].firstTime = c.time;
+                }
+            });
+
+            // 选取成交量最集中的前 4 个非相邻筹码峰（HVN Liquidity Nodes）
+            const sorted = bins.slice().sort((a, b) => b.totVol - a.totVol);
+            const topZones = [];
+            for (const b of sorted) {
+                if (b.totVol <= 0) continue;
+                if (topZones.some(z => Math.abs(z.idx - b.idx) <= 2)) continue;
+                topZones.push(b);
+                if (topZones.length >= 4) break;
+            }
+            if (!topZones.length) return;
+
+            const maxZoneVol = Math.max(...topZones.map(z => z.totVol));
+            const lastClose = candles[candles.length - 1].close;
+
+            ctx.save();
+            ctx.font = "bold 9.5px monospace";
+
+            topZones.forEach(z => {
+                const yTop = priceToOverlayY(z.high);
+                const yBot = priceToOverlayY(z.low);
+                if (yTop === null || yBot === null) return;
+
+                const top = Math.min(yTop, yBot);
+                const rh = Math.max(6, Math.min(18, Math.abs(yBot - yTop)));
+                const midY = top + rh * 0.5;
+                const startX = Math.max(8, Math.min(plotW * 0.45, timeToOverlayX(z.firstTime) || 24));
+                const availW = Math.max(40, plotW - startX - 96);
+
+                const pctOfTotal = Math.max(1, Math.round((z.totVol / totalVol) * 100));
+                const barLen = Math.max(36, availW * (z.totVol / maxZoneVol));
+                const buyRatio = z.totVol > 0 ? (z.buyVol / z.totVol) : 0.5;
+                const buyW = barLen * buyRatio;
+                const sellW = barLen - buyW;
+                const halfH = Math.max(2.5, rh * 0.34);
+
+                // 1. 全宽流动性延伸参考虚线
+                const isResistance = z.mid > lastClose;
+                ctx.strokeStyle = isResistance
+                    ? (isDark ? "rgba(248, 113, 113, 0.35)" : "rgba(220, 38, 38, 0.32)")
+                    : (isDark ? "rgba(52, 211, 153, 0.35)" : "rgba(5, 150, 105, 0.32)");
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(startX, midY);
+                ctx.lineTo(plotW - 92, midY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 2. 上半层多头筹码条（绿） + 下半层空头筹码条（红）
+                ctx.fillStyle = isDark ? "rgba(16, 185, 129, 0.55)" : "rgba(5, 150, 105, 0.52)";
+                ctx.fillRect(startX, midY - halfH, buyW, halfH);
+
+                ctx.fillStyle = isDark ? "rgba(239, 68, 68, 0.55)" : "rgba(220, 38, 38, 0.52)";
+                ctx.fillRect(startX, midY, sellW, halfH);
+
+                // 3. 右侧成交量与占比标签（如 408.24K (24%)）
+                const labelTxt = `${formatCompactUnsigned(z.totVol)} (${pctOfTotal}%)`;
+                ctx.fillStyle = isResistance
+                    ? (isDark ? "#fca5a5" : "#b91c1c")
+                    : (isDark ? "#6ee7b7" : "#047857");
+                ctx.fillText(labelTxt, plotW - 90, midY + 3);
+            });
+
+            ctx.restore();
+        }
+
+        // 独立模块 C：右下角 TREND SIGNALS 量化体检面板实时计算与更新
+        function updateTrendSignalsHudCard() {
+            const bodyEl = document.getElementById("trendSignalsHudBody");
+            if (!bodyEl) return;
+            const candles = lwLastDataCache;
+            if (!Array.isArray(candles) || candles.length < 15) return;
+
+            const n = candles.length;
+            const last = candles[n - 1];
+            const prev = candles[n - 2] || last;
+            const legRef = candles[Math.max(0, n - 8)] || prev;
+
+            const barPct = prev.close > 0 ? ((last.close - prev.close) / prev.close) * 100 : 0;
+            const legPct = legRef.close > 0 ? ((last.close - legRef.close) / legRef.close) * 100 : 0;
+
+            // 1. 趋势强度 (EMA10/15/50 排列与偏离度)
+            const ema10 = last.ema10 || last.close;
+            const ema15 = last.ema15 || last.close;
+            const ma50 = last.ma50 || ema15;
+            const bullAlign = (ema10 > ema15 ? 1 : 0) + (last.close > ema10 ? 1 : 0) + (last.close > ma50 ? 1 : 0);
+            const spreadPct = ma50 > 0 ? Math.min(100, Math.abs((last.close - ma50) / ma50) * 420 + bullAlign * 10) : 35;
+
+            // 2. 14周期 RSI 动量
+            const closes = candles.slice(-30).map(x => x.close);
+            const rsiArr = computeWilderRsiArray(closes, 14);
+            const curRsi = rsiArr[rsiArr.length - 1] !== null ? rsiArr[rsiArr.length - 1] : 50;
+            const momState = curRsi <= 28 ? "oversold" : (curRsi >= 72 ? "overbought" : "neutral");
+
+            // 3. Adaptive Trail 方向
+            const trailSeries = computeAdaptiveTrailSeries(candles);
+            const trailDir = trailSeries.length ? trailSeries[trailSeries.length - 1].dir : (last.close >= ema15 ? 1 : -1);
+
+            // 4. 综合信号得分 (0~4)
+            let score = 0;
+            if (ema10 > ema15) score++;
+            if (last.close > ma50) score++;
+            if (trailDir === 1) score++;
+            if (barPct >= 0) score++;
+
+            const isBullBias = score >= 3;
+            const isBearBias = score <= 1;
+            const sigLabel = isBullBias
+                ? `Long + | ${score}/4 | trend build`
+                : (isBearBias ? `Short + | ${4 - score}/4 | longs unwinding` : `Neutral | ${score}/4 | range chop`);
+            const sigCol = isBullBias ? "var(--neon-emerald)" : (isBearBias ? "var(--neon-red)" : "var(--neon-amber)");
+
+            const flowCol = barPct >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
+            const momCol = curRsi <= 28 ? "var(--neon-cyan)" : (curRsi >= 72 ? "var(--neon-amber)" : "var(--text-main)");
+            const trailTxt = trailDir === 1 ? "Up trend" : "Down trend";
+            const trailCol = trailDir === 1 ? "var(--neon-emerald)" : "var(--neon-amber)";
+
+            bodyEl.innerHTML = `
+                <div class="ts-hud-row"><span class="ts-hud-key">Signal</span><span class="ts-hud-val" style="color:${sigCol};">${sigLabel}</span></div>
+                <div class="ts-hud-row"><span class="ts-hud-key">Aggression</span><span class="ts-hud-val" style="color:${flowCol};">${barPct >= 0 ? "+" : ""}${barPct.toFixed(1)}% bar / ${legPct >= 0 ? "+" : ""}${legPct.toFixed(1)}% leg</span></div>
+                <div class="ts-hud-row"><span class="ts-hud-key">Trend Strength</span><span class="ts-hud-val" style="color:var(--neon-cyan);">${spreadPct.toFixed(1)}%</span></div>
+                <div class="ts-hud-row"><span class="ts-hud-key">Momentum</span><span class="ts-hud-val" style="color:${momCol};">${Math.round(curRsi)} ${momState}</span></div>
+                <div class="ts-hud-row"><span class="ts-hud-key">Adaptive Trail</span><span class="ts-hud-val" style="color:${trailCol};">${trailTxt}</span></div>
+            `;
         }
 
         // =========================================================================
@@ -12391,5 +12814,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v11.7-prevent-chart-pan-snapback -->
+<!-- Build: v11.8-independent-adaptive-trail-volprofile-trendhud -->
 </html>
