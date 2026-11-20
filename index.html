@@ -4387,6 +4387,7 @@ export default {
                 rightPriceScale: {
                     borderColor: p.border,
                     minimumWidth: 68,
+                    autoScale: true,
                     mode: isChartLogScale
                         ? LightweightCharts.PriceScaleMode.Logarithmic
                         : LightweightCharts.PriceScaleMode.Normal,
@@ -4396,6 +4397,10 @@ export default {
                     borderColor: p.border,
                     rightOffset: 28,
                     minBarSpacing: 2,
+                    fixLeftEdge: false,
+                    fixRightEdge: false,
+                    lockVisibleTimeRangeOnResize: true,
+                    shiftVisibleRangeOnNewBar: false,
                     timeVisible: !tickMode,
                     secondsVisible: false,
                     tickMarkFormatter: (time) => formatBeijingTime(time, tickMode)
@@ -5217,7 +5222,7 @@ export default {
                 lwLastSmcSnapshot = { lastSH, lastSL, supplyBlocks, demandBlocks, structureLines, marketBias };
 
                 let savedRange = null;
-                if (preserveViewport) {
+                if (preserveViewport && !isChartPointerDown && !activeHandleDrag) {
                     try { savedRange = lwChart.timeScale().getVisibleLogicalRange(); } catch (e) {}
                 }
 
@@ -12386,5 +12391,5 @@ export default {
         });
     </script>
 </body>
-<!-- Build: v11.6-fix-netpos-oi-fetch-and-fallback -->
+<!-- Build: v11.7-prevent-chart-pan-snapback -->
 </html>
