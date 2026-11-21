@@ -3290,6 +3290,7 @@ export default {
             const isDark = tvTheme === "dark";
             const viewChartEl = document.getElementById("view-chart");
             if (viewChartEl) viewChartEl.classList.toggle("light-theme", !isDark);
+            document.body.classList.toggle("light-theme", !isDark);
             const p = getChartPalette();
             const themeBtn = document.getElementById("btnTvTheme");
             const candleBtn = document.getElementById("btnTvCandleStyle");
@@ -9525,6 +9526,7 @@ export default {
             document.body.classList.add("chart-tab-active");
             const initViewChart = document.getElementById("view-chart");
             if (initViewChart) initViewChart.classList.toggle("light-theme", tvTheme === "light");
+            document.body.classList.toggle("light-theme", tvTheme === "light");
             evaluateFourRedlines(false);
         }
 
