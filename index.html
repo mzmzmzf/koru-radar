@@ -7122,7 +7122,44 @@ export default {
                 } else {
                     histColor = hist <= prevHist ? "#ef5350" : "rgba(239, 83, 80, 0.42)";
                 }
-                out.push({ time: candles[i].time, dif, dea, hist, histColor });
+                out.push({ time: candles[i].time, dif, dea, hist, histColor, divState: "" });
+            }
+
+            // 检测每根 K 线近 40 根窗口内的 MACD 顶/底背离（基于局部波段高/低点与 DIF 对比）
+            const pivR = 3;
+            const peakIdxs = [];
+            const troughIdxs = [];
+            for (let i = pivR; i < candles.length - pivR; i++) {
+                let isPeak = true, isTrough = true;
+                for (let k = i - pivR; k <= i + pivR; k++) {
+                    if (k === i) continue;
+                    if (candles[k].high >= candles[i].high) isPeak = false;
+                    if (candles[k].low <= candles[i].low) isTrough = false;
+                }
+                if (isPeak) peakIdxs.push(i);
+                if (isTrough) troughIdxs.push(i);
+            }
+            for (let i = 26; i < candles.length; i++) {
+                let div = "";
+                const recentPeaks = peakIdxs.filter(p => p <= i - 1 && p >= i - 40);
+                if (recentPeaks.length >= 2) {
+                    const p2 = recentPeaks[recentPeaks.length - 1];
+                    const p1 = recentPeaks[recentPeaks.length - 2];
+                    if (i - p2 <= 14 && candles[p2].high > candles[p1].high && out[p2].dif < out[p1].dif && out[p1].dif > 0) {
+                        div = "顶背离";
+                    }
+                }
+                if (!div) {
+                    const recentTroughs = troughIdxs.filter(t => t <= i - 1 && t >= i - 40);
+                    if (recentTroughs.length >= 2) {
+                        const t2 = recentTroughs[recentTroughs.length - 1];
+                        const t1 = recentTroughs[recentTroughs.length - 2];
+                        if (i - t2 <= 14 && candles[t2].low < candles[t1].low && out[t2].dif > out[t1].dif && out[t1].dif < 0) {
+                            div = "底背离";
+                        }
+                    }
+                }
+                out[i].divState = div;
             }
             return out;
         }
@@ -7132,7 +7169,12 @@ export default {
             if (!valEl || !row) return;
             const fmt = (v) => (Math.abs(v) >= 100 ? v.toFixed(1) : Math.abs(v) >= 1 ? v.toFixed(2) : v.toFixed(4));
             const histClr = row.hist >= 0 ? "#26a69a" : "#ef5350";
-            valEl.innerHTML = `<span style="color:#2962FF;">DIF ${fmt(row.dif)}</span> · <span style="color:#FF6D00;">DEA ${fmt(row.dea)}</span> · <span style="color:${histClr};">柱 ${fmt(row.hist)}</span>`;
+            const divBadge = row.divState === "顶背离"
+                ? `<span style="color:#ef4444; font-weight:800; background:rgba(239,68,68,0.14); padding:0 5px; border-radius:4px;">⚠️ 顶背离</span>`
+                : row.divState === "底背离"
+                    ? `<span style="color:#10b981; font-weight:800; background:rgba(16,185,129,0.14); padding:0 5px; border-radius:4px;">🟢 底背离</span>`
+                    : `<span style="color:var(--text-muted);">无背离</span>`;
+            valEl.innerHTML = `<span style="color:#2962FF;">DIF ${fmt(row.dif)}</span> · <span style="color:#FF6D00;">DEA ${fmt(row.dea)}</span> · <span style="color:${histClr};">柱 ${fmt(row.hist)}</span> · ${divBadge}`;
         }
 
         function initMacdSubChartInstance() {
@@ -7171,6 +7213,14 @@ export default {
             lwMacdHistSeries = lwMacdChart.addHistogramSeries({
                 priceLineVisible: false,
                 lastValueVisible: false
+            });
+            lwMacdHistSeries.createPriceLine({
+                price: 0,
+                color: p.isDark ? "rgba(148, 163, 184, 0.45)" : "rgba(71, 85, 105, 0.42)",
+                lineWidth: 1,
+                lineStyle: LightweightCharts.LineStyle.Dashed,
+                axisLabelVisible: false,
+                title: ""
             });
             lwMacdDifSeries = lwMacdChart.addLineSeries({
                 color: "#2962FF",
