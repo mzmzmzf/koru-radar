@@ -3543,8 +3543,23 @@ export default {
                 scaleMargins: { top: 0.83, bottom: 0 }
             });
 
+            const restoreLatestHud = () => {
+                if (lwLastDataCache.length) updateLwHudText(lwLastDataCache[lwLastDataCache.length - 1]);
+                if (lwCvdCache.length) updateCvdHudValues(lwCvdCache[lwCvdCache.length - 1]);
+                if (lwNetposCache.length) updateNetposHudValues(lwNetposCache[lwNetposCache.length - 1]);
+                if (lwMacdCache.length) updateMacdHudValues(lwMacdCache[lwMacdCache.length - 1]);
+            };
+            if (container && container.dataset.hudLeaveBound !== "1") {
+                container.dataset.hudLeaveBound = "1";
+                container.addEventListener("mouseleave", restoreLatestHud);
+            }
+
             lwChart.subscribeCrosshairMove((param) => {
-                if (!param || !param.time || !lwLastDataCache.length) return;
+                if (!param || !param.time || !param.point) {
+                    restoreLatestHud();
+                    return;
+                }
+                if (!lwLastDataCache.length) return;
                 const found = lwLastDataCache.find(x => x.time === param.time);
                 if (found) updateLwHudText(found);
                 if (lwCvdCache.length) {
@@ -4309,7 +4324,16 @@ export default {
             renderDrawOverlay();
         }
 
+        let drawOverlayRafId = 0;
         function renderDrawOverlay() {
+            if (drawOverlayRafId) return;
+            drawOverlayRafId = requestAnimationFrame(() => {
+                drawOverlayRafId = 0;
+                renderDrawOverlayImmediate();
+            });
+        }
+
+        function renderDrawOverlayImmediate() {
             const canvas = document.getElementById("lwDrawOverlay");
             if (!canvas || !lwChart || !lwCandleSeries) return;
             const dpr = window.devicePixelRatio || 1;
@@ -4395,14 +4419,41 @@ export default {
             updatePriceCountdownBadge();
         }
 
+        function mergeOverlappingSmcBlocks(blocks) {
+            if (!Array.isArray(blocks) || blocks.length <= 1) return blocks || [];
+            const sorted = blocks.slice().sort((a, b) => a.bottom - b.bottom);
+            const merged = [];
+            for (const ob of sorted) {
+                const last = merged[merged.length - 1];
+                if (last) {
+                    const overlap = Math.min(last.top, ob.top) - Math.max(last.bottom, ob.bottom);
+                    const minSpan = Math.max(1e-9, Math.min(last.top - last.bottom, ob.top - ob.bottom));
+                    if (overlap > 0 && (overlap / minSpan) >= 0.55) {
+                        last.top = Math.max(last.top, ob.top);
+                        last.bottom = Math.min(last.bottom, ob.bottom);
+                        last.startTime = Math.min(last.startTime, ob.startTime);
+                        continue;
+                    }
+                }
+                merged.push({ ...ob });
+            }
+            return merged;
+        }
+
         function drawSmcBlocksAndStructures(ctx, dec, isDark, plotW) {
             const snap = lwLastSmcSnapshot || {};
-            const supplyBlocks = snap.supplyBlocks || [];
-            const demandBlocks = snap.demandBlocks || [];
+            const supplyBlocks = mergeOverlappingSmcBlocks(snap.supplyBlocks || []);
+            const demandBlocks = mergeOverlappingSmcBlocks(snap.demandBlocks || []);
             const structureLines = snap.structureLines || [];
             const lastSH = snap.lastSH;
             const lastSL = snap.lastSL;
             const marketBias = snap.marketBias || 0;
+            const usedLabelYs = [];
+            const canPlaceLabelAtY = (y) => {
+                if (usedLabelYs.some(prevY => Math.abs(prevY - y) < 11)) return false;
+                usedLabelYs.push(y);
+                return true;
+            };
 
             ctx.save();
 
@@ -4429,12 +4480,13 @@ export default {
                 ctx.moveTo(left, top + rh); ctx.lineTo(plotW, top + rh);
                 ctx.stroke();
 
-                if (rh >= 12) {
+                const lblY = top + rh / 2 + 3;
+                if (rh >= 12 && canPlaceLabelAtY(lblY)) {
                     ctx.font = "600 9px monospace";
                     ctx.fillStyle = isDark ? "rgba(253, 164, 175, 0.8)" : "rgba(190, 18, 60, 0.72)";
                     const lbl = `${Number(ob.bottom).toFixed(dec)}-${Number(ob.top).toFixed(dec)}`;
                     const tw = ctx.measureText(lbl).width;
-                    ctx.fillText(lbl, Math.max(left + 4, plotW - tw - 6), top + rh / 2 + 3);
+                    ctx.fillText(lbl, Math.max(left + 4, plotW - tw - 6), lblY);
                 }
             });
 
@@ -4461,12 +4513,13 @@ export default {
                 ctx.moveTo(left, top + rh); ctx.lineTo(plotW, top + rh);
                 ctx.stroke();
 
-                if (rh >= 12) {
+                const lblY = top + rh / 2 + 3;
+                if (rh >= 12 && canPlaceLabelAtY(lblY)) {
                     ctx.font = "600 9px monospace";
                     ctx.fillStyle = isDark ? "rgba(125, 211, 252, 0.85)" : "rgba(29, 78, 216, 0.75)";
                     const lbl = `${Number(ob.bottom).toFixed(dec)}-${Number(ob.top).toFixed(dec)}`;
                     const tw = ctx.measureText(lbl).width;
-                    ctx.fillText(lbl, Math.max(left + 4, plotW - tw - 6), top + rh / 2 + 3);
+                    ctx.fillText(lbl, Math.max(left + 4, plotW - tw - 6), lblY);
                 }
             });
 
