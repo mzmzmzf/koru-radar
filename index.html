@@ -1298,6 +1298,7 @@
                     <div style="display:flex; align-items:center; gap:5px;">
                         <button type="button" class="btn-sm" onclick="autoSnapKoruPyramid()" style="border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">🧲 同步底仓与现价</button>
                         <button type="button" class="btn-sm" onclick="previewKoruPyramidOnChart()" style="border-color:var(--neon-emerald); color:#34d399; font-weight:700;">👁️ 主图预览线</button>
+                        <button type="button" class="btn-sm" onclick="clearKoruPyramidInputs()" style="border-color:rgba(248,113,113,0.45); color:#f87171; font-weight:700;" title="清空手动填写的KORU滚仓价位与预览线 (快捷键: Alt+X 或 Shift+X)">🧹 清空仓位</button>
                     </div>
                 </div>
 
@@ -1418,6 +1419,7 @@
                         <button class="btn-side active-short" id="btnSideShort" onclick="setBtcTradeSide('SHORT', true)">🔴 做空 (Short)</button>
                     </div>
                     <button class="btn-auto-layout" id="btnToggleAutoSync" onclick="toggleBtcAutoSync()">🔄 自动追踪: 开启</button>
+                    <button type="button" class="btn-sm" onclick="clearBtcLadderInputs()" style="border-color:rgba(248,113,113,0.45); color:#f87171; font-weight:700;" title="清空手动填写的接单价位 (快捷键: Alt+X 或 Shift+X)">🧹 清空仓位</button>
                 </div>
             </div>
 
@@ -1521,6 +1523,7 @@
                         </div>
                         <button type="button" class="btn-sm" onclick="autoSnapBtcPyramid()" style="border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">🧲 吸附EMA与现价</button>
                         <button type="button" class="btn-sm" onclick="previewBtcPyramidOnChart()" style="border-color:var(--neon-emerald); color:#34d399; font-weight:700;">👁️ 主图预览线</button>
+                        <button type="button" class="btn-sm" onclick="clearBtcPyramidInputs()" style="border-color:rgba(248,113,113,0.45); color:#f87171; font-weight:700;" title="清空手动填写的滚仓价位与预览线 (快捷键: Alt+X 或 Shift+X)">🧹 清空仓位</button>
                     </div>
                 </div>
 
@@ -7182,6 +7185,24 @@ export default {
                 return;
             }
 
+            // 快捷键：Option/Alt + X（任意位置）或 Shift + X（非输入状态）一键清空当前手动仓位参数
+            const isKeyX = (e.code === "KeyX" || (e.key && e.key.toLowerCase() === "x"));
+            if (!modKey && isKeyX && (e.altKey || (!isInput && tag !== "SELECT" && e.shiftKey))) {
+                const btcViewActive = document.getElementById("view-btc")?.classList.contains("active");
+                const koruViewActive = document.getElementById("view-koru")?.classList.contains("active");
+                if (btcViewActive) {
+                    e.preventDefault();
+                    if (btcOrderMode === "PYRAMID") clearBtcPyramidInputs();
+                    else clearBtcLadderInputs();
+                    return;
+                }
+                if (koruViewActive) {
+                    e.preventDefault();
+                    clearKoruPyramidInputs();
+                    return;
+                }
+            }
+
             if (e.key === "Escape") {
                 closeSnapshotMenu();
                 if (activeDrawTool !== "none") {
@@ -8919,6 +8940,28 @@ export default {
             document.getElementById("resBreakeven").textContent = `达到 ${breakevenPrice.toFixed(1)} USDT 时止损推至 ${avgPrice.toFixed(1)}`;
         }
 
+        function clearBtcLadderInputs() {
+            ["btcSlPrice", "btcTpPrice", "tier1Price", "tier2Price", "tier3Price"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = "";
+            });
+            const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+            setTxt("tier1Qty", "-- BTC");
+            setTxt("tier2Qty", "-- BTC");
+            setTxt("tier3Qty", "-- BTC");
+            setTxt("resAvgPrice", "-- USDT");
+            setTxt("resTotalQty", "-- BTC");
+            setTxt("resLadderLiqMargin", "--");
+            setTxt("resProfit", "--");
+            setTxt("resBreakeven", "--");
+            const rrBadge = document.getElementById("resRrBadge");
+            if (rrBadge) {
+                rrBadge.textContent = "已清空参数";
+                rrBadge.className = "rr-badge";
+            }
+            showToast("🧹 已清空 BTC 倒金字塔挂单参数");
+        }
+
         function copyBtcOrderPlan() {
             const avgP = document.getElementById("resAvgPrice").textContent;
             const sl = document.getElementById("btcSlPrice").value;
@@ -9121,37 +9164,48 @@ export default {
         }
 
         function previewBtcPyramidOnChart() {
-            const p2 = parseFloat(document.getElementById("btcPyrP2")?.value);
-            const p3 = parseFloat(document.getElementById("btcPyrP3")?.value);
-            const newSl = parseFloat(document.getElementById("btcPyrNewSl")?.value);
-            if (!isFinite(p2) || !isFinite(newSl)) return;
+            showPyramidPositionLines = true;
+            localStorage.setItem("quant_show_pyr_lines", "true");
+            syncChartControlButtons();
             selectWatchlistSymbol("OKX:BTC");
             switchMainTab("chart");
-            const symKey = "BTC";
-            if (!Array.isArray(customHorizontalLines[symKey])) customHorizontalLines[symKey] = [];
-            [
-                { price: p2, color: "#f59e0b" },
-                { price: p3, color: "#10b981" },
-                { price: newSl, color: "#38bdf8" }
-            ].forEach((lv, i) => {
-                if (!isFinite(lv.price) || lv.price <= 0) return;
-                const cleanP = parseFloat(lv.price.toFixed(1));
-                if (!customHorizontalLines[symKey].some(h => Math.abs(h.price - cleanP) < 1 && isDrawingVisibleOnCurrentTf(h))) {
-                    customHorizontalLines[symKey].push({
-                        id: "hl_pyr_btc_" + Date.now() + "_" + i,
-                        price: cleanP,
-                        createdTf: tvInterval,
-                        visibleTfs: [tvInterval],
-                        locked: true,
-                        color: lv.color,
-                        alertEnabled: true
-                    });
-                }
-            });
-            saveCustomHLinesToStorage();
             renderAllLwPriceLines();
-            renderDrawingToolbarState();
-            showToast("👁️ 已将 BTC 滚仓价与合并新止损线画入主图！");
+            showToast("👁️ 已在 BTC 主图同步滚仓持仓线（底仓/均价/BEP/新止损/强平线）！");
+        }
+
+        function clearBtcPyramidInputs() {
+            ["btcPyrP1", "btcPyrSl0", "btcPyrP2", "btcPyrP3", "btcPyrNewSl"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = "";
+            });
+            const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+            setTxt("btcPyr1RLabel", "1R: --");
+            setTxt("btcPyrQ2Hint", "-- BTC");
+            setTxt("btcPyrQ3Hint", "-- BTC");
+            setTxt("btcPyrAvgVal", "-- USDT");
+            setTxt("btcPyrQtyBreakdown", "-- BTC");
+            setTxt("btcPyrNewBep", "-- USDT");
+            setTxt("btcPyrLiqPrice", "-- USDT");
+            setTxt("btcPyrMarginUsage", "--");
+            setTxt("btcPyrPullbackPct", "--%");
+            setTxt("btcPyrWorstNet", "--");
+            const pbBadge = document.getElementById("btcPyrCushionBadge");
+            if (pbBadge) {
+                pbBadge.textContent = "已清空参数";
+                pbBadge.className = "rr-badge";
+            }
+            const vBar = document.getElementById("btcPyrVerdictBar");
+            if (vBar) {
+                vBar.style.borderColor = "var(--border-color)";
+                vBar.style.background = "var(--bg-subtle)";
+                vBar.textContent = "已清空 BTC 手动滚仓参数，可重新输入或点击“🧲 吸附EMA与现价”。";
+            }
+            if (Array.isArray(customHorizontalLines["BTC"])) {
+                customHorizontalLines["BTC"] = customHorizontalLines["BTC"].filter(h => !String(h.id || "").startsWith("hl_pyr_btc_"));
+                saveCustomHLinesToStorage();
+            }
+            if (typeof renderAllLwPriceLines === "function") renderAllLwPriceLines();
+            showToast("🧹 已清空 BTC 滚仓仓位信息与预览线");
         }
 
         function copyBtcPyramidPlan() {
@@ -9274,37 +9328,38 @@ export default {
         }
 
         function previewKoruPyramidOnChart() {
-            const p2 = parseFloat(document.getElementById("koruPyrP2")?.value);
-            const p3 = parseFloat(document.getElementById("koruPyrP3")?.value);
-            const newSl = parseFloat(document.getElementById("koruPyrNewSl")?.value);
-            if (!isFinite(p2) || !isFinite(newSl)) return;
+            showPyramidPositionLines = true;
+            localStorage.setItem("quant_show_pyr_lines", "true");
+            syncChartControlButtons();
             selectWatchlistSymbol("OKX:KORU");
             switchMainTab("chart");
-            const symKey = "KORU";
-            if (!Array.isArray(customHorizontalLines[symKey])) customHorizontalLines[symKey] = [];
-            [
-                { price: p2, color: "#f59e0b" },
-                { price: p3, color: "#10b981" },
-                { price: newSl, color: "#38bdf8" }
-            ].forEach((lv, i) => {
-                if (!isFinite(lv.price) || lv.price <= 0) return;
-                const cleanP = parseFloat(lv.price.toFixed(3));
-                if (!customHorizontalLines[symKey].some(h => Math.abs(h.price - cleanP) < 0.002 && isDrawingVisibleOnCurrentTf(h))) {
-                    customHorizontalLines[symKey].push({
-                        id: "hl_pyr_koru_" + Date.now() + "_" + i,
-                        price: cleanP,
-                        createdTf: tvInterval,
-                        visibleTfs: [tvInterval],
-                        locked: true,
-                        color: lv.color,
-                        alertEnabled: true
-                    });
-                }
-            });
-            saveCustomHLinesToStorage();
             renderAllLwPriceLines();
-            renderDrawingToolbarState();
-            showToast("👁️ 已将 KORU 滚仓价与合并新止损线画入主图！");
+            showToast("👁️ 已在 KORU 主图同步滚仓持仓线（底仓/均价/BEP/新止损）！");
+        }
+
+        function clearKoruPyramidInputs() {
+            ["koruPyrP1", "koruPyrSl0", "koruPyrP2", "koruPyrP3", "koruPyrNewSl"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = "";
+            });
+            const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+            setTxt("koruPyrBlendedVal", "-- / --");
+            setTxt("koruPyrBepSub", "2步BEP -- | 3步BEP --");
+            setTxt("koruPyrCushionVal", "--%");
+            setTxt("koruPyrWorstVal", "--");
+            setTxt("koruPyrWorstSub", "已清空手动仓位参数");
+            const vBar = document.getElementById("koruPyrVerdictBar");
+            if (vBar) {
+                vBar.style.borderColor = "var(--border-color)";
+                vBar.style.background = "var(--bg-subtle)";
+                vBar.textContent = "已清空 KORU 手动仓位参数，可重新输入或点击“🧲 同步底仓与现价”。";
+            }
+            if (Array.isArray(customHorizontalLines["KORU"])) {
+                customHorizontalLines["KORU"] = customHorizontalLines["KORU"].filter(h => !String(h.id || "").startsWith("hl_pyr_koru_"));
+                saveCustomHLinesToStorage();
+            }
+            if (typeof renderAllLwPriceLines === "function") renderAllLwPriceLines();
+            showToast("🧹 已清空 KORU 手动仓位信息与预览线");
         }
 
         function copyKoruPyramidPlan() {
