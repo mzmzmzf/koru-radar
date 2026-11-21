@@ -4846,6 +4846,46 @@ export default {
                         bottom: parsedLows[bestIdx],
                         mitigated: false
                     });
+
+                    // 当发生空转多 CHoCH 时，若 activeSH 位于反弹中继（导致 searchStart 跨过了真底），回溯整段下跌波段补全极值底部需求块
+                    if (labelType === "CHoCH") {
+                        const legLookback = Math.max(0, idx - 48);
+                        let originIdx = -1;
+                        let minOriginLow = Infinity;
+                        for (let k = legLookback; k < searchStart; k++) {
+                            if (enriched[k].low < minOriginLow) {
+                                minOriginLow = enriched[k].low;
+                                originIdx = k;
+                            }
+                        }
+                        if (originIdx >= 0 && minOriginLow < parsedLows[bestIdx] * 0.992) {
+                            let obOrigin = enriched[originIdx];
+                            for (let k = originIdx; k >= Math.max(legLookback, originIdx - 2); k--) {
+                                if (enriched[k].close < enriched[k].open) {
+                                    obOrigin = enriched[k];
+                                    break;
+                                }
+                            }
+                            let alreadyMitigated = false;
+                            for (let k = originIdx + 1; k <= idx; k++) {
+                                if (enriched[k].low < obOrigin.low) {
+                                    alreadyMitigated = true;
+                                    break;
+                                }
+                            }
+                            const dupOrigin = allDemandBlocks.some(b => Math.abs(b.bottom - obOrigin.low) / Math.max(1e-9, obOrigin.low) < 0.0015);
+                            if (!alreadyMitigated && !dupOrigin) {
+                                allDemandBlocks.push({
+                                    side: "demand",
+                                    startTime: obOrigin.time,
+                                    createdIdx: idx,
+                                    top: Math.max(obOrigin.open, obOrigin.close),
+                                    bottom: obOrigin.low,
+                                    mitigated: false
+                                });
+                            }
+                        }
+                    }
                 }
 
                 // 向下跌破前内部低点 -> Bearish BOS / CHoCH + 按 LuxAlgo parsedHighs.max() 取供给订单块
