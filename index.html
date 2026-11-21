@@ -4760,55 +4760,63 @@ export default {
             let latestSignalColor = "var(--neon-cyan)";
             const dec = getActiveSymbolDecimals(candles[candles.length - 1]?.close);
 
+            // 100% 对齐 LuxAlgo Smart Money Concepts (Internal Structure size=5 + ATR 波动率过滤 + High/Low Mitigation)
+            const parsedHighs = new Array(n);
+            const parsedLows = new Array(n);
+            let atr200 = 0;
+            for (let i = 0; i < n; i++) {
+                const c = enriched[i];
+                const tr = i === 0
+                    ? (c.high - c.low)
+                    : Math.max(c.high - c.low, Math.abs(c.high - enriched[i - 1].close), Math.abs(c.low - enriched[i - 1].close));
+                atr200 = i === 0 ? tr : (i < 200 ? ((atr200 * i + tr) / (i + 1)) : ((atr200 * 199 + tr) / 200));
+                const highVolBar = (c.high - c.low) >= (2 * atr200);
+                parsedHighs[i] = highVolBar ? c.low : c.high;
+                parsedLows[i] = highVolBar ? c.high : c.low;
+            }
+
             const swingLen = 5;
             const swingHighs = [];
             const swingLows = [];
-            const swingHighByConfirmIdx = new Map();
-            const swingLowByConfirmIdx = new Map();
-
-            for (let i = swingLen; i < n - swingLen; i++) {
-                let isH = true, isL = true;
-                for (let j = i - swingLen; j <= i + swingLen; j++) {
-                    if (j === i) continue;
-                    if (enriched[j].high >= enriched[i].high) isH = false;
-                    if (enriched[j].low <= enriched[i].low) isL = false;
-                }
-                if (isH) {
-                    const sh = { idx: i, time: enriched[i].time, price: enriched[i].high };
-                    swingHighs.push(sh);
-                    swingHighByConfirmIdx.set(i + swingLen, sh);
-                }
-                if (isL) {
-                    const sl = { idx: i, time: enriched[i].time, price: enriched[i].low };
-                    swingLows.push(sl);
-                    swingLowByConfirmIdx.set(i + swingLen, sl);
-                }
-            }
-
-            // SMC 结构破坏 (BOS / CHoCH) 与未消化供需订单块 (Order Blocks) 追踪
-            let marketBias = 0; // 1 = 多头结构, -1 = 空头结构
+            let marketBias = 0; // 1 = BULLISH, -1 = BEARISH
             const biasAtBar = new Int8Array(n);
             let activeSH = null;
             let activeSL = null;
             let shBroken = false;
             let slBroken = false;
+            let curLeg = 0;
+            let prevLeg = 0;
             const allSupplyBlocks = [];
             const allDemandBlocks = [];
             const structureLines = [];
 
-            for (let idx = swingLen * 2; idx < n; idx++) {
-                if (swingHighByConfirmIdx.has(idx)) {
-                    activeSH = swingHighByConfirmIdx.get(idx);
-                    shBroken = false;
-                }
-                if (swingLowByConfirmIdx.has(idx)) {
-                    activeSL = swingLowByConfirmIdx.get(idx);
-                    slBroken = false;
-                }
-
+            for (let idx = swingLen; idx < n; idx++) {
                 const bar = enriched[idx];
+                const pivotIdx = idx - swingLen;
+                let maxNext = -Infinity;
+                let minNext = Infinity;
+                for (let k = pivotIdx + 1; k <= idx; k++) {
+                    if (enriched[k].high > maxNext) maxNext = enriched[k].high;
+                    if (enriched[k].low < minNext) minNext = enriched[k].low;
+                }
+                const newLegHigh = enriched[pivotIdx].high > maxNext;
+                const newLegLow = enriched[pivotIdx].low < minNext;
+                if (newLegHigh) curLeg = 0;
+                else if (newLegLow) curLeg = 1;
 
-                // 向上突破前波段高点 -> 产生 Bullish BOS / CHoCH + 蓝色需求块 (Demand OB)
+                const legDiff = curLeg - prevLeg;
+                if (legDiff === 1) {
+                    activeSL = { idx: pivotIdx, time: enriched[pivotIdx].time, price: enriched[pivotIdx].low };
+                    slBroken = false;
+                    swingLows.push(activeSL);
+                } else if (legDiff === -1) {
+                    activeSH = { idx: pivotIdx, time: enriched[pivotIdx].time, price: enriched[pivotIdx].high };
+                    shBroken = false;
+                    swingHighs.push(activeSH);
+                }
+                prevLeg = curLeg;
+
+                // 向上突破前内部高点 -> Bullish BOS / CHoCH + 按 LuxAlgo parsedLows.min() 取需求订单块
                 if (activeSH && !shBroken && bar.close > activeSH.price) {
                     shBroken = true;
                     const labelType = marketBias === -1 ? "CHoCH" : "BOS";
@@ -4821,66 +4829,26 @@ export default {
                         price: activeSH.price
                     });
 
-                    // 寻找突破起涨前的最后一根阴线作为需求订单块
-                    let obBar = null;
                     const searchStart = Math.max(0, activeSH.idx);
-                    for (let k = idx - 1; k >= searchStart; k--) {
-                        if (enriched[k].close < enriched[k].open) {
-                            obBar = enriched[k];
-                            break;
-                        }
-                    }
-                    if (!obBar) {
-                        let minLow = Infinity;
-                        for (let k = searchStart; k < idx; k++) {
-                            if (enriched[k].low < minLow) {
-                                minLow = enriched[k].low;
-                                obBar = enriched[k];
-                            }
-                        }
-                    }
-                    if (obBar) {
-                        allDemandBlocks.push({
-                            side: "demand",
-                            startTime: obBar.time,
-                            createdIdx: idx,
-                            top: obBar.high,
-                            bottom: obBar.low,
-                            mitigated: false
-                        });
-                    }
-                    // 同步捕捉极值底部起涨需求块（防止急跌 V 反跨度较大时漏掉最低点起涨区）
-                    let minLowVal = Infinity;
-                    let minLowIdx = -1;
+                    let bestIdx = searchStart;
+                    let minParsedLow = Infinity;
                     for (let k = searchStart; k < idx; k++) {
-                        if (enriched[k].low < minLowVal) {
-                            minLowVal = enriched[k].low;
-                            minLowIdx = k;
+                        if (parsedLows[k] < minParsedLow) {
+                            minParsedLow = parsedLows[k];
+                            bestIdx = k;
                         }
                     }
-                    if (minLowIdx >= 0 && (!obBar || minLowVal < obBar.low * 0.996)) {
-                        let originBar = enriched[minLowIdx];
-                        for (let k = minLowIdx; k >= Math.max(0, minLowIdx - 2); k--) {
-                            if (enriched[k].close < enriched[k].open) {
-                                originBar = enriched[k];
-                                break;
-                            }
-                        }
-                        const dupOrigin = allDemandBlocks.some(b => Math.abs(b.bottom - originBar.low) / Math.max(1e-9, originBar.low) < 0.0015);
-                        if (!dupOrigin) {
-                            allDemandBlocks.push({
-                                side: "demand",
-                                startTime: originBar.time,
-                                createdIdx: idx,
-                                top: originBar.high,
-                                bottom: originBar.low,
-                                mitigated: false
-                            });
-                        }
-                    }
+                    allDemandBlocks.push({
+                        side: "demand",
+                        startTime: enriched[bestIdx].time,
+                        createdIdx: idx,
+                        top: parsedHighs[bestIdx],
+                        bottom: parsedLows[bestIdx],
+                        mitigated: false
+                    });
                 }
 
-                // 向下跌破前波段低点 -> 产生 Bearish BOS / CHoCH + 粉色供给块 (Supply OB)
+                // 向下跌破前内部低点 -> Bearish BOS / CHoCH + 按 LuxAlgo parsedHighs.max() 取供给订单块
                 if (activeSL && !slBroken && bar.close < activeSL.price) {
                     slBroken = true;
                     const labelType = marketBias === 1 ? "CHoCH" : "BOS";
@@ -4893,46 +4861,35 @@ export default {
                         price: activeSL.price
                     });
 
-                    // 寻找破位起跌前的最后一根阳线作为供给订单块
-                    let obBar = null;
                     const searchStart = Math.max(0, activeSL.idx);
-                    for (let k = idx - 1; k >= searchStart; k--) {
-                        if (enriched[k].close > enriched[k].open) {
-                            obBar = enriched[k];
-                            break;
+                    let bestIdx = searchStart;
+                    let maxParsedHigh = -Infinity;
+                    for (let k = searchStart; k < idx; k++) {
+                        if (parsedHighs[k] > maxParsedHigh) {
+                            maxParsedHigh = parsedHighs[k];
+                            bestIdx = k;
                         }
                     }
-                    if (!obBar) {
-                        let maxHigh = -Infinity;
-                        for (let k = searchStart; k < idx; k++) {
-                            if (enriched[k].high > maxHigh) {
-                                maxHigh = enriched[k].high;
-                                obBar = enriched[k];
-                            }
-                        }
-                    }
-                    if (obBar) {
-                        allSupplyBlocks.push({
-                            side: "supply",
-                            startTime: obBar.time,
-                            createdIdx: idx,
-                            top: obBar.high,
-                            bottom: obBar.low,
-                            mitigated: false
-                        });
-                    }
+                    allSupplyBlocks.push({
+                        side: "supply",
+                        startTime: enriched[bestIdx].time,
+                        createdIdx: idx,
+                        top: parsedHighs[bestIdx],
+                        bottom: parsedLows[bestIdx],
+                        mitigated: false
+                    });
                 }
 
-                // 订单块消化检测 (Mitigation): 收盘实体吞没订单块远端边界即失效
+                // 订单块消化检测 (对齐 LuxAlgo 默认 High/Low Mitigation)
                 for (let s = 0; s < allSupplyBlocks.length; s++) {
                     const sb = allSupplyBlocks[s];
-                    if (!sb.mitigated && idx > sb.createdIdx && bar.close > sb.top) {
+                    if (!sb.mitigated && idx > sb.createdIdx && bar.high > sb.top) {
                         sb.mitigated = true;
                     }
                 }
                 for (let d = 0; d < allDemandBlocks.length; d++) {
                     const db = allDemandBlocks[d];
-                    if (!db.mitigated && idx > db.createdIdx && bar.close < db.bottom) {
+                    if (!db.mitigated && idx > db.createdIdx && bar.low < db.bottom) {
                         db.mitigated = true;
                     }
                 }
@@ -5023,8 +4980,8 @@ export default {
                 latestSignalText = `🛡️ 共振过滤生效 · 已屏蔽 ${filteredOutCount} 个逆势/背离信号`;
             }
 
-            const supplyBlocks = allSupplyBlocks.filter(b => !b.mitigated).slice(-3);
-            const demandBlocks = allDemandBlocks.filter(b => !b.mitigated).slice(-3);
+            const supplyBlocks = allSupplyBlocks.filter(b => !b.mitigated).slice(-5);
+            const demandBlocks = allDemandBlocks.filter(b => !b.mitigated).slice(-5);
             const recentStructures = structureLines.slice(-14);
 
             const lastSH = swingHighs[swingHighs.length - 1];
