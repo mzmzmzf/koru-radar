@@ -36,6 +36,7 @@
             <button type="button" class="badge" id="btnCloudSyncStatus" onclick="toggleCloudSyncDrawer()" style="cursor:pointer; border-color:rgba(138,180,248,0.55); color:#8ab4f8;" title="Mac 与手机端实时双向同步：画线、颜色、沙盒风控、自选列表与界面设置全自动同步">☁️ 多端同步</button>
             <button type="button" class="badge" id="btnRelayConfig" onclick="toggleRelayDrawer()" style="cursor:pointer; border-color:var(--neon-cyan); color:var(--neon-cyan);" title="配置 Cloudflare 自定义域名中继节点，实现国内免翻墙秒开全量行情与K线">🌐 中继路由</button>
             <button type="button" class="badge" id="btnPageImmersiveFs" onclick="togglePageNativeFullscreen()" style="cursor:pointer; border-color:var(--neon-emerald); color:#34d399;" title="调用系统真全屏隐藏手机浏览器标签栏与地址栏">⛶ 整页全屏</button>
+            <button type="button" class="badge" id="btnGlobalTheme" onclick="toggleTvTheme()" style="cursor:pointer; border-color:var(--neon-amber); color:#fbbf24;" title="切换全站浅色/深色玻璃主题 (快捷键: Shift+T 或 Option/Alt+T)">☀️ 浅色</button>
             <span class="badge active" id="terminalStatus">● 智能路由初始化</span>
         </div>
     </header>
@@ -3313,6 +3314,12 @@ export default {
             if (themeBtn) {
                 themeBtn.textContent = isDark ? "☀️ 浅色玻璃" : "🌙 深色玻璃";
                 themeBtn.classList.toggle("active", !isDark);
+            }
+            const globalThemeBtn = document.getElementById("btnGlobalTheme");
+            if (globalThemeBtn) {
+                globalThemeBtn.textContent = isDark ? "☀️ 浅色" : "🌙 深色";
+                globalThemeBtn.style.borderColor = isDark ? "var(--neon-amber)" : "var(--neon-cyan)";
+                globalThemeBtn.style.color = isDark ? "#fbbf24" : "var(--neon-cyan)";
             }
             if (candleBtn) {
                 candleBtn.textContent = p.useMono ? "🕯️ K线:黑白" : "🕯️ K线:红绿";
@@ -6988,6 +6995,14 @@ export default {
             if (modKey && isKeyS && e.altKey && !e.shiftKey) {
                 e.preventDefault();
                 captureChartSnapshot("download");
+                return;
+            }
+
+            // 快捷键：Shift + T 或 Option/Alt + T（非输入状态）一键切换全站浅色/深色玻璃主题
+            const isKeyT = (e.code === "KeyT" || (e.key && e.key.toLowerCase() === "t"));
+            if (!isInput && tag !== "SELECT" && !modKey && isKeyT && (e.shiftKey || e.altKey)) {
+                e.preventDefault();
+                toggleTvTheme();
                 return;
             }
 
