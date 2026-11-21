@@ -8,7 +8,7 @@ html = open(html_path, encoding="utf-8").read()
 
 # 1. Check local <link> and <script src="./..."> exist
 refs = re.findall(r'(?:href|src)="(\./[^"]+)"', html)
-missing = [r for r in refs if r != "./manifest.json" and not os.path.exists(os.path.join(base, r))]
+missing = [r for r in refs if r.split("?")[0] != "./manifest.json" and not os.path.exists(os.path.join(base, r.split("?")[0]))]
 if missing:
     print("FAIL: Missing referenced files:", missing)
     sys.exit(1)

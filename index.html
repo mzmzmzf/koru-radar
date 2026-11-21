@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#131314">
     <link rel="manifest" href="./manifest.json">
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
-    <link rel="stylesheet" href="./styles/main.css">
+    <link rel="stylesheet" href="./styles/main.css?v=20261122">
 </head>
 <body>
 
@@ -3299,7 +3299,10 @@ export default {
             const isDark = tvTheme === "dark";
             const viewChartEl = document.getElementById("view-chart");
             if (viewChartEl) viewChartEl.classList.toggle("light-theme", !isDark);
+            document.documentElement.classList.toggle("light-theme", !isDark);
             document.body.classList.toggle("light-theme", !isDark);
+            document.body.style.backgroundColor = isDark ? "#0b0e14" : "#f3efe4";
+            document.body.style.color = isDark ? "#f3f4f6" : "#111827";
             const p = getChartPalette();
             const themeBtn = document.getElementById("btnTvTheme");
             const candleBtn = document.getElementById("btnTvCandleStyle");
