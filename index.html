@@ -218,6 +218,7 @@
                             <button type="button" class="btn-sm" id="btnEngineTv" onclick="switchChartEngine('TV', this)">📺 TV原版</button>
                         </div>
                         <button type="button" class="btn-sm active" id="btnToggleSmcBlocks" onclick="toggleSmcBlocks()" title="独立开关：SMC 供需订单块与 BOS/CHoCH 结构线">🧱 SMC色块</button>
+                        <button type="button" class="btn-sm active" id="btnTogglePyrLines" onclick="togglePyramidPositionLines()" title="独立开关：将 BTC / KORU 滚仓底仓、均价、新BEP、新止损与浮动R倍数投射到 K 线主图">📌 滚仓持仓线</button>
                         <button type="button" class="btn-sm" id="btnToggleAdaptiveTrail" onclick="toggleAdaptiveTrail()" title="独立开关：ATR 自适应趋势追踪丝带（绿多/橙空移动防守带）">🎗️ 追踪丝带</button>
                         <button type="button" class="btn-sm" id="btnToggleVolProfile" onclick="toggleVolumeProfileZones()" title="独立开关：历史筹码峰与流动性支撑/阻力带（显示成交量K与占比%）">📊 筹码阻力带</button>
                         <button type="button" class="btn-sm" id="btnToggleTrendPanel" onclick="toggleTrendSignalsPanel()" title="独立开关：右下角量化状态体检面板（信号得分/趋势强度/动量超买超卖）">📋 量化体检</button>
@@ -1542,6 +1543,14 @@
                         <label class="form-label"><span>③ 尾仓价 (20% · 加速中继)</span><span id="btcPyrQ3Hint" style="color:var(--neon-emerald);">-- BTC</span></label>
                         <input type="number" id="btcPyrP3" step="10" value="63800" class="form-input" style="color:var(--neon-emerald);" oninput="calculateBtcPyramid()">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label"><span>逐仓杠杆倍数 (x)</span></label>
+                        <input type="number" id="btcPyrLeverage" step="1" min="1" max="125" value="10" class="form-input" oninput="calculateBtcPyramid()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><span>预计持仓天数 (费率折算)</span></label>
+                        <input type="number" id="btcPyrHoldDays" step="0.5" min="0" value="1" class="form-input" oninput="calculateBtcPyramid()">
+                    </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom:10px;">
@@ -1564,8 +1573,16 @@
                     <b id="btcPyrQtyBreakdown">-- BTC</b>
                 </div>
                 <div class="stat-line">
-                    <span>合并后新真实保本线 (New BEP 含 0.2% 摩擦)</span>
+                    <span>合并后新真实保本线 (New BEP 含手续费+费率)</span>
                     <b id="btcPyrNewBep" style="color:var(--neon-amber);">-- USDT</b>
+                </div>
+                <div class="stat-line">
+                    <span>2步预估强平爆仓线 (MMR 0.5%)</span>
+                    <b id="btcPyrLiqPrice">-- USDT</b>
+                </div>
+                <div class="stat-line">
+                    <span>2步名义仓位 / 占用保证金</span>
+                    <b id="btcPyrMarginUsage" style="color:var(--neon-cyan);">--</b>
                 </div>
                 <div class="stat-line">
                     <span>现价距新止损安全回调空间 (红线 &lt; 2.0%)</span>
@@ -2245,6 +2262,7 @@ export default {
         let chartGridMode = localStorage.getItem("quant_chart_grid") || "none"; // 'none' | 'horz' | 'both'
         let isChartLogScale = localStorage.getItem("quant_chart_log") !== "false"; // 默认开启 Log 对数坐标
         let showSmcBlocks = localStorage.getItem("quant_smc_blocks") !== "false"; // 默认开启 SMC 供需色块与 BOS/CHoCH 结构线
+        let showPyramidPositionLines = localStorage.getItem("quant_show_pyr_lines") !== "false"; // 默认开启主图滚仓持仓线联动
         let showAdaptiveTrail = localStorage.getItem("quant_adaptive_trail") === "true"; // 独立开关：ATR 自适应追踪丝带
         let showVolumeProfileZones = localStorage.getItem("quant_vol_profile_zones") === "true"; // 独立开关：历史筹码峰/流动性阻力带
         let showTrendSignalsPanel = localStorage.getItem("quant_trend_signals_panel") === "true"; // 独立开关：右下角量化体检面板
@@ -3367,6 +3385,10 @@ export default {
             if (smcBlockBtn) {
                 smcBlockBtn.classList.toggle("active", showSmcBlocks);
             }
+            const pyrLinesBtn = document.getElementById("btnTogglePyrLines");
+            if (pyrLinesBtn) {
+                pyrLinesBtn.classList.toggle("active", showPyramidPositionLines);
+            }
             const trailBtn = document.getElementById("btnToggleAdaptiveTrail");
             if (trailBtn) {
                 trailBtn.classList.toggle("active", showAdaptiveTrail);
@@ -3940,6 +3962,10 @@ export default {
                     axisLabelVisible: true,
                     title: "防线SL"
                 }));
+            }
+
+            if (showPyramidPositionLines && (symKey === "BTC" || symKey === "KORU")) {
+                renderPyramidPositionLinesOnChart(symKey, p);
             }
 
             const userLines = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
@@ -6212,6 +6238,97 @@ export default {
             showToast(showSmcBlocks
                 ? "已显示 SMC 供需订单块（粉色供给块 / 蓝色需求块）与 BOS/CHoCH 结构线"
                 : "已隐藏 SMC 色块，切换为极简裸 K 线与均线视图");
+        }
+
+        function togglePyramidPositionLines() {
+            showPyramidPositionLines = !showPyramidPositionLines;
+            localStorage.setItem("quant_show_pyr_lines", showPyramidPositionLines ? "true" : "false");
+            syncChartControlButtons();
+            renderAllLwPriceLines();
+            showToast(showPyramidPositionLines ? "📌 已开启主图滚仓持仓线（底仓/均价/BEP/新止损/强平线）" : "已隐藏主图滚仓持仓线");
+        }
+
+        function renderPyramidPositionLinesOnChart(symKey, p) {
+            if (!lwCandleSeries) return;
+            const isBtc = symKey === "BTC";
+            const openLog = pyramidTradeLogs.find(x => x.symbol === symKey && x.step !== "CLOSE");
+            let p1 = 0, sl0 = 0, p2 = 0, p3 = 0, newSl = 0, liveP = 0, isLong = true;
+            let avg = 0, bep = 0, liqPrice = 0, stageLabel = "2步规划";
+
+            if (isBtc) {
+                p1 = parseFloat(document.getElementById("btcPyrP1")?.value) || 0;
+                sl0 = parseFloat(document.getElementById("btcPyrSl0")?.value) || 0;
+                p2 = parseFloat(document.getElementById("btcPyrP2")?.value) || 0;
+                p3 = parseFloat(document.getElementById("btcPyrP3")?.value) || 0;
+                newSl = parseFloat(document.getElementById("btcPyrNewSl")?.value) || 0;
+                const equity = parseFloat(document.getElementById("btcPyrEquity")?.value) || 10000;
+                const riskPct = parseFloat(document.getElementById("btcPyrRiskPct")?.value) || 2.0;
+                const leverage = parseFloat(document.getElementById("btcPyrLeverage")?.value) || 10;
+                const holdDays = parseFloat(document.getElementById("btcPyrHoldDays")?.value) || 0;
+                isLong = btcPyramidSide !== "SHORT";
+                liveP = currentBtcLivePrice || p1;
+                if (typeof computeBtcPyramidMetrics === "function") {
+                    const m = computeBtcPyramidMetrics({
+                        p1, sl0, equity, riskPct, p2, p3, newSl, liveP,
+                        side: btcPyramidSide, leverage, fundingRate: latestFundingRate || 0, holdDays
+                    });
+                    if (!m.valid) return;
+                    if (openLog?.step === "STEP1") {
+                        avg = p1; bep = p1 * (isLong ? 1.002 : 0.998); newSl = sl0; stageLabel = "①底仓";
+                        liqPrice = m.liqPrice1 || 0;
+                    } else if (openLog?.step === "STEP3") {
+                        avg = m.avg3; bep = m.bep3; stageLabel = "③全仓";
+                        liqPrice = m.liqPrice3 || 0;
+                    } else {
+                        avg = m.avg2; bep = m.bep2; stageLabel = openLog?.step === "STEP2" ? "②已首滚" : "2步规划";
+                        liqPrice = m.liqPrice2 || 0;
+                    }
+                }
+            } else {
+                p1 = parseFloat(document.getElementById("koruPyrP1")?.value) || 0;
+                sl0 = parseFloat(document.getElementById("koruPyrSl0")?.value) || 0;
+                p2 = parseFloat(document.getElementById("koruPyrP2")?.value) || 0;
+                p3 = parseFloat(document.getElementById("koruPyrP3")?.value) || 0;
+                newSl = parseFloat(document.getElementById("koruPyrNewSl")?.value) || 0;
+                const cap1 = parseFloat(document.getElementById("koruPyrCap")?.value) || 5000;
+                liveP = lastValidKoru || p1;
+                if (typeof computeKoruPyramidMetrics === "function") {
+                    const m = computeKoruPyramidMetrics({ p1, sl0, cap1, p2, p3, newSl, kp: liveP });
+                    if (!m.valid) return;
+                    if (openLog?.step === "STEP1") {
+                        avg = p1; bep = p1 * 1.002; newSl = sl0; stageLabel = "①底仓";
+                    } else if (openLog?.step === "STEP3") {
+                        avg = m.avg3; bep = m.bep3; stageLabel = "③全仓";
+                    } else {
+                        avg = m.avg2; bep = m.bep2; stageLabel = openLog?.step === "STEP2" ? "②已首滚" : "2步规划";
+                    }
+                }
+            }
+
+            const rDist = isLong ? (p1 - sl0) : (sl0 - p1);
+            const curR = rDist > 0 && liveP > 0 ? ((isLong ? (liveP - p1) : (p1 - liveP)) / rDist) : 0;
+            const rStr = `${curR >= 0 ? "+" : ""}${curR.toFixed(2)}R`;
+
+            const lines = [
+                { price: p1, color: "#38bdf8", style: LightweightCharts.LineStyle.Dotted, width: 1, title: `📌 底仓P1 (${rStr})` },
+                { price: avg, color: "#a855f7", style: LightweightCharts.LineStyle.Dashed, width: 1, title: `⚖️ 均价(${stageLabel})` },
+                { price: bep, color: p.bepColor || "#f59e0b", style: LightweightCharts.LineStyle.Dotted, width: 2, title: `🛡️ 新BEP(零亏)` },
+                { price: newSl, color: p.slColor || "#ef4444", style: LightweightCharts.LineStyle.Dashed, width: 2, title: `🛑 滚仓新SL` }
+            ];
+            if (isBtc && liqPrice > 0) {
+                lines.push({ price: liqPrice, color: "#fb7185", style: LightweightCharts.LineStyle.LargeDashed || LightweightCharts.LineStyle.Dashed, width: 1, title: `💥 强平Liq` });
+            }
+            lines.forEach(item => {
+                if (!isFinite(item.price) || item.price <= 0) return;
+                lwPriceLines.push(lwCandleSeries.createPriceLine({
+                    price: item.price,
+                    color: item.color,
+                    lineWidth: item.width,
+                    lineStyle: item.style,
+                    axisLabelVisible: true,
+                    title: item.title
+                }));
+            });
         }
 
         function toggleBreakoutSmcCvdFilter() {
@@ -8841,16 +8958,17 @@ export default {
 
             if (rDist <= 0 || p1 <= 0) return;
 
-            const q1 = riskUsd / rDist;
-            const q2 = q1 * 0.6;
-            const q3 = q1 * 0.4;
-            const q12 = q1 + q2;
-            const qAll = q1 + q2 + q3;
+            const leverage = parseFloat(document.getElementById("btcPyrLeverage")?.value) || 10;
+            const holdDays = parseFloat(document.getElementById("btcPyrHoldDays")?.value) || 0;
+            const m = typeof computeBtcPyramidMetrics === "function"
+                ? computeBtcPyramidMetrics({
+                    p1, sl0, equity, riskPct, p2, p3, newSl, liveP,
+                    side: btcPyramidSide, leverage, fundingRate: latestFundingRate || 0, holdDays
+                })
+                : null;
+            if (!m || !m.valid) return;
 
-            const avg2 = (q1 * p1 + q2 * p2) / q12;
-            const avg3 = (q1 * p1 + q2 * p2 + q3 * p3) / qAll;
-            const bep2 = avg2 * (isLong ? 1.002 : 0.998);
-            const bep3 = avg3 * (isLong ? 1.002 : 0.998);
+            const { q1, q2, q3, avg2, avg3, bep2, bep3, pullbackPct, worstNet2, liqPrice2, marginUsed2, notional2, marginRatioPct2, slBeyondLiq2, liqDistPct2, fundingDragRate } = m;
 
             const q2Hint = document.getElementById("btcPyrQ2Hint");
             const q3Hint = document.getElementById("btcPyrQ3Hint");
@@ -8860,12 +8978,22 @@ export default {
             const avgEl = document.getElementById("btcPyrAvgVal");
             const qtyEl = document.getElementById("btcPyrQtyBreakdown");
             const bepEl = document.getElementById("btcPyrNewBep");
+            const liqEl = document.getElementById("btcPyrLiqPrice");
+            const marginEl = document.getElementById("btcPyrMarginUsage");
             if (avgEl) avgEl.textContent = `${avg2.toFixed(1)} / ${avg3.toFixed(1)} USDT`;
-            if (qtyEl) qtyEl.textContent = `${qAll.toFixed(3)} BTC (${q1.toFixed(3)} + ${q2.toFixed(3)} + ${q3.toFixed(3)})`;
-            if (bepEl) bepEl.textContent = `2步 ${bep2.toFixed(1)} | 3步 ${bep3.toFixed(1)} USDT`;
-
-            const pullbackPct = liveP > 0 ? ((isLong ? (liveP - newSl) : (newSl - liveP)) / liveP) * 100 : 0;
-            const worstNet2 = (isLong ? (newSl - avg2) : (avg2 - newSl)) * q12 - (avg2 * q12 * 0.002);
+            if (qtyEl) qtyEl.textContent = `${(q1 + q2 + q3).toFixed(3)} BTC (${q1.toFixed(3)} + ${q2.toFixed(3)} + ${q3.toFixed(3)})`;
+            if (bepEl) {
+                const fundTag = fundingDragRate > 0 ? ` (含费率${(fundingDragRate * 100).toFixed(3)}%)` : "";
+                bepEl.textContent = `2步 ${bep2.toFixed(1)} | 3步 ${bep3.toFixed(1)} USDT${fundTag}`;
+            }
+            if (liqEl) {
+                liqEl.textContent = liqPrice2 > 0 ? `${liqPrice2.toFixed(1)} USDT (距现价 ${liqDistPct2.toFixed(1)}%)` : "--";
+                liqEl.style.color = slBeyondLiq2 ? "var(--neon-red)" : (liqDistPct2 < 5 ? "var(--neon-amber)" : "var(--text-main)");
+            }
+            if (marginEl) {
+                marginEl.textContent = `$${Math.round(notional2).toLocaleString()} / 占本金 $${Math.round(marginUsed2).toLocaleString()} (${marginRatioPct2.toFixed(1)}%)`;
+                marginEl.style.color = marginRatioPct2 > 80 ? "var(--neon-red)" : "var(--neon-cyan)";
+            }
 
             const pbEl = document.getElementById("btcPyrPullbackPct");
             const pbBadge = document.getElementById("btcPyrCushionBadge");
@@ -8877,7 +9005,10 @@ export default {
                 pbEl.style.color = pullbackPct < 2.0 ? "var(--neon-red)" : "var(--neon-emerald)";
             }
             if (pbBadge) {
-                if (pullbackPct < 2.0) {
+                if (slBeyondLiq2) {
+                    pbBadge.textContent = `💥 止损超出强平线 (${liqPrice2.toFixed(0)})`;
+                    pbBadge.className = "rr-badge rr-fail";
+                } else if (pullbackPct < 2.0) {
                     pbBadge.textContent = `🚨 缓冲 ${pullbackPct.toFixed(2)}% < 2% (高危)`;
                     pbBadge.className = "rr-badge rr-fail";
                 } else {
@@ -8890,7 +9021,15 @@ export default {
                 worstEl.style.color = worstNet2 >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
             }
             if (verdictEl) {
-                if (pullbackPct < 2.0) {
+                if (slBeyondLiq2) {
+                    verdictEl.style.borderColor = "#ef4444";
+                    verdictEl.style.background = "rgba(239,68,68,0.16)";
+                    verdictEl.innerHTML = `💥 <b>先爆仓后止损拦截</b>：${leverage}x 杠杆下 2 步强平线在 <b>${liqPrice2.toFixed(1)}</b>，你设的新止损 <b>${newSl.toFixed(1)}</b> 比强平线更远！请立即降低杠杆或收紧止损。`;
+                } else if (marginRatioPct2 > 80) {
+                    verdictEl.style.borderColor = "#f59e0b";
+                    verdictEl.style.background = "rgba(245,158,11,0.14)";
+                    verdictEl.innerHTML = `⚠️ <b>保证金占用过高 (${marginRatioPct2.toFixed(1)}%)</b>：2 步滚仓需占用 $${Math.round(marginUsed2).toLocaleString()} 保证金，请适当调高杠杆或缩减单笔风险。`;
+                } else if (pullbackPct < 2.0) {
                     verdictEl.style.borderColor = "#ef4444";
                     verdictEl.style.background = "rgba(239,68,68,0.12)";
                     verdictEl.innerHTML = `🚨 <b>放弃滚仓预警</b>：当前现价距新止损仅 <b>${pullbackPct.toFixed(2)}%</b>（低于 2.0% 安全下限），一次正常技术回踩即可能打穿保本损！`;
@@ -8901,8 +9040,11 @@ export default {
                 } else {
                     verdictEl.style.borderColor = "#10b981";
                     verdictEl.style.background = "rgba(16,185,129,0.12)";
-                    verdictEl.innerHTML = `✅ <b>滚仓结构安全</b>：合并 2 步后最坏情况仍净锁盈 <b style="color:#34d399;">+$${worstNet2.toFixed(1)}</b>，且具备 <b>${pullbackPct.toFixed(2)}%</b> 回调容错空间。`;
+                    verdictEl.innerHTML = `✅ <b>滚仓结构安全 (${leverage}x)</b>：合并 2 步后最坏仍净锁盈 <b style="color:#34d399;">+$${worstNet2.toFixed(1)}</b>，强平线 <b>${liqPrice2.toFixed(1)}</b> 远在止损外侧，具备 <b>${pullbackPct.toFixed(2)}%</b> 回调空间。`;
                 }
+            }
+            if (showPyramidPositionLines && typeof renderAllLwPriceLines === "function" && typeof getCurrentSymKey === "function" && getCurrentSymKey() === "BTC") {
+                renderAllLwPriceLines();
             }
         }
 
@@ -9054,6 +9196,9 @@ export default {
                     vBar.innerHTML = `✅ <b>KORU 3X 滚仓安全</b>：合并 2 步后新止损锁盈 <b style="color:#34d399;">+$${worstNetUsd.toFixed(0)}</b>，且保留了 <b>${pbPct.toFixed(2)}%</b> 的 3 倍波动缓冲。`;
                 }
             }
+            if (showPyramidPositionLines && typeof renderAllLwPriceLines === "function" && typeof getCurrentSymKey === "function" && getCurrentSymKey() === "KORU") {
+                renderAllLwPriceLines();
+            }
         }
 
         function previewKoruPyramidOnChart() {
@@ -9172,6 +9317,11 @@ export default {
                 }
 
                 if (stepType !== "CLOSE") {
+                    const lev = Math.max(1, parseFloat(document.getElementById("btcPyrLeverage")?.value) || 10);
+                    const liqCheck = avg > 0 ? (isLong ? avg * (1 - (1 / lev) + 0.005) : avg * (1 + (1 / lev) - 0.005)) : 0;
+                    if (stepType !== "STEP1" && liqCheck > 0 && (isLong ? newSl <= liqCheck : newSl >= liqCheck)) {
+                        riskReasons.push(`止损超出强平线(${liqCheck.toFixed(0)})`);
+                    }
                     if (stepType !== "STEP1" && cushionPct < 2.0) riskReasons.push(`回调缓冲 ${cushionPct.toFixed(2)}% < 2.0%`);
                     if (stepType !== "STEP1" && worstNet < 0) riskReasons.push(`打穿新止损净亏 $${Math.abs(worstNet).toFixed(0)}`);
                     const gateTxt = document.getElementById("btcPyrGateBadge")?.textContent || "";
@@ -9244,6 +9394,9 @@ export default {
             savePyramidLogsToStorage();
             renderPyramidLogs("BTC");
             renderPyramidLogs("KORU");
+            if (showPyramidPositionLines && typeof renderAllLwPriceLines === "function" && typeof getCurrentSymKey === "function" && (getCurrentSymKey() === "BTC" || getCurrentSymKey() === "KORU")) {
+                renderAllLwPriceLines();
+            }
 
             if (entry.hasRisk) {
                 if (typeof playAlertChime === "function" && priceAlertsEnabled) playAlertChime("sl");
