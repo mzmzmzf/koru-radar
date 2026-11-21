@@ -288,6 +288,12 @@
                             <button type="button" class="draw-color-dot" data-color="#e2e8f0" onclick="setDrawingColor('#e2e8f0')" style="background:#e2e8f0;"></button>
                             <input type="color" id="customDrawColorInput" value="#38bdf8" onchange="setDrawingColor(this.value)" oninput="setDrawingColor(this.value)" style="width:16px; height:16px; padding:0; border:none; background:transparent; cursor:pointer;">
                         </span>
+                        <span id="drawWidthGroup" style="display:inline-flex; align-items:center; gap:2px; padding:2px 5px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:6px;" title="画线粗细">
+                            <button type="button" class="btn-sm draw-width-btn" data-width="1" onclick="setDrawingLineWidth(1)" style="padding:1px 5px; font-size:10px;">1px</button>
+                            <button type="button" class="btn-sm draw-width-btn active" data-width="2" onclick="setDrawingLineWidth(2)" style="padding:1px 5px; font-size:10px;">2px</button>
+                            <button type="button" class="btn-sm draw-width-btn" data-width="3" onclick="setDrawingLineWidth(3)" style="padding:1px 5px; font-size:10px;">3px</button>
+                            <button type="button" class="btn-sm draw-width-btn" data-width="4" onclick="setDrawingLineWidth(4)" style="padding:1px 5px; font-size:10px;">4px</button>
+                        </span>
                         <button type="button" class="btn-sm draw-tool-btn" data-tool="ruler" onclick="selectDrawTool('ruler')">📐 测量尺</button>
                     </div>
                     <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
@@ -2282,6 +2288,7 @@ export default {
         let isDrawingToolbarOpen = false;
         const LEGACY_COLOR_MAP = { bull: "#10b981", bear: "#ef4444", neutral: "#38bdf8" };
         let activeDrawColor = localStorage.getItem("quant_draw_color") || "#38bdf8";
+        let activeDrawLineWidth = parseFloat(localStorage.getItem("quant_draw_line_width")) || 2;
         let rectColorPreset = localStorage.getItem("quant_rect_preset") || "bull";
         let priceAlertsEnabled = localStorage.getItem("quant_price_alerts_enabled") !== "false"; // 默认开启触价声音+弹窗提醒
         let selectedDrawingId = null;
@@ -2848,6 +2855,40 @@ export default {
             if (picker && currentHex && currentHex.startsWith("#") && currentHex.length === 7) {
                 picker.value = currentHex;
             }
+            syncDrawWidthButtons();
+        }
+
+        function setDrawingLineWidth(width) {
+            const w = Math.max(1, Math.min(6, Number(width) || 2));
+            activeDrawLineWidth = w;
+            localStorage.setItem("quant_draw_line_width", String(w));
+
+            const target = getActiveTargetDrawingAny();
+            if (target && target.item) {
+                target.item.lineWidth = w;
+                if (target.kind === "hline") {
+                    saveCustomHLinesToStorage();
+                    renderAllLwPriceLines();
+                } else {
+                    saveCustomShapesToStorage();
+                }
+                renderDrawingToolbarState();
+                renderDrawOverlay();
+                showToast(`✏️ 已将画线粗细调整为 ${w}px`);
+            } else {
+                showToast(`✏️ 画线粗细已设为 ${w}px`);
+            }
+            syncDrawWidthButtons();
+        }
+
+        function syncDrawWidthButtons() {
+            const grp = document.getElementById("drawWidthGroup");
+            if (!grp) return;
+            const target = getActiveTargetDrawingAny();
+            const curW = (target && target.item && target.item.lineWidth) ? Number(target.item.lineWidth) : activeDrawLineWidth;
+            grp.querySelectorAll(".draw-width-btn").forEach(btn => {
+                btn.classList.toggle("active", Number(btn.dataset.width) === Number(curW));
+            });
         }
 
         function toggleDrawingToolbar(forceState) {
@@ -3979,7 +4020,7 @@ export default {
                 pushLwPriceLineSpec(
                     Number(hObj.price),
                     isUnl ? "#10b981" : (isSel ? "#fbbf24" : customCol),
-                    2,
+                    Number(hObj.lineWidth) || 2,
                     LightweightCharts.LineStyle.Solid,
                     `${isUnl ? "🔓可拖·" : (alertOn ? "🔔" : "")}水平线(${visTag})`
                 );
@@ -4008,6 +4049,7 @@ export default {
                     visibleTfs: [tvInterval],
                     locked: false,
                     color: activeDrawColor || "#38bdf8",
+                    lineWidth: activeDrawLineWidth || 2,
                     alertEnabled: true
                 };
                 list.push(createdObj);
@@ -4725,7 +4767,8 @@ export default {
                 const customStroke = resolveItemCustomColor(item, isDark ? "#38bdf8" : "#0284c7");
                 const lineColor = customStroke;
                 ctx.strokeStyle = lineColor;
-                ctx.lineWidth = showHandles ? 2.6 : 2;
+                const trendLw = Number(item.lineWidth) || 2;
+                ctx.lineWidth = showHandles ? trendLw + 0.6 : trendLw;
                 ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
@@ -4781,7 +4824,8 @@ export default {
 
                     // 2. 平行对边轨线
                     ctx.strokeStyle = baseColor;
-                    ctx.lineWidth = showHandles ? 2.2 : 1.8;
+                    const chLw = Number(item.lineWidth) || 2;
+                    ctx.lineWidth = showHandles ? chLw + 0.4 : chLw;
                     ctx.setLineDash([]);
                     ctx.beginPath();
                     ctx.moveTo(x1, y1Par);
@@ -4850,7 +4894,8 @@ export default {
                 ctx.fillStyle = style.fill;
                 ctx.fillRect(left, top, rw, rh);
                 ctx.strokeStyle = style.stroke;
-                ctx.lineWidth = (isHighlighted || isUnlocked) ? 2.2 : 1.5;
+                const rectLw = Number(item.lineWidth) || 2;
+                ctx.lineWidth = (isHighlighted || isUnlocked) ? rectLw + 0.5 : Math.max(1, rectLw - 0.3);
                 ctx.strokeRect(left, top, rw, rh);
                 if (isUnlocked) {
                     [ [x1, y1], [x2, y2] ].forEach(([ax, ay]) => {
@@ -5175,6 +5220,7 @@ export default {
                     channelOffsetPrice: 0,
                     locked: false,
                     color: activeDrawColor || "#38bdf8",
+                    lineWidth: activeDrawLineWidth || 2,
                     colorVariant: rectColorPreset
                 };
                 renderDrawOverlay();
