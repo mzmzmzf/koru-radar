@@ -1441,6 +1441,10 @@
                     <label class="form-label" id="labelTpPrice">第一目标位 (TP1 · 下方关键支撑)</label>
                     <input type="number" id="btcTpPrice" class="form-input" value="71200" oninput="onManualBtcPriceEdit()">
                 </div>
+                <div class="form-group">
+                    <label class="form-label"><span>逐仓杠杆倍数 (x)</span><span style="color:var(--neon-cyan);">MMR 0.5%</span></label>
+                    <input type="number" id="btcLadderLeverage" class="form-input" value="10" min="1" max="125" step="1" oninput="calculateBtcLadder()">
+                </div>
             </div>
 
             <div class="form-label" id="labelTierHeadline" style="margin-bottom:6px;">策略吸附战壕档位 (2 : 3 : 5 结构)</div>
@@ -1477,6 +1481,10 @@
             <div class="stat-line">
                 <span>规划建议开仓总量</span>
                 <b id="resTotalQty">-- BTC</b>
+            </div>
+            <div class="stat-line">
+                <span>吃满三档预估强平线 / 占用保证金</span>
+                <b id="resLadderLiqMargin" style="color:var(--neon-cyan);">--</b>
             </div>
             <div class="stat-line">
                 <span>吃满被打止损最大亏损</span>
@@ -3914,6 +3922,21 @@ export default {
             } catch (e) {}
         }
 
+        let lwPriceLineSpecs = [];
+
+        function pushLwPriceLineSpec(price, color, lineWidth, lineStyle, title) {
+            if (!lwCandleSeries || !isFinite(price) || price <= 0) return;
+            lwPriceLines.push(lwCandleSeries.createPriceLine({
+                price,
+                color,
+                lineWidth,
+                lineStyle,
+                axisLabelVisible: true,
+                title: ""
+            }));
+            lwPriceLineSpecs.push({ price, color, title });
+        }
+
         function renderAllLwPriceLines() {
             if (!lwCandleSeries) return;
             const p = getChartPalette();
@@ -3922,46 +3945,19 @@ export default {
             const { lastSH, lastSL } = lwLastSmcSnapshot;
 
             clearLwPriceLines();
+            lwPriceLineSpecs = [];
             if (lastSH) {
-                lwPriceLines.push(lwCandleSeries.createPriceLine({
-                    price: lastSH.price,
-                    color: p.smcSupply,
-                    lineWidth: 1,
-                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                    axisLabelVisible: true,
-                    title: "SMC 供给顶"
-                }));
+                pushLwPriceLineSpec(lastSH.price, p.smcSupply, 1, LightweightCharts.LineStyle.Dashed, "SMC 供给顶");
             }
             if (lastSL) {
-                lwPriceLines.push(lwCandleSeries.createPriceLine({
-                    price: lastSL.price,
-                    color: p.smcDemand,
-                    lineWidth: 1,
-                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                    axisLabelVisible: true,
-                    title: "SMC 需求底"
-                }));
+                pushLwPriceLineSpec(lastSL.price, p.smcDemand, 1, LightweightCharts.LineStyle.Dashed, "SMC 需求底");
             }
 
             if (isKoru) {
                 const bep = customKoruCost * 1.002;
                 const activeSl = sandboxData.liveSl || 7.800;
-                lwPriceLines.push(lwCandleSeries.createPriceLine({
-                    price: bep,
-                    color: p.bepColor,
-                    lineWidth: 1,
-                    lineStyle: LightweightCharts.LineStyle.Dotted,
-                    axisLabelVisible: true,
-                    title: "沙盒BEP"
-                }));
-                lwPriceLines.push(lwCandleSeries.createPriceLine({
-                    price: activeSl,
-                    color: p.slColor,
-                    lineWidth: 1,
-                    lineStyle: LightweightCharts.LineStyle.Dotted,
-                    axisLabelVisible: true,
-                    title: "防线SL"
-                }));
+                pushLwPriceLineSpec(bep, p.bepColor, 1, LightweightCharts.LineStyle.Dotted, "沙盒BEP");
+                pushLwPriceLineSpec(activeSl, p.slColor, 1, LightweightCharts.LineStyle.Dotted, "防线SL");
             }
 
             if (showPyramidPositionLines && (symKey === "BTC" || symKey === "KORU")) {
@@ -3975,18 +3971,18 @@ export default {
                 const alertOn = hObj.alertEnabled !== false;
                 const customCol = hObj.color || p.customLineColor;
                 const visTag = formatVisibleTfsSummary(hObj.visibleTfs);
-                lwPriceLines.push(lwCandleSeries.createPriceLine({
-                    price: Number(hObj.price),
-                    color: isUnl ? "#10b981" : (isSel ? "#fbbf24" : customCol),
-                    lineWidth: 2,
-                    lineStyle: LightweightCharts.LineStyle.Solid,
-                    axisLabelVisible: true,
-                    title: `${isUnl ? "🔓可拖·" : (alertOn ? "🔔" : "")}水平线(${visTag})`
-                }));
+                pushLwPriceLineSpec(
+                    Number(hObj.price),
+                    isUnl ? "#10b981" : (isSel ? "#fbbf24" : customCol),
+                    2,
+                    LightweightCharts.LineStyle.Solid,
+                    `${isUnl ? "🔓可拖·" : (alertOn ? "🔔" : "")}水平线(${visTag})`
+                );
             });
             if (lwLastDataCache && lwLastDataCache.length >= 10) {
                 refreshWorkbenchKeyLevelsOnly();
             }
+            renderDrawOverlay();
         }
 
         function addCustomHLineValue(rawPrice, exitDrawMode = false) {
@@ -4460,8 +4456,76 @@ export default {
                 drawSingleShapeOnCanvas(ctx, activeRulerMeasurement, true, dec, isDark, plotW);
             }
 
+            drawLeftPriceLineTags(ctx, dec, isDark, h);
+
             ctx.restore();
             updatePriceCountdownBadge();
+        }
+
+        function drawLeftPriceLineTags(ctx, dec, isDark, canvasH) {
+            if (!Array.isArray(lwPriceLineSpecs) || !lwPriceLineSpecs.length) return;
+            const positioned = [];
+            for (const spec of lwPriceLineSpecs) {
+                if (!spec || !isFinite(spec.price) || !spec.title) continue;
+                const y = priceToOverlayY(spec.price);
+                if (y === null || y < 8 || y > canvasH - 28) continue;
+                positioned.push({ ...spec, y });
+            }
+            if (!positioned.length) return;
+            positioned.sort((a, b) => a.y - b.y);
+
+            const minGap = 19;
+            let lastDrawnY = -999;
+            ctx.save();
+            ctx.font = "700 10px -apple-system, BlinkMacSystemFont, monospace";
+
+            for (const item of positioned) {
+                let drawY = item.y;
+                if (drawY - lastDrawnY < minGap) {
+                    drawY = lastDrawnY + minGap;
+                }
+                if (drawY > canvasH - 26) continue;
+                lastDrawnY = drawY;
+
+                const labelText = `${item.title} · ${Number(item.price).toFixed(dec)}`;
+                const tw = ctx.measureText(labelText).width;
+                const padX = 7;
+                const bw = tw + padX * 2 + 4;
+                const bh = 17;
+                const bx = 6;
+                const by = Math.max(4, Math.min(canvasH - bh - 24, drawY - bh / 2));
+
+                if (Math.abs(drawY - item.y) > 2) {
+                    ctx.strokeStyle = item.color || "#94a3b8";
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, item.y);
+                    ctx.lineTo(bx, by + bh / 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                ctx.fillStyle = isDark ? "rgba(15, 23, 42, 0.86)" : "rgba(255, 253, 248, 0.94)";
+                ctx.strokeStyle = item.color || "#64748b";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(bx, by, bw, bh, 4);
+                } else {
+                    ctx.rect(bx, by, bw, bh);
+                }
+                ctx.fill();
+                ctx.stroke();
+
+                // 左侧色条指示器
+                ctx.fillStyle = item.color || "#64748b";
+                ctx.fillRect(bx + 1, by + 2, 3, bh - 4);
+
+                ctx.fillStyle = isDark ? "#f1f5f9" : "#111827";
+                ctx.fillText(labelText, bx + padX + 2, by + 12);
+            }
+            ctx.restore();
         }
 
         function mergeOverlappingSmcBlocks(blocks) {
@@ -6319,15 +6383,7 @@ export default {
                 lines.push({ price: liqPrice, color: "#fb7185", style: LightweightCharts.LineStyle.LargeDashed || LightweightCharts.LineStyle.Dashed, width: 1, title: `💥 强平Liq` });
             }
             lines.forEach(item => {
-                if (!isFinite(item.price) || item.price <= 0) return;
-                lwPriceLines.push(lwCandleSeries.createPriceLine({
-                    price: item.price,
-                    color: item.color,
-                    lineWidth: item.width,
-                    lineStyle: item.style,
-                    axisLabelVisible: true,
-                    title: item.title
-                }));
+                pushLwPriceLineSpec(item.price, item.color, item.width, item.style, item.title);
             });
         }
 
@@ -8809,6 +8865,7 @@ export default {
             const p1 = parseFloat(document.getElementById("tier1Price").value) || 0;
             const p2 = parseFloat(document.getElementById("tier2Price").value) || 0;
             const p3 = parseFloat(document.getElementById("tier3Price").value) || 0;
+            const lev = Math.max(1, parseFloat(document.getElementById("btcLadderLeverage")?.value) || 10);
 
             const riskAmount = equity * (riskPct / 100);
             document.getElementById("riskAmountLabel").textContent = `$${riskAmount.toFixed(2)}`;
@@ -8829,18 +8886,33 @@ export default {
             if (deltaWin <= 0) { rrBadge.textContent = "TP 设置错误 (无空间)"; rrBadge.className = "rr-badge rr-fail"; return; }
 
             const totalQty = riskAmount / deltaLoss, totalUsdt = totalQty * avgPrice;
+            const marginUsed = totalUsdt / lev;
+            const marginRatio = equity > 0 ? (marginUsed / equity) * 100 : 0;
+            const liqPrice = Math.max(0, currentSide === 'LONG'
+                ? avgPrice * (1 - (1 / lev) + 0.005)
+                : avgPrice * (1 + (1 / lev) - 0.005));
+            const slBeyondLiq = liqPrice > 0 && (currentSide === 'LONG' ? sl <= liqPrice : sl >= liqPrice);
+
             document.getElementById("tier1Qty").textContent = `${(totalQty * 0.2).toFixed(3)} BTC`;
             document.getElementById("tier2Qty").textContent = `${(totalQty * 0.3).toFixed(3)} BTC`;
             document.getElementById("tier3Qty").textContent = `${(totalQty * 0.5).toFixed(3)} BTC`;
 
             document.getElementById("resTotalQty").textContent = `${totalQty.toFixed(3)} BTC (约 $${totalUsdt.toFixed(0)} 规模)`;
+            const liqMarginEl = document.getElementById("resLadderLiqMargin");
+            if (liqMarginEl) {
+                liqMarginEl.textContent = `${liqPrice.toFixed(1)} USDT | 占本金 $${marginUsed.toFixed(0)} (${marginRatio.toFixed(1)}%)`;
+                liqMarginEl.style.color = slBeyondLiq ? "var(--neon-red)" : (marginRatio > 80 ? "var(--neon-amber)" : "var(--neon-cyan)");
+            }
             document.getElementById("resMaxLoss").textContent = `-$${riskAmount.toFixed(2)} (严格锁死)`;
 
             const expProfit = totalQty * deltaWin;
             document.getElementById("resProfit").textContent = `+$${expProfit.toFixed(2)}`;
 
             const rr = (deltaWin / deltaLoss).toFixed(2);
-            if (rr >= 2.0) { rrBadge.textContent = `盈亏比 ${rr} : 1 (EV > 0 准入)`; rrBadge.className = "rr-badge rr-pass"; }
+            if (slBeyondLiq) {
+                rrBadge.textContent = `💥 SL 超出强平线 (${liqPrice.toFixed(0)}) · 先爆仓后止损`;
+                rrBadge.className = "rr-badge rr-fail";
+            } else if (rr >= 2.0) { rrBadge.textContent = `盈亏比 ${rr} : 1 (EV > 0 准入)`; rrBadge.className = "rr-badge rr-pass"; }
             else { rrBadge.textContent = `盈亏比 ${rr} : 1 (低于 1:2 禁止开单)`; rrBadge.className = "rr-badge rr-fail"; }
 
             const breakevenPrice = currentSide === 'LONG' ? (avgPrice + deltaLoss) : (avgPrice - deltaLoss);
