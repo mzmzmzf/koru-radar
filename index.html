@@ -1364,8 +1364,12 @@
                 <div style="margin-top:12px; border-top:1px solid var(--border-color); padding-top:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:12px;">
                         <b>📜 KORU 滚仓操作台账与风险巡检</b>
-                        <button type="button" class="btn-sm" onclick="clearPyramidLogs('KORU')" style="font-size:10px; color:var(--text-muted); padding:1px 6px;">清空记录</button>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <button type="button" class="btn-sm" onclick="exportPyramidLogsCsv('KORU')" style="font-size:10px; color:var(--neon-cyan); padding:1px 6px;">📤 导出 CSV</button>
+                            <button type="button" class="btn-sm" onclick="clearPyramidLogs('KORU')" style="font-size:10px; color:var(--text-muted); padding:1px 6px;">清空记录</button>
+                        </div>
                     </div>
+                    <div id="koruPyrStatsBar" style="display:none; grid-template-columns: repeat(4, 1fr); gap:6px; margin-bottom:6px;"></div>
                     <div id="koruPyrLiveRiskBanner" style="display:none; padding:7px 9px; border-radius:6px; border:1px solid #ef4444; font-size:11px; margin-bottom:6px; line-height:1.45;"></div>
                     <div id="koruPyrLogList"><div style="font-size:11px; color:var(--text-muted); padding:4px 0;">暂无 KORU 滚仓操作记录，点击上方“📌 记①/②/③”即可留存并触发风控审计。</div></div>
                 </div>
@@ -1590,8 +1594,12 @@
             <div class="card" style="margin-bottom:12px;">
                 <div class="card-title" style="margin-bottom:6px;">
                     <span>📜 BTC 滚仓操作台账与风险巡检</span>
-                    <button type="button" class="btn-sm" onclick="clearPyramidLogs('BTC')" style="font-size:10px; color:var(--text-muted); padding:1px 6px;">清空记录</button>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button type="button" class="btn-sm" onclick="exportPyramidLogsCsv('BTC')" style="font-size:10px; color:var(--neon-cyan); padding:1px 6px;">📤 导出 CSV</button>
+                        <button type="button" class="btn-sm" onclick="clearPyramidLogs('BTC')" style="font-size:10px; color:var(--text-muted); padding:1px 6px;">清空记录</button>
+                    </div>
                 </div>
+                <div id="btcPyrStatsBar" style="display:none; grid-template-columns: repeat(4, 1fr); gap:6px; margin-bottom:6px;"></div>
                 <div id="btcPyrLiveRiskBanner" style="display:none; padding:7px 9px; border-radius:6px; border:1px solid #ef4444; font-size:11px; margin-bottom:6px; line-height:1.45;"></div>
                 <div id="btcPyrLogList"><div style="font-size:11px; color:var(--text-muted); padding:4px 0;">暂无 BTC 滚仓操作记录，点击上方“📌 记①/②/③”即可留存并触发风控审计。</div></div>
             </div>
@@ -9103,8 +9111,9 @@ export default {
             const liveP = isBtc ? (currentBtcLivePrice || 60000) : (lastValidKoru || 8.201);
             const dec = isBtc ? 1 : 3;
 
-            let side = "LONG", p1 = 0, sl0 = 0, p2 = 0, p3 = 0, newSl = 0, avg = 0, bep = 0, cushionPct = 0, worstNet = 0;
+            let side = "LONG", p1 = 0, sl0 = 0, p2 = 0, p3 = 0, newSl = 0, avg = 0, bep = 0, cushionPct = 0, worstNet = 0, rMultiple = null;
             const riskReasons = [];
+            const prevOpenLog = pyramidTradeLogs.find(x => x.symbol === symbol && x.step !== "CLOSE");
 
             if (isBtc) {
                 side = btcPyramidSide;
@@ -9115,15 +9124,16 @@ export default {
                 newSl = parseFloat(document.getElementById("btcPyrNewSl")?.value) || 0;
                 const equity = parseFloat(document.getElementById("btcPyrEquity")?.value) || 10000;
                 const riskPct = parseFloat(document.getElementById("btcPyrRiskPct")?.value) || 2.0;
+                const riskAmt = equity * riskPct / 100;
                 const isLong = side === "LONG";
                 const rDist = isLong ? (p1 - sl0) : (sl0 - p1);
-                const q1 = rDist > 0 ? (equity * riskPct / 100) / rDist : 0;
+                const q1 = rDist > 0 ? riskAmt / rDist : 0;
                 const q2 = q1 * 0.6, q3 = q1 * 0.4;
 
                 if (stepType === "STEP1") {
                     avg = p1; bep = p1 * (isLong ? 1.002 : 0.998); newSl = sl0;
                     cushionPct = liveP > 0 ? ((isLong ? (liveP - sl0) : (sl0 - liveP)) / liveP) * 100 : 0;
-                    worstNet = -(equity * riskPct / 100);
+                    worstNet = -riskAmt;
                 } else if (stepType === "STEP2") {
                     avg = (q1 * p1 + q2 * p2) / (q1 + q2 || 1);
                     bep = avg * (isLong ? 1.002 : 0.998);
@@ -9135,10 +9145,12 @@ export default {
                     cushionPct = liveP > 0 ? ((isLong ? (liveP - newSl) : (newSl - liveP)) / liveP) * 100 : 0;
                     worstNet = (isLong ? (newSl - avg) : (avg - newSl)) * (q1 + q2 + q3) - (avg * (q1 + q2 + q3) * 0.002);
                 } else {
-                    avg = (q1 * p1 + q2 * p2) / (q1 + q2 || 1);
+                    const activeQty = prevOpenLog?.step === "STEP1" ? q1 : (prevOpenLog?.step === "STEP3" ? (q1 + q2 + q3) : (q1 + q2));
+                    avg = prevOpenLog?.step === "STEP1" ? p1 : (prevOpenLog?.step === "STEP3" ? ((q1 * p1 + q2 * p2 + q3 * p3) / (q1 + q2 + q3 || 1)) : ((q1 * p1 + q2 * p2) / (q1 + q2 || 1)));
                     bep = avg * (isLong ? 1.002 : 0.998);
                     cushionPct = 0;
-                    worstNet = (isLong ? (liveP - avg) : (avg - liveP)) * (q1 + q2);
+                    worstNet = (isLong ? (liveP - avg) : (avg - liveP)) * activeQty - (avg * activeQty * 0.002);
+                    rMultiple = riskAmt > 0 ? worstNet / riskAmt : 0;
                 }
 
                 if (stepType !== "CLOSE") {
@@ -9156,6 +9168,7 @@ export default {
                 const cap1 = parseFloat(document.getElementById("koruPyrCap")?.value) || 5000;
                 const q1 = p1 > 0 ? cap1 / p1 : 0;
                 const q2 = q1 * 0.6, q3 = q1 * 0.4;
+                const riskAmt = (p1 > sl0) ? q1 * (p1 - sl0) : (cap1 * 0.05);
 
                 if (stepType === "STEP1") {
                     avg = p1; bep = p1 * 1.002; newSl = sl0;
@@ -9172,10 +9185,12 @@ export default {
                     cushionPct = liveP > 0 ? ((liveP - newSl) / liveP) * 100 : 0;
                     worstNet = (newSl - avg) * (q1 + q2 + q3) - (avg * (q1 + q2 + q3) * 0.002);
                 } else {
-                    avg = (q1 * p1 + q2 * p2) / (q1 + q2 || 1);
+                    const activeQty = prevOpenLog?.step === "STEP1" ? q1 : (prevOpenLog?.step === "STEP3" ? (q1 + q2 + q3) : (q1 + q2));
+                    avg = prevOpenLog?.step === "STEP1" ? p1 : (prevOpenLog?.step === "STEP3" ? ((q1 * p1 + q2 * p2 + q3 * p3) / (q1 + q2 + q3 || 1)) : ((q1 * p1 + q2 * p2) / (q1 + q2 || 1)));
                     bep = avg * 1.002;
                     cushionPct = 0;
-                    worstNet = (liveP - avg) * (q1 + q2);
+                    worstNet = (liveP - avg) * activeQty - (avg * activeQty * 0.002);
+                    rMultiple = riskAmt > 0 ? worstNet / riskAmt : 0;
                 }
 
                 if (stepType !== "CLOSE") {
@@ -9201,6 +9216,7 @@ export default {
                 newSl: Number(newSl.toFixed(dec)),
                 cushionPct: Number(cushionPct.toFixed(2)),
                 worstNet: Number(worstNet.toFixed(1)),
+                rMultiple: rMultiple !== null ? Number(rMultiple.toFixed(2)) : null,
                 hasRisk: riskReasons.length > 0,
                 riskReason: riskReasons.join(" · ")
             };
@@ -9268,12 +9284,35 @@ export default {
             const isBtc = symbol === "BTC";
             const listEl = document.getElementById(isBtc ? "btcPyrLogList" : "koruPyrLogList");
             const alertEl = document.getElementById(isBtc ? "btcPyrLiveRiskBanner" : "koruPyrLiveRiskBanner");
+            const statsEl = document.getElementById(isBtc ? "btcPyrStatsBar" : "koruPyrStatsBar");
             if (!listEl) return;
 
             const logs = pyramidTradeLogs.filter(x => x.symbol === symbol);
             const dec = isBtc ? 1 : 3;
             const liveP = isBtc ? (currentBtcLivePrice || 0) : (lastValidKoru || 0);
             const minCushion = isBtc ? 2.0 : 3.5;
+
+            // 复盘统计条：汇总已平仓笔数、胜率、累计净盈亏与累计 R 倍数
+            if (statsEl) {
+                const closedLogs = logs.filter(x => x.step === "CLOSE");
+                if (closedLogs.length > 0) {
+                    const wins = closedLogs.filter(x => Number(x.worstNet) > 0).length;
+                    const winRate = (wins / closedLogs.length) * 100;
+                    const totalNet = closedLogs.reduce((acc, x) => acc + (Number(x.worstNet) || 0), 0);
+                    const totalR = closedLogs.reduce((acc, x) => acc + (Number(x.rMultiple) || 0), 0);
+                    const pnlColor = totalNet >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
+                    const rColor = totalR >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
+                    statsEl.style.display = "grid";
+                    statsEl.innerHTML = `
+                        <div class="kpi-mini-box" style="padding:6px 8px;"><div class="kpi-mini-label">已平仓</div><div class="kpi-mini-val" style="font-size:13px;">${closedLogs.length} 笔</div></div>
+                        <div class="kpi-mini-box" style="padding:6px 8px;"><div class="kpi-mini-label">胜率</div><div class="kpi-mini-val" style="font-size:13px; color:${winRate >= 50 ? 'var(--neon-emerald)' : 'var(--neon-amber)'};">${winRate.toFixed(1)}%</div></div>
+                        <div class="kpi-mini-box" style="padding:6px 8px;"><div class="kpi-mini-label">累计净盈亏</div><div class="kpi-mini-val" style="font-size:13px; color:${pnlColor};">${totalNet >= 0 ? '+$' : '-$'}${Math.abs(totalNet).toFixed(1)}</div></div>
+                        <div class="kpi-mini-box" style="padding:6px 8px;"><div class="kpi-mini-label">累计 R 倍数</div><div class="kpi-mini-val" style="font-size:13px; color:${rColor};">${totalR >= 0 ? '+' : ''}${totalR.toFixed(2)}R</div></div>
+                    `;
+                } else {
+                    statsEl.style.display = "none";
+                }
+            }
 
             // 实时风险巡检：检查最新一笔未平仓记录是否被现价逼近/打穿止损或缓冲不足
             if (alertEl) {
@@ -9322,9 +9361,15 @@ export default {
             listEl.innerHTML = logs.map(item => {
                 const sm = stepMap[item.step] || stepMap.STEP1;
                 const dirTag = item.side === "SHORT" ? "空" : "多";
-                const riskHtml = item.hasRisk
-                    ? `<span style="color:#f87171; font-weight:700;">🚨 ${item.riskReason}</span>`
-                    : `<span style="color:#34d399; font-weight:700;">🟢 风控达标</span>`;
+                const closePnlNum = Number(item.worstNet) || 0;
+                const closeRHtml = item.rMultiple !== null && item.rMultiple !== undefined && isFinite(Number(item.rMultiple))
+                    ? ` (${Number(item.rMultiple) >= 0 ? "+" : ""}${Number(item.rMultiple).toFixed(2)}R)`
+                    : "";
+                const riskHtml = item.step === "CLOSE"
+                    ? `<span style="color:${closePnlNum >= 0 ? '#34d399' : '#f87171'}; font-weight:700;">平仓净盈亏 ${closePnlNum >= 0 ? '+$' : '-$'}${Math.abs(closePnlNum).toFixed(1)}${closeRHtml}</span>`
+                    : (item.hasRisk
+                        ? `<span style="color:#f87171; font-weight:700;">🚨 ${item.riskReason}</span>`
+                        : `<span style="color:#34d399; font-weight:700;">🟢 风控达标</span>`);
                 return `<div style="padding:7px 8px; border-bottom:1px dashed var(--border-color); font-size:11px; display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div style="line-height:1.45;">
                         <div>
@@ -9343,6 +9388,45 @@ export default {
                     </div>
                 </div>`;
             }).join("");
+        }
+
+        function exportPyramidLogsCsv(symbol) {
+            const logs = pyramidTradeLogs.filter(x => x.symbol === symbol);
+            if (!logs.length) {
+                showToast(`暂无可导出的 ${symbol} 滚仓记录`);
+                return;
+            }
+            const dec = symbol === "BTC" ? 1 : 3;
+            const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+            const headers = ["时间", "标的", "方向", "操作阶段", "操作价", "综合均价", "新BEP", "止损位", "安全缓冲(%)", "净盈亏/最坏净额($)", "R倍数", "风控状态", "风险提示"];
+            const rows = logs.map(item => [
+                item.timeStr,
+                item.symbol,
+                item.side === "SHORT" ? "空" : "多",
+                item.step,
+                Number(item.entryPrice).toFixed(dec),
+                Number(item.avgPrice).toFixed(dec),
+                Number(item.bep).toFixed(dec),
+                Number(item.newSl).toFixed(dec),
+                item.step === "CLOSE" ? "" : Number(item.cushionPct || 0).toFixed(2),
+                Number(item.worstNet || 0).toFixed(1),
+                item.rMultiple !== null && item.rMultiple !== undefined ? Number(item.rMultiple).toFixed(2) : "",
+                item.hasRisk ? "存在风险" : "达标",
+                item.riskReason || ""
+            ].map(esc).join(","));
+
+            const csvContent = "\uFEFF" + headers.map(esc).join(",") + "\n" + rows.join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            const dateStr = new Date().toISOString().slice(0, 10);
+            a.href = url;
+            a.download = `${symbol}_pyramid_logs_${dateStr}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            showToast(`📤 已导出 ${symbol} 滚仓台账 (${logs.length} 条)`);
         }
 
         function showToast(msg) {
