@@ -1419,6 +1419,7 @@
                         <button type="button" class="btn-sm" id="btnToggleAdaptiveTrail" onclick="toggleAdaptiveTrail()" title="独立开关：ATR 自适应趋势追踪丝带（绿多/橙空移动防守带）">🎗️ 追踪丝带</button>
                         <button type="button" class="btn-sm" id="btnToggleVolProfile" onclick="toggleVolumeProfileZones()" title="独立开关：历史筹码峰与流动性支撑/阻力带（显示成交量K与占比%）">📊 筹码阻力带</button>
                         <button type="button" class="btn-sm" id="btnToggleTrendPanel" onclick="toggleTrendSignalsPanel()" title="独立开关：右下角量化状态体检面板（信号得分/趋势强度/动量超买超卖）">📋 量化体检</button>
+                        <button type="button" class="btn-sm" id="btnToggleBreakoutFilter" onclick="toggleBreakoutSmcCvdFilter()" title="共振过滤开关：开启后自动过滤逆 SMC 市场偏向以及出现 CVD 资金流背离的 Breakout 3.3 信号">🛡️ 共振过滤</button>
                         <button type="button" class="btn-sm" id="btnSubchartCvd" onclick="toggleCvdSubchart()">📊 CVD资金流</button>
                         <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleNetposSubchart()">⚖️ 净多空持仓</button>
                     </div>
@@ -3266,6 +3267,7 @@ export default {
         let showAdaptiveTrail = localStorage.getItem("quant_adaptive_trail") === "true"; // 独立开关：ATR 自适应追踪丝带
         let showVolumeProfileZones = localStorage.getItem("quant_vol_profile_zones") === "true"; // 独立开关：历史筹码峰/流动性阻力带
         let showTrendSignalsPanel = localStorage.getItem("quant_trend_signals_panel") === "true"; // 独立开关：右下角量化体检面板
+        let filterBreakoutBySmcCvd = localStorage.getItem("quant_filter_breakout_smc_cvd") === "true"; // 共振过滤开关：过滤逆 SMC 偏向与 CVD 背离的 Breakout 3.3 信号
         let activeDrawTool = "none"; // 'none' | 'hline' | 'trend' | 'fib' | 'rect' | 'ruler'
         let isDrawingToolbarOpen = false;
         const LEGACY_COLOR_MAP = { bull: "#10b981", bear: "#ef4444", neutral: "#38bdf8" };
@@ -4375,6 +4377,11 @@ export default {
             if (tsPanelBtn) {
                 tsPanelBtn.classList.toggle("active", showTrendSignalsPanel);
             }
+            const boFilterBtn = document.getElementById("btnToggleBreakoutFilter");
+            if (boFilterBtn) {
+                boFilterBtn.classList.toggle("active", filterBreakoutBySmcCvd);
+                boFilterBtn.textContent = filterBreakoutBySmcCvd ? "🛡️ 共振过滤:开" : "🛡️ 共振过滤";
+            }
             const tsHudCard = document.getElementById("trendSignalsHudCard");
             if (tsHudCard) {
                 tsHudCard.classList.toggle("visible", showTrendSignalsPanel && chartEngineMode === "STRAT");
@@ -4716,51 +4723,6 @@ export default {
             let latestSignalColor = "var(--neon-cyan)";
             const dec = getActiveSymbolDecimals(candles[candles.length - 1]?.close);
 
-            for (let i = 50; i < n; i++) {
-                const cur = enriched[i];
-                const prev = enriched[i - 1];
-                if (!cur.ma50 || !prev.ma50 || !cur.volMa) continue;
-
-                let highestPrev5 = -Infinity;
-                let lowestPrev5 = Infinity;
-                for (let k = i - lookback; k < i; k++) {
-                    if (enriched[k].high > highestPrev5) highestPrev5 = enriched[k].high;
-                    if (enriched[k].low < lowestPrev5) lowestPrev5 = enriched[k].low;
-                }
-
-                const crossOver10_15 = prev.ema10 <= prev.ema15 && cur.ema10 > cur.ema15;
-                const crossUnder10_15 = prev.ema10 >= prev.ema15 && cur.ema10 < cur.ema15;
-                const crossOver10_50 = prev.ema10 <= prev.ma50 && cur.ema10 > cur.ma50;
-                const crossUnder10_50 = prev.ema10 >= prev.ma50 && cur.ema10 < cur.ma50;
-
-                const greenSignal = (prev.ema10 < prev.ma50 && prev.ema15 < prev.ma50) && crossOver10_15 && cur.vol > cur.volMa;
-                const finalBlueSignal = crossOver10_50 && cur.close > cur.ma50 && cur.vol > cur.volMa * volMult && cur.close > highestPrev5;
-
-                const redSignal = (prev.ema10 > prev.ma50 && prev.ema15 > prev.ma50) && crossUnder10_15 && cur.vol > cur.volMa;
-                const finalPurpleSignal = crossUnder10_50 && cur.close < cur.ma50 && cur.vol > cur.volMa * volMult && cur.close < lowestPrev5;
-
-                if (greenSignal) {
-                    markers.push({ time: cur.time, position: "belowBar", color: "#10b981", shape: "arrowUp", text: "▲多集结" });
-                    latestSignalText = `🟢 龙抬头-多头集结 (${formatBeijingTime(cur.time, false)})`;
-                    latestSignalColor = "#34d399";
-                }
-                if (finalBlueSignal) {
-                    markers.push({ time: cur.time, position: "belowBar", color: "#3b82f6", shape: "arrowUp", text: `多:${cur.ma50.toFixed(dec)}` });
-                    latestSignalText = `🔵 蓝箭破阵-多头起飞 @ ${cur.ma50.toFixed(dec)}`;
-                    latestSignalColor = "#60a5fa";
-                }
-                if (redSignal) {
-                    markers.push({ time: cur.time, position: "aboveBar", color: "#ef4444", shape: "arrowDown", text: "▼空集结" });
-                    latestSignalText = `🔴 鸣金兵败-空头集结 (${formatBeijingTime(cur.time, false)})`;
-                    latestSignalColor = "#f87171";
-                }
-                if (finalPurpleSignal) {
-                    markers.push({ time: cur.time, position: "aboveBar", color: "#a855f7", shape: "arrowDown", text: `空:${cur.ma50.toFixed(dec)}` });
-                    latestSignalText = `🟣 紫箭坠阵-空头开仓 @ ${cur.ma50.toFixed(dec)}`;
-                    latestSignalColor = "#c084fc";
-                }
-            }
-
             const swingLen = 5;
             const swingHighs = [];
             const swingLows = [];
@@ -4788,6 +4750,7 @@ export default {
 
             // SMC 结构破坏 (BOS / CHoCH) 与未消化供需订单块 (Order Blocks) 追踪
             let marketBias = 0; // 1 = 多头结构, -1 = 空头结构
+            const biasAtBar = new Int8Array(n);
             let activeSH = null;
             let activeSL = null;
             let shBroken = false;
@@ -4907,6 +4870,91 @@ export default {
                         db.mitigated = true;
                     }
                 }
+                biasAtBar[idx] = marketBias;
+            }
+
+            const useResonanceFilter = typeof filterBreakoutBySmcCvd !== "undefined" && filterBreakoutBySmcCvd;
+            const cvdSeries = useResonanceFilter
+                ? computeGimelfarbCvdSeries(enriched, typeof cvdDailyReset !== "undefined" ? cvdDailyReset : false)
+                : null;
+            let filteredOutCount = 0;
+
+            for (let i = 50; i < n; i++) {
+                const cur = enriched[i];
+                const prev = enriched[i - 1];
+                if (!cur.ma50 || !prev.ma50 || !cur.volMa) continue;
+
+                let highestPrev5 = -Infinity;
+                let lowestPrev5 = Infinity;
+                for (let k = i - lookback; k < i; k++) {
+                    if (enriched[k].high > highestPrev5) highestPrev5 = enriched[k].high;
+                    if (enriched[k].low < lowestPrev5) lowestPrev5 = enriched[k].low;
+                }
+
+                const crossOver10_15 = prev.ema10 <= prev.ema15 && cur.ema10 > cur.ema15;
+                const crossUnder10_15 = prev.ema10 >= prev.ema15 && cur.ema10 < cur.ema15;
+                const crossOver10_50 = prev.ema10 <= prev.ma50 && cur.ema10 > cur.ma50;
+                const crossUnder10_50 = prev.ema10 >= prev.ma50 && cur.ema10 < cur.ma50;
+
+                let greenSignal = (prev.ema10 < prev.ma50 && prev.ema15 < prev.ma50) && crossOver10_15 && cur.vol > cur.volMa;
+                let finalBlueSignal = crossOver10_50 && cur.close > cur.ma50 && cur.vol > cur.volMa * volMult && cur.close > highestPrev5;
+
+                let redSignal = (prev.ema10 > prev.ma50 && prev.ema15 > prev.ma50) && crossUnder10_15 && cur.vol > cur.volMa;
+                let finalPurpleSignal = crossUnder10_50 && cur.close < cur.ma50 && cur.vol > cur.volMa * volMult && cur.close < lowestPrev5;
+
+                if (useResonanceFilter && (greenSignal || finalBlueSignal || redSignal || finalPurpleSignal)) {
+                    const barBias = biasAtBar[i];
+                    const cvdRow = cvdSeries && cvdSeries[i] ? cvdSeries[i] : null;
+                    let bullCvdDiv = false;
+                    let bearCvdDiv = false;
+                    if (cvdRow && i >= 12) {
+                        let winHigh = -Infinity, winLow = Infinity;
+                        let winCvdMax = -Infinity, winCvdMin = Infinity;
+                        for (let k = i - 12; k < i; k++) {
+                            if (enriched[k].high > winHigh) winHigh = enriched[k].high;
+                            if (enriched[k].low < winLow) winLow = enriched[k].low;
+                            if (cvdSeries[k].cvd > winCvdMax) winCvdMax = cvdSeries[k].cvd;
+                            if (cvdSeries[k].cvd < winCvdMin) winCvdMin = cvdSeries[k].cvd;
+                        }
+                        const bullPriceNewHighDiv = cur.high >= winHigh && cvdRow.cvd < winCvdMax;
+                        const bullFlowWeak = cvdRow.sma28 !== null && cvdRow.cvd < cvdRow.sma28 && cvdRow.delta < 0;
+                        bullCvdDiv = bullPriceNewHighDiv || bullFlowWeak;
+
+                        const bearPriceNewLowDiv = cur.low <= winLow && cvdRow.cvd > winCvdMin;
+                        const bearFlowStrong = cvdRow.sma28 !== null && cvdRow.cvd > cvdRow.sma28 && cvdRow.delta > 0;
+                        bearCvdDiv = bearPriceNewLowDiv || bearFlowStrong;
+                    }
+
+                    if (greenSignal && (barBias === -1 || bullCvdDiv)) { greenSignal = false; filteredOutCount++; }
+                    if (finalBlueSignal && (barBias === -1 || bullCvdDiv)) { finalBlueSignal = false; filteredOutCount++; }
+                    if (redSignal && (barBias === 1 || bearCvdDiv)) { redSignal = false; filteredOutCount++; }
+                    if (finalPurpleSignal && (barBias === 1 || bearCvdDiv)) { finalPurpleSignal = false; filteredOutCount++; }
+                }
+
+                if (greenSignal) {
+                    markers.push({ time: cur.time, position: "belowBar", color: "#10b981", shape: "arrowUp", text: "▲多集结" });
+                    latestSignalText = `🟢 龙抬头-多头集结 (${formatBeijingTime(cur.time, false)})`;
+                    latestSignalColor = "#34d399";
+                }
+                if (finalBlueSignal) {
+                    markers.push({ time: cur.time, position: "belowBar", color: "#3b82f6", shape: "arrowUp", text: `多:${cur.ma50.toFixed(dec)}` });
+                    latestSignalText = `🔵 蓝箭破阵-多头起飞 @ ${cur.ma50.toFixed(dec)}`;
+                    latestSignalColor = "#60a5fa";
+                }
+                if (redSignal) {
+                    markers.push({ time: cur.time, position: "aboveBar", color: "#ef4444", shape: "arrowDown", text: "▼空集结" });
+                    latestSignalText = `🔴 鸣金兵败-空头集结 (${formatBeijingTime(cur.time, false)})`;
+                    latestSignalColor = "#f87171";
+                }
+                if (finalPurpleSignal) {
+                    markers.push({ time: cur.time, position: "aboveBar", color: "#a855f7", shape: "arrowDown", text: `空:${cur.ma50.toFixed(dec)}` });
+                    latestSignalText = `🟣 紫箭坠阵-空头开仓 @ ${cur.ma50.toFixed(dec)}`;
+                    latestSignalColor = "#c084fc";
+                }
+            }
+
+            if (useResonanceFilter && filteredOutCount > 0 && latestSignalText === "暂无新突破信号 · 均线跟踪中") {
+                latestSignalText = `🛡️ 共振过滤生效 · 已屏蔽 ${filteredOutCount} 个逆势/背离信号`;
             }
 
             const supplyBlocks = allSupplyBlocks.filter(b => !b.mitigated).slice(-3);
@@ -7619,6 +7667,34 @@ export default {
             showToast(showSmcBlocks
                 ? "已显示 SMC 供需订单块（粉色供给块 / 蓝色需求块）与 BOS/CHoCH 结构线"
                 : "已隐藏 SMC 色块，切换为极简裸 K 线与均线视图");
+        }
+
+        function toggleBreakoutSmcCvdFilter() {
+            filterBreakoutBySmcCvd = !filterBreakoutBySmcCvd;
+            localStorage.setItem("quant_filter_breakout_smc_cvd", filterBreakoutBySmcCvd ? "true" : "false");
+            syncChartControlButtons();
+
+            if (chartEngineMode === "STRAT" && Array.isArray(lwLastDataCache) && lwLastDataCache.length >= 5) {
+                const res = computeBreakout33AndSmc(lwLastDataCache);
+                lwLastSmcSnapshot = {
+                    lastSH: res.lastSH,
+                    lastSL: res.lastSL,
+                    supplyBlocks: res.supplyBlocks,
+                    demandBlocks: res.demandBlocks,
+                    structureLines: res.structureLines,
+                    marketBias: res.marketBias
+                };
+                lwCandleSeries.setMarkers(res.markers);
+                const sigBadge = document.getElementById("stratLatestSignalBadge");
+                if (sigBadge) {
+                    sigBadge.textContent = res.latestSignalText;
+                    sigBadge.style.color = res.latestSignalColor;
+                }
+                renderDrawOverlay();
+            }
+            showToast(filterBreakoutBySmcCvd
+                ? "已开启共振过滤：自动屏蔽逆 SMC 偏向或 CVD 资金流背离的 Breakout 3.3 信号"
+                : "已关闭共振过滤：恢复显示全部原始 Breakout 3.3 信号");
         }
 
         function toggleAdaptiveTrail(forceState) {
