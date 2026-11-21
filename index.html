@@ -3927,7 +3927,7 @@ export default {
 
         let lwPriceLineSpecs = [];
 
-        function pushLwPriceLineSpec(price, color, lineWidth, lineStyle, title) {
+        function pushLwPriceLineSpec(price, color, lineWidth, lineStyle, title, showOnLeft = false) {
             if (!lwCandleSeries || !isFinite(price) || price <= 0) return;
             lwPriceLines.push(lwCandleSeries.createPriceLine({
                 price,
@@ -3935,9 +3935,11 @@ export default {
                 lineWidth,
                 lineStyle,
                 axisLabelVisible: true,
-                title: ""
+                title: showOnLeft ? "" : title
             }));
-            lwPriceLineSpecs.push({ price, color, title });
+            if (showOnLeft) {
+                lwPriceLineSpecs.push({ price, color, title });
+            }
         }
 
         function renderAllLwPriceLines() {
@@ -6372,6 +6374,7 @@ export default {
                 }
             }
 
+            if (p1 <= 0 || sl0 <= 0) return;
             const rDist = isLong ? (p1 - sl0) : (sl0 - p1);
             const curR = rDist > 0 && liveP > 0 ? ((isLong ? (liveP - p1) : (p1 - liveP)) / rDist) : 0;
             const rStr = `${curR >= 0 ? "+" : ""}${curR.toFixed(2)}R`;
@@ -6386,7 +6389,7 @@ export default {
                 lines.push({ price: liqPrice, color: "#fb7185", style: LightweightCharts.LineStyle.LargeDashed || LightweightCharts.LineStyle.Dashed, width: 1, title: `💥 强平Liq` });
             }
             lines.forEach(item => {
-                pushLwPriceLineSpec(item.price, item.color, item.width, item.style, item.title);
+                pushLwPriceLineSpec(item.price, item.color, item.width, item.style, item.title, true);
             });
         }
 
@@ -8938,13 +8941,63 @@ export default {
 
             const breakevenPrice = currentSide === 'LONG' ? (avgPrice + deltaLoss) : (avgPrice - deltaLoss);
             document.getElementById("resBreakeven").textContent = `达到 ${breakevenPrice.toFixed(1)} USDT 时止损推至 ${avgPrice.toFixed(1)}`;
+            if (p1 > 0 || sl > 0) {
+                savePositionFormState("quant_btc_ladder_form", ["btcEquity", "btcRiskPct", "btcSlPrice", "btcTpPrice", "btcLadderLeverage", "tier1Price", "tier2Price", "tier3Price"], false);
+            }
         }
 
-        function clearBtcLadderInputs() {
+        function savePositionFormState(storageKey, ids, cleared) {
+            try {
+                const values = {};
+                if (!cleared) {
+                    ids.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) values[id] = el.value;
+                    });
+                }
+                localStorage.setItem(storageKey, JSON.stringify({ cleared: Boolean(cleared), values }));
+            } catch (e) {}
+        }
+
+        function restorePositionFormStates() {
+            const restoreOne = (storageKey, ids, clearFn, calcFn) => {
+                try {
+                    const raw = localStorage.getItem(storageKey);
+                    if (!raw) {
+                        calcFn();
+                        return;
+                    }
+                    const parsed = JSON.parse(raw);
+                    if (parsed && parsed.cleared) {
+                        clearFn(true);
+                        return;
+                    }
+                    if (parsed && parsed.values) {
+                        ids.forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el && parsed.values[id] !== undefined) el.value = parsed.values[id];
+                        });
+                    }
+                    calcFn();
+                } catch (e) {
+                    calcFn();
+                }
+            };
+            restoreOne("quant_btc_ladder_form", ["btcEquity", "btcRiskPct", "btcSlPrice", "btcTpPrice", "btcLadderLeverage", "tier1Price", "tier2Price", "tier3Price"], clearBtcLadderInputs, calculateBtcLadder);
+            restoreOne("quant_btc_pyr_form", ["btcPyrP1", "btcPyrSl0", "btcPyrEquity", "btcPyrRiskPct", "btcPyrP2", "btcPyrP3", "btcPyrLeverage", "btcPyrHoldDays", "btcPyrNewSl"], clearBtcPyramidInputs, calculateBtcPyramid);
+            restoreOne("quant_koru_pyr_form", ["koruPyrP1", "koruPyrSl0", "koruPyrCap", "koruPyrP2", "koruPyrP3", "koruPyrNewSl"], clearKoruPyramidInputs, calculateKoruPyramid);
+        }
+
+        function clearBtcLadderInputs(silent = false) {
+            if (isBtcAutoSync) {
+                isBtcAutoSync = false;
+                if (typeof updateAutoSyncBtnUI === "function") updateAutoSyncBtnUI();
+            }
             ["btcSlPrice", "btcTpPrice", "tier1Price", "tier2Price", "tier3Price"].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = "";
             });
+            savePositionFormState("quant_btc_ladder_form", ["btcEquity", "btcRiskPct", "btcSlPrice", "btcTpPrice", "btcLadderLeverage", "tier1Price", "tier2Price", "tier3Price"], true);
             const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
             setTxt("tier1Qty", "-- BTC");
             setTxt("tier2Qty", "-- BTC");
@@ -8959,7 +9012,7 @@ export default {
                 rrBadge.textContent = "已清空参数";
                 rrBadge.className = "rr-badge";
             }
-            showToast("🧹 已清空 BTC 倒金字塔挂单参数");
+            if (!silent) showToast("🧹 已清空 BTC 倒金字塔挂单参数（并暂停自动追踪）");
         }
 
         function copyBtcOrderPlan() {
@@ -9158,6 +9211,9 @@ export default {
                     verdictEl.innerHTML = `✅ <b>滚仓结构安全 (${leverage}x)</b>：合并 2 步后最坏仍净锁盈 <b style="color:#34d399;">+$${worstNet2.toFixed(1)}</b>，强平线 <b>${liqPrice2.toFixed(1)}</b> 远在止损外侧，具备 <b>${pullbackPct.toFixed(2)}%</b> 回调空间。`;
                 }
             }
+            if (p1 > 0 || sl0 > 0 || p2 > 0) {
+                savePositionFormState("quant_btc_pyr_form", ["btcPyrP1", "btcPyrSl0", "btcPyrEquity", "btcPyrRiskPct", "btcPyrP2", "btcPyrP3", "btcPyrLeverage", "btcPyrHoldDays", "btcPyrNewSl"], false);
+            }
             if (showPyramidPositionLines && typeof renderAllLwPriceLines === "function" && typeof getCurrentSymKey === "function" && getCurrentSymKey() === "BTC") {
                 renderAllLwPriceLines();
             }
@@ -9173,11 +9229,12 @@ export default {
             showToast("👁️ 已在 BTC 主图同步滚仓持仓线（底仓/均价/BEP/新止损/强平线）！");
         }
 
-        function clearBtcPyramidInputs() {
+        function clearBtcPyramidInputs(silent = false) {
             ["btcPyrP1", "btcPyrSl0", "btcPyrP2", "btcPyrP3", "btcPyrNewSl"].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = "";
             });
+            savePositionFormState("quant_btc_pyr_form", ["btcPyrP1", "btcPyrSl0", "btcPyrEquity", "btcPyrRiskPct", "btcPyrP2", "btcPyrP3", "btcPyrLeverage", "btcPyrHoldDays", "btcPyrNewSl"], true);
             const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
             setTxt("btcPyr1RLabel", "1R: --");
             setTxt("btcPyrQ2Hint", "-- BTC");
@@ -9205,7 +9262,7 @@ export default {
                 saveCustomHLinesToStorage();
             }
             if (typeof renderAllLwPriceLines === "function") renderAllLwPriceLines();
-            showToast("🧹 已清空 BTC 滚仓仓位信息与预览线");
+            if (!silent) showToast("🧹 已清空 BTC 滚仓仓位信息与预览线");
         }
 
         function copyBtcPyramidPlan() {
@@ -9247,12 +9304,15 @@ export default {
         }
 
         function calculateKoruPyramid() {
-            const p1 = parseFloat(document.getElementById("koruPyrP1")?.value) || 8.008;
-            const sl0 = parseFloat(document.getElementById("koruPyrSl0")?.value) || 7.600;
-            const cap1 = parseFloat(document.getElementById("koruPyrCap")?.value) || 5000;
-            const p2 = parseFloat(document.getElementById("koruPyrP2")?.value) || 8.620;
-            const p3 = parseFloat(document.getElementById("koruPyrP3")?.value) || 9.100;
-            const newSl = parseFloat(document.getElementById("koruPyrNewSl")?.value) || 8.320;
+            const p1 = parseFloat(document.getElementById("koruPyrP1")?.value) || 0;
+            const sl0 = parseFloat(document.getElementById("koruPyrSl0")?.value) || 0;
+            const cap1 = parseFloat(document.getElementById("koruPyrCap")?.value) || 0;
+            const p2 = parseFloat(document.getElementById("koruPyrP2")?.value) || 0;
+            const p3 = parseFloat(document.getElementById("koruPyrP3")?.value) || 0;
+            const newSl = parseFloat(document.getElementById("koruPyrNewSl")?.value) || 0;
+            if (p1 > 0 || sl0 > 0 || p2 > 0) {
+                savePositionFormState("quant_koru_pyr_form", ["koruPyrP1", "koruPyrSl0", "koruPyrCap", "koruPyrP2", "koruPyrP3", "koruPyrNewSl"], false);
+            }
             const kp = lastValidKoru || p1;
 
             const rDist = p1 - sl0;
@@ -9337,11 +9397,12 @@ export default {
             showToast("👁️ 已在 KORU 主图同步滚仓持仓线（底仓/均价/BEP/新止损）！");
         }
 
-        function clearKoruPyramidInputs() {
+        function clearKoruPyramidInputs(silent = false) {
             ["koruPyrP1", "koruPyrSl0", "koruPyrP2", "koruPyrP3", "koruPyrNewSl"].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = "";
             });
+            savePositionFormState("quant_koru_pyr_form", ["koruPyrP1", "koruPyrSl0", "koruPyrCap", "koruPyrP2", "koruPyrP3", "koruPyrNewSl"], true);
             const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
             setTxt("koruPyrBlendedVal", "-- / --");
             setTxt("koruPyrBepSub", "2步BEP -- | 3步BEP --");
@@ -9359,7 +9420,7 @@ export default {
                 saveCustomHLinesToStorage();
             }
             if (typeof renderAllLwPriceLines === "function") renderAllLwPriceLines();
-            showToast("🧹 已清空 KORU 手动仓位信息与预览线");
+            if (!silent) showToast("🧹 已清空 KORU 手动仓位信息与预览线");
         }
 
         function copyKoruPyramidPlan() {
@@ -12421,8 +12482,7 @@ export default {
             fetchAndRenderStrategyChart(false);
 
             setBtcTradeSide('SHORT', false);
-            calculateBtcLadder();
-            calculateKoruPyramid();
+            restorePositionFormStates();
             renderPyramidLogs("BTC");
             renderPyramidLogs("KORU");
 
