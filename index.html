@@ -1422,6 +1422,7 @@
                         <button type="button" class="btn-sm" id="btnToggleBreakoutFilter" onclick="toggleBreakoutSmcCvdFilter()" title="共振过滤开关：开启后自动过滤逆 SMC 市场偏向以及出现 CVD 资金流背离的 Breakout 3.3 信号">🛡️ 共振过滤</button>
                         <button type="button" class="btn-sm" id="btnSubchartCvd" onclick="toggleCvdSubchart()">📊 CVD资金流</button>
                         <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleNetposSubchart()">⚖️ 净多空持仓</button>
+                        <button type="button" class="btn-sm" id="btnSubchartMacd" onclick="toggleMacdSubchart()">📉 MACD</button>
                     </div>
                     <button type="button" class="btn-sm" onclick="closeAllOmDrawers()" style="color:var(--text-muted);">✕</button>
                 </div>
@@ -1454,6 +1455,12 @@
                             <button type="button" class="btn-sm" onclick="adjustSubchartHeight('netpos', -25)" style="padding:1px 7px;">－</button>
                             <b id="lblNetposChartHeight" style="font-family:monospace; color:var(--neon-emerald);">140px</b>
                             <button type="button" class="btn-sm" onclick="adjustSubchartHeight('netpos', 25)" style="padding:1px 7px;">＋</button>
+                        </span>
+                        <span id="ctrlGroupMacdHeight" style="display:none; align-items:center; gap:4px;">
+                            <span style="color:var(--text-muted);">MACD:</span>
+                            <button type="button" class="btn-sm" onclick="adjustSubchartHeight('macd', -25)" style="padding:1px 7px;">－</button>
+                            <b id="lblMacdChartHeight" style="font-family:monospace; color:#38bdf8;">140px</b>
+                            <button type="button" class="btn-sm" onclick="adjustSubchartHeight('macd', 25)" style="padding:1px 7px;">＋</button>
                         </span>
                     </div>
                     <button type="button" class="btn-sm" onclick="resetChartHeightsToDefault()" style="color:var(--neon-amber);">恢复默认</button>
@@ -1632,6 +1639,21 @@
                             <span id="lwNetposControls" style="display:inline-flex; align-items:center; gap:4px;"></span>
                         </div>
                         <div id="lwNetposChartContainer" style="width:100%; height:100%;"></div>
+                    </div>
+
+                    <div id="resizerBeforeMacd" class="lw-pane-resizer" style="display:none;" title="上下拖动调节 MACD 副图高度">
+                        <span class="resizer-pill"></span>
+                        <span class="resizer-label">↕ 拖动调副图高度</span>
+                        <span class="resizer-pill"></span>
+                    </div>
+
+                    <div id="lwMacdPane" class="lw-subchart-pane">
+                        <div class="lw-subchart-hud" id="lwMacdHud">
+                            <span id="lwMacdTitle" style="font-weight:800; color:#38bdf8;">📉 MACD (12, 26, 9)</span>
+                            <span id="lwMacdValues">--</span>
+                            <span id="lwMacdControls" style="display:inline-flex; align-items:center; gap:4px;"></span>
+                        </div>
+                        <div id="lwMacdChartContainer" style="width:100%; height:100%;"></div>
                     </div>
                 </div>
 
@@ -3380,6 +3402,7 @@ export default {
         let showNetposSubchart = localStorage.getItem("quant_show_netpos_subchart") !== null
             ? localStorage.getItem("quant_show_netpos_subchart") === "true"
             : legacySubMode === "netpos";
+        let showMacdSubchart = localStorage.getItem("quant_show_macd_subchart") === "true";
         let cvdDailyReset = localStorage.getItem("quant_cvd_daily_reset") === "true";
         let netposDisplayMode = localStorage.getItem("quant_netpos_mode") || "lines"; // 'lines' | 'delta' | 'rsi'
 
@@ -3404,6 +3427,12 @@ export default {
         let lwNetposSeries2 = null;
         let lwNetposSeries3 = null;
         let lwNetposCache = [];
+
+        let lwMacdChart = null;
+        let lwMacdHistSeries = null;
+        let lwMacdDifSeries = null;
+        let lwMacdDeaSeries = null;
+        let lwMacdCache = [];
 
         let isSyncingTimeScale = false;
 
@@ -4393,17 +4422,22 @@ export default {
             const btnNetPos = document.getElementById("btnSubchartNetPos");
             const cvdPane = document.getElementById("lwCvdPane");
             const netposPane = document.getElementById("lwNetposPane");
+            const macdPane = document.getElementById("lwMacdPane");
+            const btnMacd = document.getElementById("btnSubchartMacd");
             const cvdHud = document.getElementById("lwCvdHud");
             const netposHud = document.getElementById("lwNetposHud");
+            const macdHud = document.getElementById("lwMacdHud");
 
             const isStrat = chartEngineMode === "STRAT";
             const activeCvd = showCvdSubchart && isStrat;
             const activeNetpos = showNetposSubchart && isStrat;
-            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0);
+            const activeMacd = showMacdSubchart && isStrat;
+            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0) + (activeMacd ? 1 : 0);
 
             if (btnCvd) btnCvd.classList.toggle("active", showCvdSubchart);
             if (btnNetPos) btnNetPos.classList.toggle("active", showNetposSubchart);
-            [ [cvdPane, activeCvd, cvdHud], [netposPane, activeNetpos, netposHud] ].forEach(([pane, vis, hudEl]) => {
+            if (btnMacd) btnMacd.classList.toggle("active", showMacdSubchart);
+            [ [cvdPane, activeCvd, cvdHud], [netposPane, activeNetpos, netposHud], [macdPane, activeMacd, macdHud] ].forEach(([pane, vis, hudEl]) => {
                 if (pane) {
                     pane.style.display = vis ? "block" : "none";
                     pane.style.background = p.bg;
@@ -4457,6 +4491,9 @@ export default {
                 }
                 if (lwNetposChart && sourceChart !== lwNetposChart) {
                     lwNetposChart.timeScale().setVisibleLogicalRange(range);
+                }
+                if (lwMacdChart && sourceChart !== lwMacdChart) {
+                    lwMacdChart.timeScale().setVisibleLogicalRange(range);
                 }
             } catch (e) {}
             isSyncingTimeScale = false;
@@ -4811,6 +4848,35 @@ export default {
                             bottom: obBar.low,
                             mitigated: false
                         });
+                    }
+                    // 同步捕捉极值底部起涨需求块（防止急跌 V 反跨度较大时漏掉最低点起涨区）
+                    let minLowVal = Infinity;
+                    let minLowIdx = -1;
+                    for (let k = searchStart; k < idx; k++) {
+                        if (enriched[k].low < minLowVal) {
+                            minLowVal = enriched[k].low;
+                            minLowIdx = k;
+                        }
+                    }
+                    if (minLowIdx >= 0 && (!obBar || minLowVal < obBar.low * 0.996)) {
+                        let originBar = enriched[minLowIdx];
+                        for (let k = minLowIdx; k >= Math.max(0, minLowIdx - 2); k--) {
+                            if (enriched[k].close < enriched[k].open) {
+                                originBar = enriched[k];
+                                break;
+                            }
+                        }
+                        const dupOrigin = allDemandBlocks.some(b => Math.abs(b.bottom - originBar.low) / Math.max(1e-9, originBar.low) < 0.0015);
+                        if (!dupOrigin) {
+                            allDemandBlocks.push({
+                                side: "demand",
+                                startTime: originBar.time,
+                                createdIdx: idx,
+                                top: originBar.high,
+                                bottom: originBar.low,
+                                mitigated: false
+                            });
+                        }
                     }
                 }
 
@@ -5441,7 +5507,7 @@ export default {
                     }
                 }
                 renderDrawOverlay();
-                if ((showCvdSubchart || showNetposSubchart) && !canIncrementalUpdate) {
+                if ((showCvdSubchart || showNetposSubchart || showMacdSubchart) && !canIncrementalUpdate) {
                     await renderActiveSubcharts(enriched, symObj, reqInterval, targetViewportRange);
                 }
 
@@ -7025,6 +7091,129 @@ export default {
                 lwNetposSeries2 = null;
                 lwNetposSeries3 = null;
             }
+            if (lwMacdChart) {
+                try { lwMacdChart.remove(); } catch (e) {}
+                lwMacdChart = null;
+                lwMacdHistSeries = null;
+                lwMacdDifSeries = null;
+                lwMacdDeaSeries = null;
+            }
+        }
+
+        function computeMacdSeries(candles, fast = 12, slow = 26, signal = 9) {
+            if (!Array.isArray(candles) || !candles.length) return [];
+            const kFast = 2 / (fast + 1);
+            const kSlow = 2 / (slow + 1);
+            const kSig = 2 / (signal + 1);
+            let emaFast = candles[0].close;
+            let emaSlow = candles[0].close;
+            let dea = 0;
+            const out = [];
+            for (let i = 0; i < candles.length; i++) {
+                const close = candles[i].close;
+                if (i > 0) {
+                    emaFast = close * kFast + emaFast * (1 - kFast);
+                    emaSlow = close * kSlow + emaSlow * (1 - kSlow);
+                }
+                const dif = emaFast - emaSlow;
+                dea = i === 0 ? dif : (dif * kSig + dea * (1 - kSig));
+                const hist = dif - dea;
+                const prevHist = i > 0 ? out[i - 1].hist : hist;
+                let histColor;
+                if (hist >= 0) {
+                    histColor = hist >= prevHist ? "#26a69a" : "rgba(38, 166, 154, 0.42)";
+                } else {
+                    histColor = hist <= prevHist ? "#ef5350" : "rgba(239, 83, 80, 0.42)";
+                }
+                out.push({ time: candles[i].time, dif, dea, hist, histColor });
+            }
+            return out;
+        }
+
+        function updateMacdHudValues(row) {
+            const valEl = document.getElementById("lwMacdValues");
+            if (!valEl || !row) return;
+            const fmt = (v) => (Math.abs(v) >= 100 ? v.toFixed(1) : Math.abs(v) >= 1 ? v.toFixed(2) : v.toFixed(4));
+            const histClr = row.hist >= 0 ? "#26a69a" : "#ef5350";
+            valEl.innerHTML = `<span style="color:#2962FF;">DIF ${fmt(row.dif)}</span> · <span style="color:#FF6D00;">DEA ${fmt(row.dea)}</span> · <span style="color:${histClr};">柱 ${fmt(row.hist)}</span>`;
+        }
+
+        function initMacdSubChartInstance() {
+            const container = document.getElementById("lwMacdChartContainer");
+            if (!container || typeof LightweightCharts === "undefined") return;
+            container.innerHTML = "";
+
+            const p = getChartPalette();
+            lwMacdChart = LightweightCharts.createChart(container, {
+                width: container.clientWidth || 600,
+                height: container.clientHeight || 140,
+                layout: {
+                    background: { type: "solid", color: p.bg },
+                    textColor: p.text,
+                    fontSize: 10
+                },
+                grid: getGridOptions(),
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                    vertLine: { color: p.crosshairColor },
+                    horzLine: { color: p.crosshairColor }
+                },
+                rightPriceScale: {
+                    borderColor: p.border,
+                    minimumWidth: 68,
+                    scaleMargins: { top: 0.22, bottom: 0.1 }
+                },
+                timeScale: {
+                    borderColor: p.border,
+                    rightOffset: 28,
+                    minBarSpacing: 2,
+                    visible: false
+                }
+            });
+
+            lwMacdHistSeries = lwMacdChart.addHistogramSeries({
+                priceLineVisible: false,
+                lastValueVisible: false
+            });
+            lwMacdDifSeries = lwMacdChart.addLineSeries({
+                color: "#2962FF",
+                lineWidth: 1.6,
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: "DIF"
+            });
+            lwMacdDeaSeries = lwMacdChart.addLineSeries({
+                color: "#FF6D00",
+                lineWidth: 1.5,
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: "DEA"
+            });
+
+            lwMacdChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+                syncAllTimeScalesFrom(lwMacdChart, range);
+            });
+
+            lwMacdChart.subscribeCrosshairMove((param) => {
+                if (!param || !param.time) return;
+                if (lwMacdCache.length) {
+                    const macdFound = lwMacdCache.find(x => x.time === param.time);
+                    if (macdFound) updateMacdHudValues(macdFound);
+                }
+                if (lwLastDataCache.length) {
+                    const mainFound = lwLastDataCache.find(x => x.time === param.time);
+                    if (mainFound) updateLwHudText(mainFound);
+                }
+            });
+
+            if (typeof ResizeObserver !== "undefined") {
+                const ro = new ResizeObserver(() => {
+                    if (lwMacdChart && container.clientWidth > 0 && container.clientHeight > 0) {
+                        lwMacdChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+                    }
+                });
+                ro.observe(container);
+            }
         }
 
         function initCvdSubChartInstance() {
@@ -7274,6 +7463,7 @@ export default {
                 }
                 if (lwCvdChart) lwCvdChart.timeScale().setVisibleLogicalRange(targetRange);
                 if (lwNetposChart) lwNetposChart.timeScale().setVisibleLogicalRange(targetRange);
+                if (lwMacdChart) lwMacdChart.timeScale().setVisibleLogicalRange(targetRange);
             } catch (e) {}
             isSyncingTimeScale = false;
         }
@@ -7344,6 +7534,22 @@ export default {
                             const lastValid = npRows[npRows.length - 1];
                             if (lastValid) updateNetposHudValues(lastValid);
                         }
+                    }
+                }
+                // 3. 渲染 MACD (12, 26, 9) 副图
+                if (showMacdSubchart) {
+                    if (!lwMacdChart) initMacdSubChartInstance();
+                    if (lwMacdChart) {
+                        const macdRows = computeMacdSeries(enrichedCandles, 12, 26, 9);
+                        lwMacdCache = macdRows;
+                        if (lwMacdHistSeries) lwMacdHistSeries.setData(macdRows.map(r => ({ time: r.time, value: r.hist, color: r.histColor })));
+                        if (lwMacdDifSeries) lwMacdDifSeries.setData(macdRows.map(r => ({ time: r.time, value: r.dif })));
+                        if (lwMacdDeaSeries) lwMacdDeaSeries.setData(macdRows.map(r => ({ time: r.time, value: r.dea })));
+                        const ctrlEl = document.getElementById("lwMacdControls");
+                        if (ctrlEl && !ctrlEl.innerHTML) {
+                            ctrlEl.innerHTML = `<button type="button" class="btn-sm" onclick="toggleMacdSubchart()" style="padding:1px 7px; font-size:10px;">收起 ✕</button>`;
+                        }
+                        if (macdRows.length > 0) updateMacdHudValues(macdRows[macdRows.length - 1]);
                     }
                 }
             } finally {
@@ -7421,6 +7627,40 @@ export default {
             } else {
                 if (lockedRange) requestAnimationFrame(() => lockMainAndSubchartRanges(lockedRange));
                 showToast("已收起【合约净多空持仓】副图");
+            }
+        }
+
+        async function toggleMacdSubchart() {
+            if (chartEngineMode !== "STRAT") {
+                switchChartEngine("STRAT", document.getElementById("btnEngineStrat"));
+            }
+            const lockedRange = lwChart ? lwChart.timeScale().getVisibleLogicalRange() : null;
+
+            showMacdSubchart = !showMacdSubchart;
+            localStorage.setItem("quant_show_macd_subchart", showMacdSubchart ? "true" : "false");
+
+            if (!showMacdSubchart && lwMacdChart) {
+                try { lwMacdChart.remove(); } catch (e) {}
+                lwMacdChart = null;
+                lwMacdHistSeries = null;
+                lwMacdDifSeries = null;
+                lwMacdDeaSeries = null;
+            }
+
+            syncChartControlButtons();
+            resizeAndRenderDrawOverlay();
+            if (lockedRange) lockMainAndSubchartRanges(lockedRange);
+
+            if (showMacdSubchart) {
+                if (lwLastDataCache.length > 0) {
+                    await renderActiveSubcharts(lwLastDataCache, getActiveSymbolObj(), tvInterval, lockedRange);
+                } else {
+                    await fetchAndRenderStrategyChart(true);
+                }
+                showToast("已开启【📉 MACD (12, 26, 9)】副图（蓝橙双线 + 四色动能柱）");
+            } else {
+                if (lockedRange) requestAnimationFrame(() => lockMainAndSubchartRanges(lockedRange));
+                showToast("已收起【MACD】副图");
             }
         }
 
@@ -7631,6 +7871,7 @@ export default {
                 if (lwChart) lwChart.applyOptions({ grid: getGridOptions() });
                 if (lwCvdChart) lwCvdChart.applyOptions({ grid: getGridOptions() });
                 if (lwNetposChart) lwNetposChart.applyOptions({ grid: getGridOptions() });
+                if (lwMacdChart) lwMacdChart.applyOptions({ grid: getGridOptions() });
             } else {
                 renderTradingViewChart();
             }
@@ -8039,6 +8280,7 @@ export default {
         let customMainChartHeight = Math.max(240, Math.min(860, parseInt(localStorage.getItem("quant_main_chart_h") || "440", 10) || 440));
         let customCvdChartHeight = Math.max(70, Math.min(340, parseInt(localStorage.getItem("quant_cvd_chart_h") || "140", 10) || 140));
         let customNetposChartHeight = Math.max(70, Math.min(340, parseInt(localStorage.getItem("quant_netpos_chart_h") || "140", 10) || 140));
+        let customMacdChartHeight = Math.max(70, Math.min(340, parseInt(localStorage.getItem("quant_macd_chart_h") || "140", 10) || 140));
         let isHeightControlBarOpen = false;
         let isCompactFsHeader = localStorage.getItem("quant_compact_fs_header") !== "false";
 
@@ -8068,6 +8310,9 @@ export default {
             if (which === "cvd") {
                 customCvdChartHeight = Math.max(70, Math.min(340, customCvdChartHeight + delta));
                 localStorage.setItem("quant_cvd_chart_h", String(customCvdChartHeight));
+            } else if (which === "macd") {
+                customMacdChartHeight = Math.max(70, Math.min(340, customMacdChartHeight + delta));
+                localStorage.setItem("quant_macd_chart_h", String(customMacdChartHeight));
             } else {
                 customNetposChartHeight = Math.max(70, Math.min(340, customNetposChartHeight + delta));
                 localStorage.setItem("quant_netpos_chart_h", String(customNetposChartHeight));
@@ -8079,9 +8324,11 @@ export default {
             customMainChartHeight = 440;
             customCvdChartHeight = 140;
             customNetposChartHeight = 140;
+            customMacdChartHeight = 140;
             localStorage.setItem("quant_main_chart_h", "440");
             localStorage.setItem("quant_cvd_chart_h", "140");
             localStorage.setItem("quant_netpos_chart_h", "140");
+            localStorage.setItem("quant_macd_chart_h", "140");
             applyCustomChartHeights();
             showToast("已恢复主图与副图默认高度");
         }
@@ -8091,8 +8338,10 @@ export default {
             const card = document.getElementById("tvChartCard");
             const cvdPane = document.getElementById("lwCvdPane");
             const netposPane = document.getElementById("lwNetposPane");
+            const macdPane = document.getElementById("lwMacdPane");
             const resMainSub = document.getElementById("resizerMainToFirstSub");
             const resCvdNet = document.getElementById("resizerCvdToNetpos");
+            const resBeforeMacd = document.getElementById("resizerBeforeMacd");
             const resBottom = document.getElementById("resizerChartBottom");
             const hBar = document.getElementById("chartHeightControlBar");
             const btnHBar = document.getElementById("btnToggleHeightBar");
@@ -8100,13 +8349,16 @@ export default {
             const isStrat = chartEngineMode === "STRAT";
             const activeCvd = showCvdSubchart && isStrat;
             const activeNetpos = showNetposSubchart && isStrat;
-            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0);
+            const activeMacd = showMacdSubchart && isStrat;
+            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0) + (activeMacd ? 1 : 0);
 
             if (cvdPane) cvdPane.style.height = `${customCvdChartHeight}px`;
             if (netposPane) netposPane.style.height = `${customNetposChartHeight}px`;
+            if (macdPane) macdPane.style.height = `${customMacdChartHeight}px`;
 
             if (resMainSub) resMainSub.style.display = activeCount >= 1 ? "flex" : "none";
-            if (resCvdNet) resCvdNet.style.display = activeCount === 2 ? "flex" : "none";
+            if (resCvdNet) resCvdNet.style.display = (activeCvd && activeNetpos) ? "flex" : "none";
+            if (resBeforeMacd) resBeforeMacd.style.display = (activeMacd && (activeCvd || activeNetpos)) ? "flex" : "none";
             if (resBottom) resBottom.style.display = (!isTvCollapsed && !isTvFullscreen) ? "flex" : "none";
 
             if (shell && !isTvCollapsed) {
@@ -8116,6 +8368,7 @@ export default {
                     const totalH = customMainChartHeight
                         + (activeCvd ? customCvdChartHeight : 0)
                         + (activeNetpos ? customNetposChartHeight : 0)
+                        + (activeMacd ? customMacdChartHeight : 0)
                         + splitterExtra;
                     shell.style.height = `${totalH}px`;
                 } else {
@@ -8133,17 +8386,21 @@ export default {
                 const gMain = document.getElementById("ctrlGroupMainHeight");
                 const gCvd = document.getElementById("ctrlGroupCvdHeight");
                 const gNet = document.getElementById("ctrlGroupNetposHeight");
+                const gMacd = document.getElementById("ctrlGroupMacdHeight");
                 const lblMain = document.getElementById("lblMainChartHeight");
                 const lblCvd = document.getElementById("lblCvdChartHeight");
                 const lblNet = document.getElementById("lblNetposChartHeight");
+                const lblMacd = document.getElementById("lblMacdChartHeight");
                 const btnCompact = document.getElementById("btnToggleCompactFsHeader");
 
                 if (gMain) gMain.style.display = isTvFullscreen ? "none" : "inline-flex";
                 if (gCvd) gCvd.style.display = activeCvd ? "inline-flex" : "none";
                 if (gNet) gNet.style.display = activeNetpos ? "inline-flex" : "none";
+                if (gMacd) gMacd.style.display = activeMacd ? "inline-flex" : "none";
                 if (lblMain) lblMain.textContent = `${customMainChartHeight}px`;
                 if (lblCvd) lblCvd.textContent = `${customCvdChartHeight}px`;
                 if (lblNet) lblNet.textContent = `${customNetposChartHeight}px`;
+                if (lblMacd) lblMacd.textContent = `${customMacdChartHeight}px`;
                 if (btnCompact) btnCompact.classList.toggle("active", isCompactFsHeader);
             }
 
@@ -11989,6 +12246,16 @@ export default {
                         chart: lwNetposChart,
                         pane: npPane,
                         title: (document.getElementById("lwNetposTitle")?.textContent || "净多空持仓") + "  " + (document.getElementById("lwNetposValues")?.textContent || "")
+                    });
+                }
+            }
+            if (showMacdSubchart && lwMacdChart) {
+                const macdPane = document.getElementById("lwMacdPane");
+                if (macdPane && macdPane.clientHeight > 0) {
+                    activeSubPanes.push({
+                        chart: lwMacdChart,
+                        pane: macdPane,
+                        title: (document.getElementById("lwMacdTitle")?.textContent || "MACD (12, 26, 9)") + "  " + (document.getElementById("lwMacdValues")?.textContent || "")
                     });
                 }
             }
