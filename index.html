@@ -36,10 +36,39 @@
             <button type="button" class="badge" id="btnCloudSyncStatus" onclick="toggleCloudSyncDrawer()" style="cursor:pointer; border-color:rgba(138,180,248,0.55); color:#8ab4f8;" title="Mac 与手机端实时双向同步：画线、颜色、沙盒风控、自选列表与界面设置全自动同步">☁️ 多端同步</button>
             <button type="button" class="badge" id="btnRelayConfig" onclick="toggleRelayDrawer()" style="cursor:pointer; border-color:var(--neon-cyan); color:var(--neon-cyan);" title="配置 Cloudflare 自定义域名中继节点，实现国内免翻墙秒开全量行情与K线">🌐 中继路由</button>
             <button type="button" class="badge" id="btnPageImmersiveFs" onclick="togglePageNativeFullscreen()" style="cursor:pointer; border-color:var(--neon-emerald); color:#34d399;" title="调用系统真全屏隐藏手机浏览器标签栏与地址栏">⛶ 整页全屏</button>
+            <button type="button" class="badge" id="btnMacroClockBadge" onclick="toggleMacroCalendarDrawer()" style="cursor:pointer; border-color:var(--border-color); color:var(--text-main);" title="关键时间节点倒计时与宏观核弹日历（资金费率、美股开盘、期权交割、FOMC/CPI/非农）">⏱️ 关键节点</button>
             <button type="button" class="badge" id="btnGlobalTheme" onclick="toggleTvTheme()" style="cursor:pointer; border-color:var(--neon-amber); color:#fbbf24;" title="切换全站浅色/深色玻璃主题 (快捷键: Shift+T 或 Option/Alt+T)">☀️ 浅色</button>
             <span class="badge active" id="terminalStatus">● 智能路由初始化</span>
         </div>
     </header>
+
+    <div id="macroCalendarDrawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
+        <div style="max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <span style="color:var(--text-main); font-weight:800; font-size:13px;">⏱️ 关键盘口时间节点 &amp; 宏观核弹日历 (北京时间 UTC+8)</span>
+                <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                    <button type="button" class="btn-sm" onclick="toggleCbMarketEventLock('CRYPTO')" style="border-color:rgba(245,158,11,0.45); color:#fcd34d;">🪙 切加密24H锁</button>
+                    <button type="button" class="btn-sm" onclick="toggleCbMarketEventLock('US')" style="border-color:rgba(96,165,250,0.45); color:#93c5fd;">🇺🇸 切美股24H锁</button>
+                    <button type="button" class="btn-sm" onclick="toggleMacroCalendarDrawer(false)" style="color:var(--text-muted);">收起 ✕</button>
+                </div>
+            </div>
+            <div id="macroRecurringNodesGrid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:6px;"></div>
+            <div style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:8px; padding:8px 10px;">
+                <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px;">📅 近期高危宏观事件（临近 24H 顶部自动红灯提醒）</div>
+                <div id="macroEventsList"></div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-color);">
+                    <input type="text" id="customMacroTitle" placeholder="添加自定义事件 (如: 韩国央行BOK议息 / BOJ决议)" class="form-input" style="flex:1; min-width:170px; padding:4px 8px; font-size:11px;">
+                    <input type="datetime-local" id="customMacroTime" class="form-input" style="width:auto; padding:4px 7px; font-size:11px;">
+                    <select id="customMacroMarket" class="form-input" style="width:auto; padding:4px 7px; font-size:11px;">
+                        <option value="BOTH">🌐 双市场</option>
+                        <option value="CRYPTO">🪙 加密</option>
+                        <option value="US">🇺🇸 美股/KORU</option>
+                    </select>
+                    <button type="button" class="btn-sm" onclick="addCustomMacroEvent()" style="border-color:var(--neon-emerald); color:var(--neon-emerald); font-weight:700;">+ 添加事件</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="circuitBreakerDrawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
         <div style="max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:8px;">
@@ -1655,6 +1684,7 @@
     <script src="./js/market-feed.js"></script>
     <script src="./js/indicators.js"></script>
     <script src="./js/pyramid-math.js"></script>
+    <script src="./js/macro-calendar.js"></script>
     <script>
         const LEGACY_WORKERS_DEV_URL = "https://quant-relay.zhefeng0513.workers.dev";
         const LW_CDN_SOURCES = [
@@ -4008,6 +4038,11 @@ export default {
 
             if (showPyramidPositionLines && (symKey === "BTC" || symKey === "KORU")) {
                 renderPyramidPositionLinesOnChart(symKey, p);
+            }
+            if (symKey === "BTC" && typeof getActiveWhaleMagnetLines === "function") {
+                getActiveWhaleMagnetLines().forEach(ml => {
+                    pushLwPriceLineSpec(ml.price, ml.color, 1, LightweightCharts.LineStyle.Dashed, ml.title, true);
+                });
             }
 
             const userLines = (customHorizontalLines[symKey] || []).filter(isDrawingVisibleOnCurrentTf);
@@ -12522,7 +12557,9 @@ export default {
             setInterval(() => {
                 updateGlobalSessionClocks();
                 updatePriceCountdownBadge();
+                if (typeof updateMacroClockUI === "function") updateMacroClockUI();
             }, 1000);
+            if (typeof updateMacroClockUI === "function") updateMacroClockUI();
 
             // 异步无阻塞加载图表引擎并拉取首屏K线
             fetchAndRenderStrategyChart(false);
