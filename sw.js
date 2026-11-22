@@ -1,4 +1,4 @@
-const CACHE_NAME = "quant-terminal-v14";
+const CACHE_NAME = "quant-terminal-v15";
 const ASSETS = [
     "./",
     "./index.html",
@@ -7,7 +7,8 @@ const ASSETS = [
     "./js/market-feed.js",
     "./js/indicators.js",
     "./js/pyramid-math.js",
-    "./js/macro-calendar.js"
+    "./js/macro-calendar.js",
+    "./js/whale-radar.js"
 ];
 
 self.addEventListener("install", (event) => {
