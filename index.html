@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#131314">
     <link rel="manifest" href="./manifest.json">
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
-    <link rel="stylesheet" href="./styles/main.css?v=20261123">
+    <link rel="stylesheet" href="./styles/main.css?v=20261123b">
 </head>
 <body>
 
@@ -191,13 +191,16 @@
                     </div>
                 </div>
 
-                <!-- 右上角三颗苹果玻璃圆形按钮：书签(自选) | 四宫格(引擎/副图指标) | 全屏沉浸 -->
+                <!-- 右上角苹果玻璃圆形按钮：书签(自选) | 四宫格(引擎/副图指标) | 快捷作战侧栏 | 全屏沉浸 -->
                 <div class="om-circle-actions">
                     <button type="button" class="om-circle-btn" id="btnOmCircleWatchlist" onclick="toggleOmDrawer('watchlist')" title="自选品种列表与搜索添加">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
                     </button>
                     <button type="button" class="om-circle-btn" id="btnOmCircleIndicators" onclick="toggleOmDrawer('indicators')" title="切换看盘引擎、CVD资金流/净多空副图、主题与坐标">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="8.5" cy="8.5" r="2.3"/><circle cx="15.5" cy="8.5" r="2.3"/><circle cx="8.5" cy="15.5" r="2.3"/><circle cx="15.5" cy="15.5" r="2.3"/></svg>
+                    </button>
+                    <button type="button" class="om-circle-btn" id="btnChartQuickDock" onclick="toggleChartQuickDock()" title="展开/收起右侧快捷作战侧栏（边看图边算 5:3:2 滚仓与看磁铁）">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
                     </button>
                     <button type="button" class="om-circle-btn" id="btnTvFullscreen" onclick="toggleTvFullscreen()" title="全屏 / 退出全屏沉浸看图">
                         <svg id="iconTvFsEnter" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
@@ -369,7 +372,8 @@
                 </div>
             </div>
 
-            <!-- 3. 核心 K 线主画布（大视野 + 左下圆形画笔悬浮坞） -->
+            <!-- 3. 核心 K 线主画布 + 右侧可折叠快捷作战侧栏 -->
+            <div class="chart-split-stage" id="chartSplitStage">
             <div class="tv-chart-shell" id="tvChartShell">
                 <!-- 全屏沉浸模式右上角悬浮恢复与周期胶囊 -->
                 <div class="chart-top-right-float" id="chartTopRightFloat">
@@ -508,6 +512,78 @@
                 </div>
 
                 <div id="tvWidgetContainer" style="width:100%; height:100%; display:none;"></div>
+            </div>
+
+            <!-- 3B. 桌面右侧快捷作战侧栏（边看 K 线边调 5:3:2 滚仓参数与看清算磁铁） -->
+            <aside class="chart-quick-dock" id="chartQuickDock">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:6px; border-bottom:1px solid var(--border-color);">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <b style="font-size:12.5px;">⚡ 快捷作战侧栏</b>
+                        <span class="badge" id="qdTargetBadge" style="font-size:10px; color:var(--neon-cyan); border-color:var(--neon-cyan);">BTC 5:3:2</span>
+                    </div>
+                    <button type="button" class="btn-sm" onclick="toggleChartQuickDock(false)" style="padding:1px 6px; color:var(--text-muted);">✕</button>
+                </div>
+
+                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                    <button type="button" class="btn-sm" onclick="qdSnapCurrent()" style="flex:1; border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">🧲 吸附现价</button>
+                    <button type="button" class="btn-sm" onclick="qdClearCurrent()" style="border-color:rgba(248,113,113,0.45); color:#f87171;">🧹 清空</button>
+                    <button type="button" class="btn-sm" onclick="qdOpenFullWarRoom()" style="color:var(--text-muted);">完整版 ↗</button>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+                    <div class="form-group">
+                        <label class="form-label" style="font-size:10.5px;">① 底仓 P1</label>
+                        <input type="number" id="qdP1" step="any" class="form-input" style="padding:5px 7px; font-size:12px;" oninput="onQuickDockInputChange()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-size:10.5px;">初始止损 SL0</label>
+                        <input type="number" id="qdSl0" step="any" class="form-input" style="padding:5px 7px; font-size:12px; color:#f87171;" oninput="onQuickDockInputChange()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-size:10.5px;">② 首滚 P2 (30%)</label>
+                        <input type="number" id="qdP2" step="any" class="form-input" style="padding:5px 7px; font-size:12px; color:var(--neon-amber);" oninput="onQuickDockInputChange()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-size:10.5px;">③ 尾仓 P3 (20%)</label>
+                        <input type="number" id="qdP3" step="any" class="form-input" style="padding:5px 7px; font-size:12px; color:var(--neon-emerald);" oninput="onQuickDockInputChange()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-size:10.5px;">合并新止损 SL</label>
+                        <input type="number" id="qdNewSl" step="any" class="form-input" style="padding:5px 7px; font-size:12px; color:#34d399;" oninput="onQuickDockInputChange()">
+                    </div>
+                    <div class="form-group" id="qdLevGroup">
+                        <label class="form-label" style="font-size:10.5px;">逐仓杠杆 (x)</label>
+                        <input type="number" id="qdLev" step="1" min="1" max="125" class="form-input" style="padding:5px 7px; font-size:12px;" oninput="onQuickDockInputChange()">
+                    </div>
+                </div>
+
+                <div style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:8px; padding:8px 9px; display:flex; flex-direction:column; gap:4px; font-family:monospace; font-size:11px;">
+                    <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">2步合并均价</span><b id="qdAvgOut" style="color:var(--neon-cyan);">--</b></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">真实保本 BEP</span><b id="qdBepOut" style="color:var(--neon-amber);">--</b></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">安全回调缓冲</span><b id="qdCushionOut">--</b></div>
+                    <div style="display:flex; justify-content:space-between;" id="qdLiqRow"><span style="color:var(--text-muted);">2步强平线</span><b id="qdLiqOut">--</b></div>
+                    <div style="display:flex; justify-content:space-between; border-top:1px dashed var(--border-color); padding-top:4px; margin-top:2px;"><span style="color:var(--text-muted);">最坏净锁盈</span><b id="qdWorstOut">--</b></div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:5px;">
+                    <button type="button" class="btn-sm" onclick="qdRecordStep('STEP1')" style="padding:5px 2px; font-size:10.5px; color:var(--neon-cyan); border-color:var(--neon-cyan);">📌 记①</button>
+                    <button type="button" class="btn-sm" onclick="qdRecordStep('STEP2')" style="padding:5px 2px; font-size:10.5px; color:var(--neon-amber); border-color:var(--neon-amber);">📌 记②</button>
+                    <button type="button" class="btn-sm" onclick="qdRecordStep('CLOSE')" style="padding:5px 2px; font-size:10.5px; color:var(--text-muted);">✅ 平仓</button>
+                </div>
+
+                <div style="margin-top:4px; padding-top:8px; border-top:1px dashed var(--border-color); display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <b style="font-size:11.5px;">🧲 清算磁铁雷达</b>
+                        <div style="display:flex; gap:4px;">
+                            <button type="button" class="btn-sm" id="btnQdMagnetLines" onclick="toggleWhaleMagnetChartLines(); syncQuickDockUI();" style="font-size:10px; padding:1px 6px; border-color:rgba(244,63,94,0.45); color:#fb7185;">主图磁铁线</button>
+                            <button type="button" class="btn-sm" onclick="if(typeof refreshHyperliquidWhales==='function'){refreshHyperliquidWhales(true).then(syncQuickDockUI);}" style="font-size:10px; padding:1px 6px; color:var(--neon-cyan);">🔄</button>
+                        </div>
+                    </div>
+                    <div id="qdMagnetSummary" style="font-size:10.5px; color:var(--text-muted); line-height:1.5;">
+                        点击“主图磁铁线”或“🔄”可直接在当前 K 线图左侧投射高危强平价。
+                    </div>
+                </div>
+            </aside>
             </div>
 
             <!-- 4. 底部周期选择条 -->
@@ -1448,10 +1524,11 @@
             </div>
         </div>
 
-        <!-- 模式切换：倒金字塔左侧接单 (2:3:5) vs 正金字塔顺势滚仓 (5:3:2) -->
-        <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <!-- 模式切换：倒金字塔左侧接单 (2:3:5) vs 正金字塔顺势滚仓 (5:3:2) + 一键跳转主图 -->
+        <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center;">
             <button type="button" class="tab-btn active" id="btnBtcModeLadder" onclick="switchBtcOrderMode('LADDER')" style="padding:7px 10px; font-size:12px;">🧱 倒金字塔接单 (2 : 3 : 5)</button>
             <button type="button" class="tab-btn" id="btnBtcModePyramid" onclick="switchBtcOrderMode('PYRAMID')" style="padding:7px 10px; font-size:12px;">🚀 正金字塔滚仓 (5 : 3 : 2)</button>
+            <button type="button" class="btn-sm" onclick="jumpToBtcChart(false)" style="padding:7px 12px; font-size:12px; font-weight:700; border-color:var(--neon-emerald); color:#34d399; white-space:nowrap;" title="一键切换回 BTC K线主图查看持仓线与磁铁线">📈 直达 BTC 主图</button>
         </div>
 
         <div id="btcLadderSection">
@@ -1577,6 +1654,7 @@
                             <button type="button" class="btn-side" id="btnBtcPyrShort" onclick="setBtcPyramidSide('SHORT')">🔴 做空滚仓</button>
                         </div>
                         <button type="button" class="btn-sm" onclick="autoSnapBtcPyramid()" style="border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">🧲 吸附EMA与现价</button>
+                        <button type="button" class="btn-sm" onclick="jumpToBtcChart(true)" style="border-color:var(--neon-emerald); color:#34d399; font-weight:700;" title="一键吸附当前EMA与现价并直接跳回BTC主图预览持仓线">🧲 吸附并看图</button>
                         <button type="button" class="btn-sm" onclick="previewBtcPyramidOnChart()" style="border-color:var(--neon-emerald); color:#34d399; font-weight:700;">👁️ 主图预览线</button>
                         <button type="button" class="btn-sm" onclick="clearBtcPyramidInputs()" style="border-color:rgba(248,113,113,0.45); color:#f87171; font-weight:700;" title="清空手动填写的滚仓价位与预览线 (快捷键: Alt+X 或 Shift+X)">🧹 清空仓位</button>
                     </div>
@@ -1840,6 +1918,151 @@
             el.style.display = show ? "block" : "none";
             if (btn) btn.classList.toggle("active", show);
         }
+
+        function jumpToBtcChart(snapFirst = false) {
+            if (snapFirst && typeof autoSnapBtcPyramid === "function") {
+                autoSnapBtcPyramid(false);
+            }
+            showPyramidPositionLines = true;
+            localStorage.setItem("quant_show_pyr_lines", "true");
+            if (typeof syncChartControlButtons === "function") syncChartControlButtons();
+            if (typeof selectWatchlistSymbol === "function") selectWatchlistSymbol("OKX:BTC");
+            if (typeof switchMainTab === "function") switchMainTab("chart");
+            setTimeout(() => {
+                if (typeof renderAllLwPriceLines === "function") renderAllLwPriceLines();
+                if (typeof syncQuickDockUI === "function") syncQuickDockUI();
+            }, 120);
+            showToast(snapFirst ? "🧲 已吸附现价并直达 BTC 主图！" : "📈 已切换至 BTC K线主图");
+        }
+
+        let isChartQuickDockOpen = false;
+        function toggleChartQuickDock(forceState) {
+            const stage = document.getElementById("chartSplitStage");
+            const btn = document.getElementById("btnChartQuickDock");
+            if (!stage) return;
+            isChartQuickDockOpen = typeof forceState === "boolean" ? forceState : !isChartQuickDockOpen;
+            stage.classList.toggle("dock-open", isChartQuickDockOpen);
+            if (btn) btn.classList.toggle("active", isChartQuickDockOpen);
+            if (isChartQuickDockOpen) syncQuickDockUI();
+            requestAnimationFrame(() => {
+                window.dispatchEvent(new Event("resize"));
+                if (typeof resizeAndRenderDrawOverlay === "function") resizeAndRenderDrawOverlay();
+            });
+        }
+
+        function getQuickDockSymbol() {
+            const sym = typeof getCurrentSymKey === "function" ? getCurrentSymKey() : "BTC";
+            return sym === "KORU" ? "KORU" : "BTC";
+        }
+
+        function syncQuickDockUI() {
+            const stage = document.getElementById("chartSplitStage");
+            if (!stage || !stage.classList.contains("dock-open")) return;
+            const sym = getQuickDockSymbol();
+            const isBtc = sym === "BTC";
+            const badge = document.getElementById("qdTargetBadge");
+            if (badge) badge.textContent = isBtc ? "BTC 5:3:2" : "KORU 5:3:2";
+            const levGrp = document.getElementById("qdLevGroup");
+            const liqRow = document.getElementById("qdLiqRow");
+            if (levGrp) levGrp.style.display = isBtc ? "" : "none";
+            if (liqRow) liqRow.style.display = isBtc ? "flex" : "none";
+
+            const map = isBtc
+                ? { qdP1: "btcPyrP1", qdSl0: "btcPyrSl0", qdP2: "btcPyrP2", qdP3: "btcPyrP3", qdNewSl: "btcPyrNewSl", qdLev: "btcPyrLeverage" }
+                : { qdP1: "koruPyrP1", qdSl0: "koruPyrSl0", qdP2: "koruPyrP2", qdP3: "koruPyrP3", qdNewSl: "koruPyrNewSl" };
+            Object.entries(map).forEach(([qdId, srcId]) => {
+                const qEl = document.getElementById(qdId);
+                const sEl = document.getElementById(srcId);
+                if (qEl && sEl && document.activeElement !== qEl) qEl.value = sEl.value;
+            });
+
+            const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+            if (isBtc) {
+                setTxt("qdAvgOut", document.getElementById("btcPyrAvgVal")?.textContent || "--");
+                setTxt("qdBepOut", document.getElementById("btcPyrNewBep")?.textContent || "--");
+                setTxt("qdCushionOut", document.getElementById("btcPyrPullbackPct")?.textContent || "--");
+                setTxt("qdLiqOut", document.getElementById("btcPyrLiqPrice")?.textContent || "--");
+                setTxt("qdWorstOut", document.getElementById("btcPyrWorstNet")?.textContent || "--");
+            } else {
+                setTxt("qdAvgOut", document.getElementById("koruPyrBlendedVal")?.textContent || "--");
+                setTxt("qdBepOut", document.getElementById("koruPyrBepSub")?.textContent || "--");
+                setTxt("qdCushionOut", document.getElementById("koruPyrCushionVal")?.textContent || "--");
+                setTxt("qdWorstOut", document.getElementById("koruPyrWorstVal")?.textContent || "--");
+            }
+
+            const magBtn = document.getElementById("btnQdMagnetLines");
+            if (magBtn) magBtn.classList.toggle("active", Boolean(window.showWhaleMagnetLines));
+            const magSum = document.getElementById("qdMagnetSummary");
+            if (magSum) {
+                const lines = typeof getActiveWhaleMagnetLines === "function" ? getActiveWhaleMagnetLines() : [];
+                if (lines.length) {
+                    magSum.innerHTML = lines.map(l => `<div><span style="color:#fb7185; font-weight:700;">${l.title}</span> · <b style="font-family:monospace;">${Number(l.price).toFixed(1)}</b></div>`).join("");
+                } else {
+                    magSum.textContent = window.showWhaleMagnetLines
+                        ? "已开启磁铁线，点 🔄 同步最新强平价。"
+                        : "点击“主图磁铁线”可在 BTC 左侧投射高危强平价。";
+                }
+            }
+        }
+
+        function onQuickDockInputChange() {
+            const sym = getQuickDockSymbol();
+            const isBtc = sym === "BTC";
+            const map = isBtc
+                ? { qdP1: "btcPyrP1", qdSl0: "btcPyrSl0", qdP2: "btcPyrP2", qdP3: "btcPyrP3", qdNewSl: "btcPyrNewSl", qdLev: "btcPyrLeverage" }
+                : { qdP1: "koruPyrP1", qdSl0: "koruPyrSl0", qdP2: "koruPyrP2", qdP3: "koruPyrP3", qdNewSl: "koruPyrNewSl" };
+            Object.entries(map).forEach(([qdId, dstId]) => {
+                const qEl = document.getElementById(qdId);
+                const dEl = document.getElementById(dstId);
+                if (qEl && dEl) dEl.value = qEl.value;
+            });
+            if (isBtc && typeof calculateBtcPyramid === "function") calculateBtcPyramid();
+            if (!isBtc && typeof calculateKoruPyramid === "function") calculateKoruPyramid();
+            syncQuickDockUI();
+        }
+
+        function qdSnapCurrent() {
+            if (getQuickDockSymbol() === "BTC" && typeof autoSnapBtcPyramid === "function") autoSnapBtcPyramid(true);
+            else if (typeof autoSnapKoruPyramid === "function") autoSnapKoruPyramid(true);
+            syncQuickDockUI();
+        }
+
+        function qdClearCurrent() {
+            if (getQuickDockSymbol() === "BTC" && typeof clearBtcPyramidInputs === "function") clearBtcPyramidInputs(false);
+            else if (typeof clearKoruPyramidInputs === "function") clearKoruPyramidInputs(false);
+            syncQuickDockUI();
+        }
+
+        function qdRecordStep(step) {
+            if (typeof recordPyramidOperation === "function") recordPyramidOperation(getQuickDockSymbol(), step);
+            syncQuickDockUI();
+        }
+
+        function qdOpenFullWarRoom() {
+            if (getQuickDockSymbol() === "BTC") {
+                if (typeof switchMainTab === "function") switchMainTab("btc");
+                if (typeof switchBtcOrderMode === "function") switchBtcOrderMode("PYRAMID");
+            } else {
+                if (typeof switchMainTab === "function") switchMainTab("koru");
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // 在鲸鱼雷达卡片头部补一颗「📈 去主图」按钮，磁铁开关后可一键跳转
+            setTimeout(() => {
+                const magBtn = document.getElementById("btnToggleWhaleMagnetLines");
+                if (magBtn && !document.getElementById("btnWhaleJumpChart")) {
+                    const jBtn = document.createElement("button");
+                    jBtn.type = "button";
+                    jBtn.id = "btnWhaleJumpChart";
+                    jBtn.className = "btn-sm";
+                    jBtn.textContent = "📈 去主图";
+                    jBtn.style.cssText = "font-size:10.5px; border-color:var(--neon-emerald); color:#34d399; font-weight:700;";
+                    jBtn.onclick = () => jumpToBtcChart(false);
+                    magBtn.insertAdjacentElement("afterend", jBtn);
+                }
+            }, 300);
+        });
 
         function toggleRelayDrawer(forceState) {
             const drawer = document.getElementById("relayConfigDrawer");

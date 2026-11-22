@@ -236,9 +236,17 @@ body.chart-tab-active {
     display: flex;
 }
 
-/* 独立看盘页面：主图自动撑满剩余视口高度 */
+/* 独立看盘页面：主图 + 可折叠右侧快捷作战栏 */
+.chart-split-stage {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    width: 100%;
+}
 #view-chart .tv-chart-shell {
     flex: 1 1 auto !important;
+    min-width: 0 !important;
     height: calc(100dvh - 224px) !important;
     min-height: 390px !important;
     border: none !important;
@@ -247,6 +255,39 @@ body.chart-tab-active {
 #view-chart #tvChartCard.tv-fullscreen-card .tv-chart-shell {
     height: auto !important;
     min-height: 0 !important;
+}
+.chart-quick-dock {
+    display: none;
+    width: 348px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border-color);
+    background: var(--glass-bg-elevated);
+    backdrop-filter: blur(22px) saturate(165%);
+    -webkit-backdrop-filter: blur(22px) saturate(165%);
+    padding: 10px 12px;
+    overflow-y: auto;
+    height: calc(100dvh - 224px);
+    min-height: 390px;
+    font-size: 11.5px;
+    color: var(--text-main);
+}
+.chart-split-stage.dock-open .chart-quick-dock {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+@media (max-width: 1023px) {
+    .chart-quick-dock {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(340px, 92vw);
+        height: 100%;
+        min-height: 0;
+        z-index: 35;
+        box-shadow: -8px 0 28px rgba(0, 0, 0, 0.35);
+    }
 }
 
 /* 底部周期选择条 */
