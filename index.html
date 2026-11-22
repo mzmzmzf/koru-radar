@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#131314">
     <link rel="manifest" href="./manifest.json">
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
-    <link rel="stylesheet" href="./styles/main.css?v=20261122">
+    <link rel="stylesheet" href="./styles/main.css?v=20261123">
 </head>
 <body>
 
@@ -32,15 +32,27 @@
                 </span>
                 <span id="cbUsLabel">🇺🇸 美股 0/4</span>
             </button>
-            <span class="badge" id="latencyBadge">-- ms</span>
-            <button type="button" class="badge" id="btnCloudSyncStatus" onclick="toggleCloudSyncDrawer()" style="cursor:pointer; border-color:rgba(138,180,248,0.55); color:#8ab4f8;" title="Mac 与手机端实时双向同步：画线、颜色、沙盒风控、自选列表与界面设置全自动同步">☁️ 多端同步</button>
-            <button type="button" class="badge" id="btnRelayConfig" onclick="toggleRelayDrawer()" style="cursor:pointer; border-color:var(--neon-cyan); color:var(--neon-cyan);" title="配置 Cloudflare 自定义域名中继节点，实现国内免翻墙秒开全量行情与K线">🌐 中继路由</button>
-            <button type="button" class="badge" id="btnPageImmersiveFs" onclick="togglePageNativeFullscreen()" style="cursor:pointer; border-color:var(--neon-emerald); color:#34d399;" title="调用系统真全屏隐藏手机浏览器标签栏与地址栏">⛶ 整页全屏</button>
             <button type="button" class="badge" id="btnMacroClockBadge" onclick="toggleMacroCalendarDrawer()" style="cursor:pointer; border-color:var(--border-color); color:var(--text-main);" title="关键时间节点倒计时与宏观核弹日历（资金费率、美股开盘、期权交割、FOMC/CPI/非农）">⏱️ 关键节点</button>
-            <button type="button" class="badge" id="btnGlobalTheme" onclick="toggleTvTheme()" style="cursor:pointer; border-color:var(--neon-amber); color:#fbbf24;" title="切换全站浅色/深色玻璃主题 (快捷键: Shift+T 或 Option/Alt+T)">☀️ 浅色</button>
-            <span class="badge active" id="terminalStatus">● 智能路由初始化</span>
+            <button type="button" class="badge" id="btnSystemSettingsToggle" onclick="toggleSystemSettingsDrawer()" style="cursor:pointer; border-color:var(--border-color); color:var(--text-main); font-weight:700;" title="展开系统设置：浅色/深色主题、多端云同步、中继路由、整页全屏与连接延迟">⚙️ 系统</button>
         </div>
     </header>
+
+    <div id="systemSettingsDrawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
+        <div style="max-width:1240px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span style="color:var(--text-muted); font-weight:700; font-size:11.5px;">⚙️ 终端系统控制台：</span>
+                <button type="button" class="badge" id="btnGlobalTheme" onclick="toggleTvTheme()" style="cursor:pointer; border-color:var(--neon-amber); color:#fbbf24;" title="切换全站浅色/深色玻璃主题 (快捷键: Shift+T 或 Option/Alt+T)">☀️ 浅色</button>
+                <button type="button" class="badge" id="btnCloudSyncStatus" onclick="toggleCloudSyncDrawer()" style="cursor:pointer; border-color:rgba(138,180,248,0.55); color:#8ab4f8;" title="Mac 与手机端实时双向同步：画线、颜色、沙盒风控、自选列表与界面设置全自动同步">☁️ 多端同步</button>
+                <button type="button" class="badge" id="btnRelayConfig" onclick="toggleRelayDrawer()" style="cursor:pointer; border-color:var(--neon-cyan); color:var(--neon-cyan);" title="配置 Cloudflare 自定义域名中继节点，实现国内免翻墙秒开全量行情与K线">🌐 中继路由</button>
+                <button type="button" class="badge" id="btnPageImmersiveFs" onclick="togglePageNativeFullscreen()" style="cursor:pointer; border-color:var(--neon-emerald); color:#34d399;" title="调用系统真全屏隐藏手机浏览器标签栏与地址栏">⛶ 整页全屏</button>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span class="badge" id="latencyBadge">-- ms</span>
+                <span class="badge active" id="terminalStatus">● 智能路由初始化</span>
+                <button type="button" class="btn-sm" onclick="toggleSystemSettingsDrawer(false)" style="color:var(--text-muted); padding:2px 7px;">收起 ✕</button>
+            </div>
+        </div>
+    </div>
 
     <div id="macroCalendarDrawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
         <div style="max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:8px;">
@@ -1443,6 +1455,8 @@
         </div>
 
         <div id="btcLadderSection">
+        <div class="btc-workspace-grid">
+        <div class="btc-col-left">
         <div class="card">
             <div class="card-title" style="flex-wrap:wrap; gap:8px;">
                 <div style="display:flex; align-items:center; gap:8px;">
@@ -1503,7 +1517,9 @@
                 </div>
             </div>
         </div>
+        </div>
 
+        <div class="btc-col-right">
         <div class="eval-box">
             <div class="eval-headline">
                 <div>
@@ -1540,11 +1556,15 @@
         <button class="btn-action short-action" id="btnCopyAction" onclick="copyBtcOrderPlan()">
             📋 一键复制交易所实战做空挂单清单
         </button>
+        </div>
+        </div>
 
         </div>
 
         <!-- BTC 永续正金字塔滚仓模型 (5 : 3 : 2) -->
         <div id="btcPyramidSection" style="display:none;">
+            <div class="btc-workspace-grid">
+            <div class="btc-col-left">
             <div class="card" style="border-top: 3px solid var(--neon-cyan);">
                 <div class="card-title" style="flex-wrap:wrap; gap:8px;">
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -1605,6 +1625,19 @@
                 </div>
             </div>
 
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; margin-bottom:8px;">
+                <button type="button" class="btn-sm" onclick="recordPyramidOperation('BTC', 'STEP1')" style="padding:8px 4px; font-weight:700; border-color:var(--neon-cyan); color:var(--neon-cyan);">📌 记①底仓</button>
+                <button type="button" class="btn-sm" onclick="recordPyramidOperation('BTC', 'STEP2')" style="padding:8px 4px; font-weight:700; border-color:var(--neon-amber); color:var(--neon-amber);">📌 记②首滚</button>
+                <button type="button" class="btn-sm" onclick="recordPyramidOperation('BTC', 'STEP3')" style="padding:8px 4px; font-weight:700; border-color:var(--neon-emerald); color:#34d399;">📌 记③尾仓</button>
+                <button type="button" class="btn-sm" onclick="recordPyramidOperation('BTC', 'CLOSE')" style="padding:8px 4px; font-weight:700; color:var(--text-muted);">✅ 记平仓</button>
+            </div>
+
+            <button type="button" class="btn-action" onclick="copyBtcPyramidPlan()" style="margin-bottom:10px; background: linear-gradient(135deg, #0284c7, #10b981);">
+                📋 一键复制 BTC 永续正金字塔滚仓清单 (逐仓)
+            </button>
+            </div>
+
+            <div class="btc-col-right">
             <div class="eval-box">
                 <div class="eval-headline">
                     <div>
@@ -1644,17 +1677,6 @@
                 正在评估 BTC 滚仓门禁与回调缓冲空间...
             </div>
 
-            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; margin-bottom:8px;">
-                <button type="button" class="btn-sm" onclick="recordPyramidOperation('BTC', 'STEP1')" style="padding:8px 4px; font-weight:700; border-color:var(--neon-cyan); color:var(--neon-cyan);">📌 记①底仓</button>
-                <button type="button" class="btn-sm" onclick="recordPyramidOperation('BTC', 'STEP2')" style="padding:8px 4px; font-weight:700; border-color:var(--neon-amber); color:var(--neon-amber);">📌 记②首滚</button>
-                <button type="button" class="btn-sm" onclick="recordPyramidOperation('BTC', 'STEP3')" style="padding:8px 4px; font-weight:700; border-color:var(--neon-emerald); color:#34d399;">📌 记③尾仓</button>
-                <button type="button" class="btn-sm" onclick="recordPyramidOperation('BTC', 'CLOSE')" style="padding:8px 4px; font-weight:700; color:var(--text-muted);">✅ 记平仓</button>
-            </div>
-
-            <button type="button" class="btn-action" onclick="copyBtcPyramidPlan()" style="margin-bottom:10px; background: linear-gradient(135deg, #0284c7, #10b981);">
-                📋 一键复制 BTC 永续正金字塔滚仓清单 (逐仓)
-            </button>
-
             <div class="card" style="margin-bottom:12px;">
                 <div class="card-title" style="margin-bottom:6px;">
                     <span>📜 BTC 滚仓操作台账与风险巡检</span>
@@ -1666,6 +1688,8 @@
                 <div id="btcPyrStatsBar" style="display:none; grid-template-columns: repeat(4, 1fr); gap:6px; margin-bottom:6px;"></div>
                 <div id="btcPyrLiveRiskBanner" style="display:none; padding:7px 9px; border-radius:6px; border:1px solid #ef4444; font-size:11px; margin-bottom:6px; line-height:1.45;"></div>
                 <div id="btcPyrLogList"><div style="font-size:11px; color:var(--text-muted); padding:4px 0;">暂无 BTC 滚仓操作记录，点击上方“📌 记①/②/③”即可留存并触发风控审计。</div></div>
+            </div>
+            </div>
             </div>
         </div>
 
@@ -1806,6 +1830,15 @@
                     hint.innerHTML = `💡 提示：当前处于【自动直连 + 国内备用源】模式。在 Cloudflare Worker 绑定自定义域名（非 *.workers.dev）并填入此处后，国内三网即可免翻墙秒开 KORU / BTC / 美股全量数据与 K 线。`;
                 }
             }
+        }
+
+        function toggleSystemSettingsDrawer(forceState) {
+            const el = document.getElementById("systemSettingsDrawer");
+            const btn = document.getElementById("btnSystemSettingsToggle");
+            if (!el) return;
+            const show = typeof forceState === "boolean" ? forceState : el.style.display === "none";
+            el.style.display = show ? "block" : "none";
+            if (btn) btn.classList.toggle("active", show);
         }
 
         function toggleRelayDrawer(forceState) {

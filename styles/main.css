@@ -475,6 +475,24 @@ body.chart-tab-active {
 
 .view-panel { display: none; padding: 12px 14px; max-width: 960px; margin: 0 auto; }
 .view-panel.active { display: block; }
+#view-btc { max-width: 1240px; }
+.btc-workspace-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-items: start;
+}
+.btc-col-left, .btc-col-right { min-width: 0; }
+@media (min-width: 980px) {
+    .btc-workspace-grid {
+        grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+        gap: 16px;
+    }
+    .btc-col-right {
+        position: sticky;
+        top: 60px;
+    }
+}
 
 .koru-subtabs {
     display: flex;
