@@ -516,7 +516,12 @@ body.chart-tab-active {
 
 .view-panel { display: none; padding: 12px 14px; max-width: 960px; margin: 0 auto; }
 .view-panel.active { display: block; }
-#view-btc { max-width: 1240px; }
+#view-btc, #view-koru, #view-macro { max-width: 1240px; }
+.macro-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+    gap: 10px;
+}
 .btc-workspace-grid {
     display: grid;
     grid-template-columns: 1fr;

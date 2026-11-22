@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#131314">
     <link rel="manifest" href="./manifest.json">
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
-    <link rel="stylesheet" href="./styles/main.css?v=20261123b">
+    <link rel="stylesheet" href="./styles/main.css?v=20261123c">
 </head>
 <body>
 
@@ -153,8 +153,9 @@
 
     <nav class="terminal-tabs">
         <button class="tab-btn active" id="btnTabChart" onclick="switchMainTab('chart')">📈 极简看盘</button>
-        <button class="tab-btn" id="btnTabKoru" onclick="switchMainTab('koru')">🛰️ KORU 战略雷达</button>
-        <button class="tab-btn" id="btnTabBtc" onclick="switchMainTab('btc')">⚡ BTC 战术开单</button>
+        <button class="tab-btn" id="btnTabMacro" onclick="switchMainTab('macro')">🧭 盘前宏观</button>
+        <button class="tab-btn" id="btnTabKoru" onclick="switchMainTab('koru')">🛰️ KORU 雷达</button>
+        <button class="tab-btn" id="btnTabBtc" onclick="switchMainTab('btc')">⚡ BTC 开单</button>
     </nav>
 
     <!-- ========================================================================= -->
@@ -632,16 +633,47 @@
     </main>
 
     <!-- ========================================================================= -->
+    <!-- 模块 0.5：🧭 盘前宏观与全站情绪总览                                        -->
+    <!-- ========================================================================= -->
+    <main class="view-panel" id="view-macro">
+        <div class="card" style="border-top: 3px solid var(--neon-cyan);">
+            <div class="card-title" style="flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span>🧭 盘前宏观情报与全站情绪仪表盘</span>
+                    <span class="badge" id="macroOverviewVerdict" style="color:var(--neon-emerald); border-color:var(--neon-emerald);">正在扫描宏观指标...</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <button type="button" class="btn-sm" onclick="renderMacroOverviewPanel(); showToast('🧭 已刷新盘前宏观面板');" style="border-color:var(--neon-cyan); color:var(--neon-cyan);">🔄 刷新汇总</button>
+                    <button type="button" class="btn-sm" onclick="toggleMacroCalendarDrawer(true)" style="border-color:var(--neon-amber); color:var(--neon-amber);">⏱️ 宏观核弹日历</button>
+                    <button type="button" class="btn-sm" onclick="openCircuitBreakerMarket('BOTH')" style="border-color:rgba(239,68,68,0.5); color:#f87171;">🚨 双市场四红线</button>
+                </div>
+            </div>
+            <div id="macroKpiGrid" class="macro-kpi-grid"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" style="flex-wrap:wrap; gap:6px;">
+                <span>⚡ 快速直达作战入口</span>
+                <span style="font-size:11px; color:var(--text-muted);">先定大周期方向，再进场看图与算仓</span>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button type="button" class="btn-sm" onclick="jumpToBtcChart(false)" style="padding:7px 12px; font-weight:700; border-color:var(--neon-emerald); color:#34d399;">📈 去 BTC 主图</button>
+                <button type="button" class="btn-sm" onclick="jumpToKoruChart()" style="padding:7px 12px; font-weight:700; border-color:var(--neon-cyan); color:var(--neon-cyan);">📈 去 KORU 主图</button>
+                <button type="button" class="btn-sm" onclick="switchMainTab('btc'); switchBtcOrderMode('PYRAMID');" style="padding:7px 12px; font-weight:700; border-color:var(--neon-amber); color:var(--neon-amber);">🚀 BTC 5:3:2 滚仓与鲸鱼</button>
+                <button type="button" class="btn-sm" onclick="switchMainTab('koru'); switchKoruSubTabById('fx');" style="padding:7px 12px; font-weight:700; color:var(--text-main);">💱 KORU 汇率与衍生品明细</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- ========================================================================= -->
     <!-- 模块 1：KORU 战略宏观雷达                                                 -->
     <!-- ========================================================================= -->
     <main class="view-panel" id="view-koru">
-        <div class="koru-subtabs">
-            <button class="subtab-btn active" data-subtab="overview" onclick="switchKoruSubTab('overview', this)">📊 核心总览</button>
-            <button class="subtab-btn" data-subtab="analytics" onclick="switchKoruSubTab('analytics', this)">🔬 资金与波段分析 (EWY/KORU)</button>
-            <button class="subtab-btn" data-subtab="mapping" onclick="switchKoruSubTab('mapping', this)">🎯 逐档映射 (混合双轨)</button>
-            <button class="subtab-btn" data-subtab="chart" onclick="switchKoruSubTab('chart', this)">📈 市值走势图 (自动核算)</button>
-            <button class="subtab-btn" data-subtab="fx" onclick="switchKoruSubTab('fx', this)">💱 汇率总阀与衍生品情绪</button>
-            <button class="subtab-btn" data-subtab="trench" onclick="switchKoruSubTab('trench', this)">🛡️ 持仓风控沙盒与战壕</button>
+        <div class="koru-subtabs" style="align-items:center;">
+            <button class="subtab-btn active" data-subtab="overview" onclick="switchKoruSubTab('overview', this)">📊 总览与双轨映射</button>
+            <button class="subtab-btn" data-subtab="analytics" onclick="switchKoruSubTab('analytics', this)">🔬 波段与市值推演</button>
+            <button class="subtab-btn" data-subtab="trench" onclick="switchKoruSubTab('trench', this)">🛡️ 沙盒、汇率与滚仓</button>
+            <button type="button" class="btn-sm" onclick="jumpToKoruChart()" style="margin-left:auto; padding:6px 10px; font-size:11.5px; font-weight:700; border-color:var(--neon-emerald); color:#34d399; white-space:nowrap;">📈 去 KORU 主图</button>
         </div>
 
         <div class="sub-nav">
@@ -9110,14 +9142,16 @@ export default {
 
         function switchMainTab(tab) {
             const btnChart = document.getElementById("btnTabChart");
+            const btnMacro = document.getElementById("btnTabMacro");
             const btnKoru = document.getElementById("btnTabKoru");
             const btnBtc = document.getElementById("btnTabBtc");
             const viewChart = document.getElementById("view-chart");
+            const viewMacro = document.getElementById("view-macro");
             const viewKoru = document.getElementById("view-koru");
             const viewBtc = document.getElementById("view-btc");
 
-            [btnChart, btnKoru, btnBtc].forEach(b => { if (b) b.classList.remove("active"); });
-            [viewChart, viewKoru, viewBtc].forEach(v => { if (v) v.classList.remove("active"); });
+            [btnChart, btnMacro, btnKoru, btnBtc].forEach(b => { if (b) b.classList.remove("active"); });
+            [viewChart, viewMacro, viewKoru, viewBtc].forEach(v => { if (v) v.classList.remove("active"); });
             document.body.classList.toggle("chart-tab-active", tab === "chart");
 
             if (tab === "chart") {
@@ -9129,10 +9163,18 @@ export default {
                     if (chartEngineMode === "STRAT" && (!lwLastDataCache || lwLastDataCache.length === 0)) {
                         fetchAndRenderStrategyChart(false);
                     }
+                    if (typeof syncQuickDockUI === "function") syncQuickDockUI();
                 });
+            } else if (tab === "macro") {
+                if (btnMacro) btnMacro.classList.add("active");
+                if (viewMacro) viewMacro.classList.add("active");
+                renderMacroOverviewPanel();
             } else if (tab === "koru") {
                 if (btnKoru) btnKoru.classList.add("active");
                 if (viewKoru) viewKoru.classList.add("active");
+                if (!document.querySelector(".koru-subview.active")) {
+                    switchKoruSubTab("overview");
+                }
             } else {
                 if (btnBtc) btnBtc.classList.add("active");
                 if (viewBtc) viewBtc.classList.add("active");
@@ -9140,18 +9182,121 @@ export default {
             }
         }
 
+        const KORU_SUBTAB_GROUPS = {
+            overview: ["overview", "mapping"],
+            mapping: ["overview", "mapping"],
+            analytics: ["analytics", "chart"],
+            chart: ["analytics", "chart"],
+            trench: ["trench", "fx"],
+            fx: ["trench", "fx"]
+        };
+
         function switchKoruSubTab(subId, btnEl) {
+            const groupIds = KORU_SUBTAB_GROUPS[subId] || ["overview", "mapping"];
+            const primaryKey = groupIds[0];
             document.querySelectorAll(".subtab-btn").forEach(b => b.classList.remove("active"));
             document.querySelectorAll(".koru-subview").forEach(v => v.classList.remove("active"));
-            if (btnEl) btnEl.classList.add("active");
-            const targetView = document.getElementById(`subview-${subId}`);
-            if (targetView) targetView.classList.add("active");
+            const targetBtn = btnEl || document.querySelector(`.subtab-btn[data-subtab="${primaryKey}"]`);
+            if (targetBtn) targetBtn.classList.add("active");
+            groupIds.forEach(id => {
+                const v = document.getElementById(`subview-${id}`);
+                if (v) v.classList.add("active");
+            });
+            if (subId !== primaryKey) {
+                const anchorEl = document.getElementById(`subview-${subId}`);
+                if (anchorEl) setTimeout(() => anchorEl.scrollIntoView({ behavior: "smooth", block: "start" }), 40);
+            }
         }
 
         function switchKoruSubTabById(subId) {
-            const btn = document.querySelector(`.subtab-btn[data-subtab="${subId}"]`);
-            switchKoruSubTab(subId, btn);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            switchKoruSubTab(subId);
+            if (subId === "overview" || subId === "analytics" || subId === "trench") {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function jumpToKoruChart() {
+            showPyramidPositionLines = true;
+            localStorage.setItem("quant_show_pyr_lines", "true");
+            if (typeof syncChartControlButtons === "function") syncChartControlButtons();
+            if (typeof selectWatchlistSymbol === "function") selectWatchlistSymbol("OKX:KORU");
+            switchMainTab("chart");
+            setTimeout(() => {
+                if (typeof renderAllLwPriceLines === "function") renderAllLwPriceLines();
+                if (typeof syncQuickDockUI === "function") syncQuickDockUI();
+            }, 120);
+            showToast("📈 已切换至 KORU K线主图");
+        }
+
+        function renderMacroOverviewPanel() {
+            const grid = document.getElementById("macroKpiGrid");
+            const verdict = document.getElementById("macroOverviewVerdict");
+            if (!grid) return;
+
+            const krw = Number(latestUsdKrw) || 0;
+            const jpy = Number(latestUsdJpy) || 0;
+            const vix = (typeof latestVixValue !== "undefined" && Number(latestVixValue)) ? Number(latestVixValue) : 0;
+            const fngVal = latestFngData && isFinite(latestFngData.value) ? Number(latestFngData.value) : null;
+            const fngLabel = latestFngData?.cnLabel || "--";
+            const longPct = Number(latestBtcLongPct) || 0;
+            const fundRate = Number(latestFundingRate) || 0;
+            const cryptoCb = typeof computeCryptoFourRedlines === "function" ? computeCryptoFourRedlines() : { redCount: 0 };
+            const usCb = typeof computeUsEquityFourRedlines === "function" ? computeUsEquityFourRedlines() : { redCount: 0 };
+
+            const krwSafe = krw > 0 && krw < 1340;
+            const jpySafe = jpy <= 0 || jpy < 155;
+            const vixSafe = vix <= 0 || vix < 20;
+            const sentSafe = longPct < 63;
+
+            grid.innerHTML = `
+                <div class="kpi-mini-box" style="border-top:2px solid ${krwSafe ? 'var(--neon-emerald)' : 'var(--neon-red)'};">
+                    <div class="kpi-mini-label">🇰🇷 USD/KRW 韩元总阀 (&lt;1340)</div>
+                    <div class="kpi-mini-val" style="color:${krwSafe ? 'var(--neon-emerald)' : 'var(--neon-red)'};">${krw > 0 ? krw.toFixed(1) : '--'}</div>
+                    <div class="kpi-mini-sub">${krwSafe ? '🟢 汇率安全 · 利好 KORU' : '🚨 逼近/突破警戒线'}</div>
+                </div>
+                <div class="kpi-mini-box" style="border-top:2px solid ${jpySafe ? 'var(--neon-emerald)' : 'var(--neon-red)'};">
+                    <div class="kpi-mini-label">🇯🇵 USD/JPY 日元套息 (&lt;155)</div>
+                    <div class="kpi-mini-val" style="color:${jpySafe ? 'var(--neon-emerald)' : 'var(--neon-red)'};">${jpy > 0 ? jpy.toFixed(2) : '--'}</div>
+                    <div class="kpi-mini-sub">${jpySafe ? '🟢 套息稳定' : '🚨 防日元急升抽血'}</div>
+                </div>
+                <div class="kpi-mini-box" style="border-top:2px solid ${vixSafe ? 'var(--neon-cyan)' : 'var(--neon-amber)'};">
+                    <div class="kpi-mini-label">📉 美股 VIX 恐慌指数</div>
+                    <div class="kpi-mini-val" style="color:${vixSafe ? 'var(--neon-cyan)' : 'var(--neon-amber)'};">${vix > 0 ? vix.toFixed(2) : '--'}</div>
+                    <div class="kpi-mini-sub">${vix > 25 ? '🚨 波动剧烈 · 减杠杆' : (vix > 20 ? '⚠️ 情绪偏紧' : '🟢 常规波动区间')}</div>
+                </div>
+                <div class="kpi-mini-box" style="border-top:2px solid var(--neon-amber);">
+                    <div class="kpi-mini-label">🧭 加密恐慌贪婪指数</div>
+                    <div class="kpi-mini-val" style="color:${latestFngData?.color || 'var(--text-main)'};">${fngVal !== null ? `${fngVal} (${fngLabel})` : '--'}</div>
+                    <div class="kpi-mini-sub">极度恐慌防接飞刀 · 极度贪婪防清算</div>
+                </div>
+                <div class="kpi-mini-box" style="border-top:2px solid ${sentSafe ? 'var(--neon-emerald)' : 'var(--neon-red)'};">
+                    <div class="kpi-mini-label">⚖️ BTC 多空比 / 资金费率</div>
+                    <div class="kpi-mini-val" style="color:${sentSafe ? 'var(--neon-emerald)' : 'var(--neon-red)'};">${longPct > 0 ? longPct.toFixed(1) + '%' : '--'} / ${(fundRate * 100).toFixed(3)}%</div>
+                    <div class="kpi-mini-sub">${sentSafe ? '🟢 多头未拥挤 (<63%)' : '🚨 多头拥挤 · 防扫多插针'}</div>
+                </div>
+                <div class="kpi-mini-box" style="border-top:2px solid ${(cryptoCb.redCount >= 2 || usCb.redCount >= 2) ? 'var(--neon-red)' : 'var(--neon-emerald)'};">
+                    <div class="kpi-mini-label">🚨 双市场四红线熔断</div>
+                    <div class="kpi-mini-val">🪙 ${cryptoCb.redCount}/4 · 🇺🇸 ${usCb.redCount}/4</div>
+                    <div class="kpi-mini-sub">${(cryptoCb.redCount >= 2 || usCb.redCount >= 2) ? '⚠️ 部分市场触发熔断静默' : '🟢 双市场风控绿灯'}</div>
+                </div>
+            `;
+
+            if (verdict) {
+                const maxRed = Math.max(cryptoCb.redCount, usCb.redCount);
+                if (maxRed >= 3) {
+                    verdict.textContent = "🚨 宏观高危 · 建议防守静默";
+                    verdict.style.color = "#f87171";
+                    verdict.style.borderColor = "#ef4444";
+                } else if (maxRed >= 2 || !krwSafe || !sentSafe) {
+                    verdict.textContent = "⚠️ 局部警戒 · 轻仓控风险";
+                    verdict.style.color = "#fbbf24";
+                    verdict.style.borderColor = "#f59e0b";
+                } else {
+                    verdict.textContent = "🟢 宏观温和 · 允许顺势执行";
+                    verdict.style.color = "#34d399";
+                    verdict.style.borderColor = "#10b981";
+                }
+            }
         }
 
         // 6. BTC 战术阶梯开单与全自动追踪
