@@ -517,16 +517,22 @@
                 <div id="tvWidgetContainer" style="width:100%; height:100%; display:none;"></div>
             </div>
 
-            <!-- 3B. 桌面右侧快捷作战侧栏（边看 K 线边调 5:3:2 滚仓参数与看清算磁铁） -->
+            <!-- 3B. 桌面右侧快捷作战侧栏（5:3:2 算仓 & CoinGlass 同款关键价位墙） -->
             <aside class="chart-quick-dock" id="chartQuickDock">
                 <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:6px; border-bottom:1px solid var(--border-color);">
                     <div style="display:flex; align-items:center; gap:6px;">
-                        <b style="font-size:12.5px;">⚡ 快捷作战侧栏</b>
+                        <b style="font-size:12.5px;">⚡ 作战侧栏</b>
                         <span class="badge" id="qdTargetBadge" style="font-size:10px; color:var(--neon-cyan); border-color:var(--neon-cyan);">BTC 5:3:2</span>
                     </div>
                     <button type="button" class="btn-sm" onclick="toggleChartQuickDock(false)" style="padding:1px 6px; color:var(--text-muted);">✕</button>
                 </div>
 
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                    <button type="button" class="btn-sm active" id="btnQdModePyramid" onclick="switchQuickDockMode('PYRAMID')" style="padding:5px 4px; font-weight:700;">⚡ 5:3:2 算仓</button>
+                    <button type="button" class="btn-sm" id="btnQdModeLevels" onclick="switchQuickDockMode('LEVELS')" style="padding:5px 4px; font-weight:700;">🧱 关键价位墙</button>
+                </div>
+
+                <div id="qdPyramidPane" style="display:flex; flex-direction:column; gap:8px;">
                 <div style="display:flex; gap:5px; flex-wrap:wrap;">
                     <button type="button" class="btn-sm" onclick="qdSnapCurrent()" style="flex:1; border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">🧲 吸附现价</button>
                     <button type="button" class="btn-sm" onclick="qdClearCurrent()" style="border-color:rgba(248,113,113,0.45); color:#f87171;">🧹 清空</button>
@@ -585,6 +591,16 @@
                     <div id="qdMagnetSummary" style="font-size:10.5px; color:var(--text-muted); line-height:1.5;">
                         点击“主图磁铁线”或“🔄”可直接在当前 K 线图左侧投射高危强平价。
                     </div>
+                </div>
+                </div>
+
+                <div id="qdKeyLevelsPane" style="display:none; flex-direction:column; gap:6px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                        <span class="badge" id="qdKeyLevelsStatus" style="font-size:10px; color:var(--text-muted);">待聚合</span>
+                        <button type="button" class="btn-sm" onclick="if(typeof refreshKeyLevelsRadar==='function') refreshKeyLevelsRadar(true);" style="font-size:10.5px; border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">🔄 刷新多所深度与期权</button>
+                    </div>
+                    <div style="font-size:10px; color:var(--text-muted);">点击任意价位行，可直接画水平线到 K 线主图：</div>
+                    <div id="qdKeyLevelsList" style="border:1px solid var(--border-color); border-radius:8px; background:var(--bg-subtle); overflow:hidden;"></div>
                 </div>
             </aside>
             </div>
@@ -1822,6 +1838,7 @@
     <script src="./js/pyramid-math.js"></script>
     <script src="./js/macro-calendar.js"></script>
     <script src="./js/macro-intel.js"></script>
+    <script src="./js/key-levels.js"></script>
     <script src="./js/whale-radar.js"></script>
     <script>
         const LEGACY_WORKERS_DEV_URL = "https://quant-relay.zhefeng0513.workers.dev";
@@ -1994,6 +2011,22 @@
         }
 
         let isChartQuickDockOpen = false;
+        let quickDockActiveMode = "PYRAMID"; // 'PYRAMID' | 'LEVELS'
+        function switchQuickDockMode(mode) {
+            quickDockActiveMode = mode === "LEVELS" ? "LEVELS" : "PYRAMID";
+            const btnP = document.getElementById("btnQdModePyramid");
+            const btnL = document.getElementById("btnQdModeLevels");
+            const paneP = document.getElementById("qdPyramidPane");
+            const paneL = document.getElementById("qdKeyLevelsPane");
+            if (btnP) btnP.classList.toggle("active", quickDockActiveMode === "PYRAMID");
+            if (btnL) btnL.classList.toggle("active", quickDockActiveMode === "LEVELS");
+            if (paneP) paneP.style.display = quickDockActiveMode === "PYRAMID" ? "flex" : "none";
+            if (paneL) paneL.style.display = quickDockActiveMode === "LEVELS" ? "flex" : "none";
+            if (quickDockActiveMode === "LEVELS" && typeof refreshKeyLevelsRadar === "function") {
+                refreshKeyLevelsRadar(false);
+            }
+        }
+
         function toggleChartQuickDock(forceState) {
             const stage = document.getElementById("chartSplitStage");
             const btn = document.getElementById("btnChartQuickDock");
@@ -2317,7 +2350,10 @@ export default {
       "www.okx.com",
       "aws.okx.com",
       "fapi.binance.com",
+      "api.binance.com",
       "api.coinbase.com",
+      "api.exchange.coinbase.com",
+      "www.deribit.com",
       "query1.finance.yahoo.com",
       "open.er-api.com",
       "api.frankfurter.app",
@@ -2823,6 +2859,8 @@ export default {
         let lwCvdChart = null;
         let lwCvdLineSeries = null;
         let lwCvdMaSeries = null;
+        let lwCvdSpotSeries = null;
+        let showSpotCvdOverlay = localStorage.getItem("quant_spot_cvd_overlay") !== "false";
         let lwCvdDeltaSeries = null;
         let lwCvdCache = [];
 
@@ -5956,6 +5994,7 @@ export default {
                 lwCvdChart = null;
                 lwCvdLineSeries = null;
                 lwCvdMaSeries = null;
+                lwCvdSpotSeries = null;
                 lwCvdDeltaSeries = null;
             }
             if (lwNetposChart) {
@@ -6129,6 +6168,14 @@ export default {
                 lastValueVisible: true,
                 title: "SMA28"
             });
+            lwCvdSpotSeries = lwCvdChart.addLineSeries({
+                color: "#f59e0b",
+                lineWidth: 2,
+                priceScaleId: "left",
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: "Spot"
+            });
 
             lwCvdChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
                 syncAllTimeScalesFrom(lwCvdChart, range);
@@ -6277,11 +6324,58 @@ export default {
             titleEl.textContent = `📊 ${symObj.label} CVD 资金流`;
             titleEl.style.color = isDark ? "#38bdf8" : "#2563EB";
             const dCol = bar.delta >= 0 ? "#10b981" : "#ef4444";
+            let spotHtml = "";
+            if (showSpotCvdOverlay && bar.spotCvd !== null && bar.spotCvd !== undefined) {
+                let divTag = "";
+                if (bar.delta > 0 && bar.spotDelta < 0) {
+                    divTag = ` <span style="color:#f87171; font-weight:800;">🚨现货砸盘诱多</span>`;
+                } else if (bar.delta < 0 && bar.spotDelta > 0) {
+                    divTag = ` <span style="color:#34d399; font-weight:800;">🟢现货抄底承接</span>`;
+                }
+                spotHtml = ` &nbsp;现货CVD: <b style="color:#f59e0b">${formatCompactVolume(bar.spotCvd)}</b>${divTag}`;
+            }
             valEl.innerHTML =
-                `CVD: <b style="color:${isDark ? '#38bdf8' : '#2563EB'}">${formatCompactVolume(bar.cvd)}</b> &nbsp;` +
+                `合约CVD: <b style="color:${isDark ? '#38bdf8' : '#2563EB'}">${formatCompactVolume(bar.cvd)}</b> &nbsp;` +
                 `SMA28: <b style="color:#a855f7">${bar.sma28 !== null ? formatCompactVolume(bar.sma28) : '--'}</b> &nbsp;` +
-                `单根Delta: <b style="color:${dCol}">${formatCompactVolume(bar.delta)}</b>`;
-            ctrlEl.innerHTML = `<button type="button" class="btn-sm ${cvdDailyReset ? 'active' : ''}" onclick="toggleCvdDailyReset()" style="padding:1px 6px; font-size:10px;">${cvdDailyReset ? '📅 日重置:开' : '📅 日重置:关'}</button>`;
+                `Delta: <b style="color:${dCol}">${formatCompactVolume(bar.delta)}</b>${spotHtml}`;
+            ctrlEl.innerHTML =
+                `<button type="button" class="btn-sm ${showSpotCvdOverlay ? 'active' : ''}" onclick="toggleSpotCvdOverlay()" style="padding:1px 6px; font-size:10px; border-color:rgba(245,158,11,0.5); color:#fbbf24;">${showSpotCvdOverlay ? '🟠 现货对比:开' : '🟠 现货对比:关'}</button>` +
+                `<button type="button" class="btn-sm ${cvdDailyReset ? 'active' : ''}" onclick="toggleCvdDailyReset()" style="padding:1px 6px; font-size:10px;">${cvdDailyReset ? '📅 日重置:开' : '📅 日重置:关'}</button>`;
+        }
+
+        function toggleSpotCvdOverlay() {
+            showSpotCvdOverlay = !showSpotCvdOverlay;
+            localStorage.setItem("quant_spot_cvd_overlay", showSpotCvdOverlay ? "true" : "false");
+            if (showCvdSubchart && lwLastDataCache && lwLastDataCache.length) {
+                const range = lwChart ? lwChart.timeScale().getVisibleLogicalRange() : null;
+                renderActiveSubcharts(lwLastDataCache, getActiveSymbolObj(), tvInterval, range);
+            }
+            showToast(showSpotCvdOverlay ? "🟠 已开启现货 vs 合约 CVD 双线对比" : "已关闭现货 CVD 对比线");
+        }
+
+        async function fetchOkxSpotCvdMap(ticker, interval, limitCount = 240) {
+            const outMap = new Map();
+            const barMap = { "1": "1m", "5": "5m", "15": "15m", "60": "1H", "240": "4H", "D": "1D", "3D": "1D", "W": "1W", "M": "1M" };
+            const okxBar = barMap[interval] || "1H";
+            const instId = `${String(ticker).toUpperCase()}-USDT`;
+            const lim = Math.min(300, Math.max(100, limitCount));
+            const url = `https://www.okx.com/api/v5/market/candles?instId=${encodeURIComponent(instId)}&bar=${encodeURIComponent(okxBar)}&limit=${lim}`;
+            try {
+                const res = await smartFetchJson(url, { timeoutMs: 5500 });
+                const raw = Array.isArray(res?.data?.data) ? res.data.data : [];
+                if (!raw.length) return outMap;
+                const spotCandles = raw.map(r => ({
+                    time: Math.floor(Number(r[0]) / 1000),
+                    open: parseFloat(r[1]),
+                    high: parseFloat(r[2]),
+                    low: parseFloat(r[3]),
+                    close: parseFloat(r[4]),
+                    vol: parseFloat(r[5]) || 0
+                })).filter(c => isFinite(c.time) && isFinite(c.close)).sort((a, b) => a.time - b.time);
+                const spotCvdRows = computeGimelfarbCvdSeries(spotCandles, cvdDailyReset);
+                spotCvdRows.forEach(r => outMap.set(r.time, { cvd: r.cvd, delta: r.delta }));
+            } catch (e) {}
+            return outMap;
         }
 
         function updateNetposHudValues(bar) {
@@ -6333,14 +6427,28 @@ export default {
 
             isSyncingTimeScale = true;
             try {
-                // 1. 渲染 CVD 资金流副图
+                // 1. 渲染 CVD 资金流副图（支持合约 vs 现货双线对比）
                 if (showCvdSubchart) {
                     if (!lwCvdChart) initCvdSubChartInstance();
                     if (lwCvdChart) {
                         const cvdRows = computeGimelfarbCvdSeries(enrichedCandles, cvdDailyReset);
+                        if (showSpotCvdOverlay && symObj.market !== "US" && symObj.ticker && symObj.ticker !== "KORU") {
+                            const spotMap = await fetchOkxSpotCvdMap(symObj.ticker, interval, enrichedCandles.length);
+                            cvdRows.forEach(r => {
+                                const sp = spotMap.get(r.time);
+                                r.spotCvd = sp ? sp.cvd : null;
+                                r.spotDelta = sp ? sp.delta : null;
+                            });
+                        } else {
+                            cvdRows.forEach(r => { r.spotCvd = null; r.spotDelta = null; });
+                        }
                         lwCvdCache = cvdRows;
                         if (lwCvdLineSeries) lwCvdLineSeries.setData(cvdRows.map(r => ({ time: r.time, value: r.cvd })));
                         if (lwCvdMaSeries) lwCvdMaSeries.setData(cvdRows.map(r => r.sma28 !== null ? { time: r.time, value: r.sma28 } : { time: r.time }));
+                        if (lwCvdSpotSeries) {
+                            const hasSpot = showSpotCvdOverlay && cvdRows.some(r => r.spotCvd !== null);
+                            lwCvdSpotSeries.setData(hasSpot ? cvdRows.map(r => r.spotCvd !== null ? { time: r.time, value: r.spotCvd } : { time: r.time }) : []);
+                        }
                         if (lwCvdDeltaSeries) lwCvdDeltaSeries.setData(cvdRows.map(r => ({
                             time: r.time,
                             value: r.delta,
@@ -6435,6 +6543,7 @@ export default {
                 lwCvdChart = null;
                 lwCvdLineSeries = null;
                 lwCvdMaSeries = null;
+                lwCvdSpotSeries = null;
                 lwCvdDeltaSeries = null;
             }
 
