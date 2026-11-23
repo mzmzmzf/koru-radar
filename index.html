@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#131314">
     <link rel="manifest" href="./manifest.json">
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
-    <link rel="stylesheet" href="./styles/main.css?v=20261123c">
+    <link rel="stylesheet" href="./styles/main.css?v=20261124">
 </head>
 <body>
 
@@ -37,7 +37,9 @@
         </div>
     </header>
 
-    <div id="systemSettingsDrawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
+    <div id="topDrawerBackdrop" class="top-drawer-backdrop" onclick="closeAllTopDrawers()"></div>
+
+    <div id="systemSettingsDrawer" class="top-floating-drawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
         <div style="max-width:1240px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                 <span style="color:var(--text-muted); font-weight:700; font-size:11.5px;">⚙️ 终端系统控制台：</span>
@@ -54,7 +56,7 @@
         </div>
     </div>
 
-    <div id="macroCalendarDrawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
+    <div id="macroCalendarDrawer" class="top-floating-drawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
         <div style="max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:8px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                 <span style="color:var(--text-main); font-weight:800; font-size:13px;">⏱️ 关键盘口时间节点 &amp; 宏观核弹日历 (北京时间 UTC+8)</span>
@@ -82,7 +84,7 @@
         </div>
     </div>
 
-    <div id="circuitBreakerDrawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
+    <div id="circuitBreakerDrawer" class="top-floating-drawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
         <div style="max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:8px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -108,7 +110,7 @@
         </div>
     </div>
 
-    <div id="relayConfigDrawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
+    <div id="relayConfigDrawer" class="top-floating-drawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
         <div style="max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:8px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                 <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:250px;">
@@ -128,7 +130,7 @@
         </div>
     </div>
 
-    <div id="cloudSyncDrawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
+    <div id="cloudSyncDrawer" class="top-floating-drawer" style="display:none; background:var(--glass-bg-elevated); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid var(--border-color); padding:10px 14px; font-size:12px;">
         <div style="max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:8px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                 <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:250px;">
@@ -643,7 +645,7 @@
                     <span class="badge" id="macroOverviewVerdict" style="color:var(--neon-emerald); border-color:var(--neon-emerald);">正在扫描宏观指标...</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                    <button type="button" class="btn-sm" onclick="renderMacroOverviewPanel(); showToast('🧭 已刷新盘前宏观面板');" style="border-color:var(--neon-cyan); color:var(--neon-cyan);">🔄 刷新汇总</button>
+                    <button type="button" class="btn-sm" onclick="if(typeof refreshAutomatedMacroIntel==='function') refreshAutomatedMacroIntel(true); renderMacroOverviewPanel();" style="border-color:var(--neon-cyan); color:var(--neon-cyan);">🔄 刷新汇总</button>
                     <button type="button" class="btn-sm" onclick="toggleMacroCalendarDrawer(true)" style="border-color:var(--neon-amber); color:var(--neon-amber);">⏱️ 宏观核弹日历</button>
                     <button type="button" class="btn-sm" onclick="openCircuitBreakerMarket('BOTH')" style="border-color:rgba(239,68,68,0.5); color:#f87171;">🚨 双市场四红线</button>
                 </div>
@@ -1819,6 +1821,7 @@
     <script src="./js/indicators.js"></script>
     <script src="./js/pyramid-math.js"></script>
     <script src="./js/macro-calendar.js"></script>
+    <script src="./js/macro-intel.js"></script>
     <script src="./js/whale-radar.js"></script>
     <script>
         const LEGACY_WORKERS_DEV_URL = "https://quant-relay.zhefeng0513.workers.dev";
@@ -1942,13 +1945,36 @@
             }
         }
 
+        const TOP_DRAWER_IDS = ["systemSettingsDrawer", "macroCalendarDrawer", "circuitBreakerDrawer", "relayConfigDrawer", "cloudSyncDrawer"];
+
+        function syncTopDrawerBackdrop() {
+            const bd = document.getElementById("topDrawerBackdrop");
+            const anyOpen = TOP_DRAWER_IDS.some(id => {
+                const el = document.getElementById(id);
+                return el && el.style.display !== "none";
+            });
+            if (bd) bd.classList.toggle("open", anyOpen);
+            const sysBtn = document.getElementById("btnSystemSettingsToggle");
+            const sysEl = document.getElementById("systemSettingsDrawer");
+            if (sysBtn && sysEl) sysBtn.classList.toggle("active", sysEl.style.display !== "none");
+        }
+
+        function closeAllTopDrawers(exceptId = null) {
+            TOP_DRAWER_IDS.forEach(id => {
+                if (id === exceptId) return;
+                const el = document.getElementById(id);
+                if (el) el.style.display = "none";
+            });
+            syncTopDrawerBackdrop();
+        }
+
         function toggleSystemSettingsDrawer(forceState) {
             const el = document.getElementById("systemSettingsDrawer");
-            const btn = document.getElementById("btnSystemSettingsToggle");
             if (!el) return;
             const show = typeof forceState === "boolean" ? forceState : el.style.display === "none";
+            if (show) closeAllTopDrawers("systemSettingsDrawer");
             el.style.display = show ? "block" : "none";
-            if (btn) btn.classList.toggle("active", show);
+            syncTopDrawerBackdrop();
         }
 
         function jumpToBtcChart(snapFirst = false) {
@@ -2101,7 +2127,9 @@
             if (!drawer) return;
             const isOpen = drawer.style.display !== "none";
             const nextOpen = typeof forceState === "boolean" ? forceState : !isOpen;
+            if (nextOpen && typeof closeAllTopDrawers === "function") closeAllTopDrawers("relayConfigDrawer");
             drawer.style.display = nextOpen ? "block" : "none";
+            if (typeof syncTopDrawerBackdrop === "function") syncTopDrawerBackdrop();
             syncRelayHeaderUI();
             if (nextOpen) {
                 const inp = document.getElementById("customRelayInput");
@@ -2223,12 +2251,73 @@ export default {
       }
     }
 
-    // 2. 行情 API 转发接口 (?url=...)
+    // 2. Strategy (MSTR) 自动聚合接口 (/mstr · 15分钟边缘缓存)
+    if (url.pathname === "/mstr") {
+      const cache = caches.default;
+      const cacheKey = new Request(url.origin + "/mstr-v2", request);
+      const cached = await cache.match(cacheKey);
+      if (cached) return cached;
+      const out = { ok: true, mstrPrice: null, mstrChgPct: null, mnav: null, btcHoldings: null, avgCost: null, latest8kDate: null };
+      try {
+        const yRes = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/MSTR?interval=1d&range=5d", { headers: { "User-Agent": "Mozilla/5.0" } });
+        if (yRes.ok) {
+          const yj = await yRes.json();
+          const meta = yj?.chart?.result?.[0]?.meta;
+          if (meta && meta.regularMarketPrice) {
+            out.mstrPrice = Number(meta.regularMarketPrice);
+            const prev = Number(meta.chartPreviousClose || meta.previousClose || 0);
+            if (prev > 0) out.mstrChgPct = ((out.mstrPrice - prev) / prev) * 100;
+          }
+        }
+      } catch {}
+      try {
+        const sRes = await fetch("https://www.strategy.com/", { headers: { "User-Agent": "Mozilla/5.0" } });
+        if (sRes.ok) {
+          const html = await sRes.text();
+          const mnavM = html.match(/mNAV[^0-9]{0,80}(\d\.\d{2})x/i);
+          if (mnavM) out.mnav = parseFloat(mnavM[1]);
+          const btcM = html.match(/([0-9]{3},[0-9]{3})\s*(?:BTC|Bitcoin)/i);
+          if (btcM) out.btcHoldings = parseInt(btcM[1].replace(/,/g, ""), 10);
+        }
+      } catch {}
+      try {
+        const secRes = await fetch("https://data.sec.gov/submissions/CIK0001050446.json", { headers: { "User-Agent": "QuantTerminal/1.0 (ops@quantterminal.local)" } });
+        if (secRes.ok) {
+          const sj = await secRes.json();
+          const forms = sj?.filings?.recent?.form || [];
+          const dates = sj?.filings?.recent?.filingDate || [];
+          const idx = forms.findIndex(f => f === "8-K");
+          if (idx >= 0 && dates[idx]) out.latest8kDate = dates[idx];
+        }
+      } catch {}
+      const resp = new Response(JSON.stringify(out), {
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=900" }
+      });
+      await cache.put(cacheKey, resp.clone());
+      return resp;
+    }
+
+    // 3. Hyperliquid Info 公开接口转发 (/hl)
+    if (url.pathname === "/hl" && request.method === "POST") {
+      const bodyText = await request.text();
+      const hlRes = await fetch("https://api.hyperliquid.xyz/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: bodyText
+      });
+      return new Response(await hlRes.arrayBuffer(), {
+        status: hlRes.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" }
+      });
+    }
+
+    // 4. 行情 API 转发接口 (?url=...)
     const target = url.searchParams.get("url");
     const allowedHosts = [
       "www.okx.com",
       "aws.okx.com",
       "fapi.binance.com",
+      "api.coinbase.com",
       "query1.finance.yahoo.com",
       "open.er-api.com",
       "api.frankfurter.app",
@@ -2237,7 +2326,7 @@ export default {
       "jsonblob.com"
     ];
     if (!target) {
-      return new Response(JSON.stringify({ status: "ok", relay: "custom-domain-active", kvBound: Boolean(env && env.QUANT_KV) }), {
+      return new Response(JSON.stringify({ status: "ok", relay: "custom-domain-active", mstrReady: true, hlReady: true, kvBound: Boolean(env && env.QUANT_KV) }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
@@ -2261,7 +2350,7 @@ export default {
   }
 };`;
             navigator.clipboard.writeText(workerCode)
-                .then(() => showToast("✅ 已复制【行情转发 + 多端云同步】二合一 Worker 代码！"))
+                .then(() => showToast("✅ 已复制【行情转发 + 多端同步 + MSTR/HL聚合】新版 Worker 代码！"))
                 .catch(() => showToast("复制受限，请手动复制"));
         }
         const OKX_BTC_TICKER_URL = "https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP";
@@ -2512,6 +2601,7 @@ export default {
             { ticker: "QQQ",  text: "QQQ (纳指)" },
             { ticker: "TSLA", text: "TSLA (特斯拉)" },
             { ticker: "NVDA", text: "NVDA (英伟达)" },
+            { ticker: "MSTR", text: "MSTR (微策略)" },
             { ticker: "TQQQ", text: "TQQQ (3x纳指)" },
             { ticker: "AAPL", text: "AAPL (苹果)" }
         ];
@@ -9141,6 +9231,7 @@ export default {
         }
 
         function switchMainTab(tab) {
+            if (typeof closeAllTopDrawers === "function") closeAllTopDrawers();
             const btnChart = document.getElementById("btnTabChart");
             const btnMacro = document.getElementById("btnTabMacro");
             const btnKoru = document.getElementById("btnTabKoru");
@@ -9237,7 +9328,8 @@ export default {
             const jpy = Number(latestUsdJpy) || 0;
             const vix = (typeof latestVixValue !== "undefined" && Number(latestVixValue)) ? Number(latestVixValue) : 0;
             const fngVal = latestFngData && isFinite(latestFngData.value) ? Number(latestFngData.value) : null;
-            const fngLabel = latestFngData?.cnLabel || "--";
+            const fngInfo = fngVal !== null && typeof classifyFngScore === "function" ? classifyFngScore(fngVal) : null;
+            const fngLabel = latestFngData?.cnLabel || fngInfo?.cnLabel || "--";
             const longPct = Number(latestBtcLongPct) || 0;
             const fundRate = Number(latestFundingRate) || 0;
             const cryptoCb = typeof computeCryptoFourRedlines === "function" ? computeCryptoFourRedlines() : { redCount: 0 };
@@ -9247,6 +9339,8 @@ export default {
             const jpySafe = jpy <= 0 || jpy < 155;
             const vixSafe = vix <= 0 || vix < 20;
             const sentSafe = longPct < 63;
+
+            const extraIntelHtml = typeof buildExtraMacroIntelCardsHtml === "function" ? buildExtraMacroIntelCardsHtml() : "";
 
             grid.innerHTML = `
                 <div class="kpi-mini-box" style="border-top:2px solid ${krwSafe ? 'var(--neon-emerald)' : 'var(--neon-red)'};">
@@ -9266,7 +9360,7 @@ export default {
                 </div>
                 <div class="kpi-mini-box" style="border-top:2px solid var(--neon-amber);">
                     <div class="kpi-mini-label">🧭 加密恐慌贪婪指数</div>
-                    <div class="kpi-mini-val" style="color:${latestFngData?.color || 'var(--text-main)'};">${fngVal !== null ? `${fngVal} (${fngLabel})` : '--'}</div>
+                    <div class="kpi-mini-val" style="color:${latestFngData?.color || fngInfo?.color || 'var(--text-main)'};">${fngVal !== null ? `${fngVal} (${fngLabel})` : '--'}</div>
                     <div class="kpi-mini-sub">极度恐慌防接飞刀 · 极度贪婪防清算</div>
                 </div>
                 <div class="kpi-mini-box" style="border-top:2px solid ${sentSafe ? 'var(--neon-emerald)' : 'var(--neon-red)'};">
@@ -9279,6 +9373,7 @@ export default {
                     <div class="kpi-mini-val">🪙 ${cryptoCb.redCount}/4 · 🇺🇸 ${usCb.redCount}/4</div>
                     <div class="kpi-mini-sub">${(cryptoCb.redCount >= 2 || usCb.redCount >= 2) ? '⚠️ 部分市场触发熔断静默' : '🟢 双市场风控绿灯'}</div>
                 </div>
+                ${extraIntelHtml}
             `;
 
             if (verdict) {
@@ -10678,7 +10773,9 @@ export default {
             if (!drawer) return;
             const isOpen = drawer.style.display !== "none";
             const next = typeof forceState === "boolean" ? forceState : !isOpen;
+            if (next && typeof closeAllTopDrawers === "function") closeAllTopDrawers("circuitBreakerDrawer");
             drawer.style.display = next ? "block" : "none";
+            if (typeof syncTopDrawerBackdrop === "function") syncTopDrawerBackdrop();
             if (next) evaluateFourRedlines(false);
         }
 
@@ -12533,7 +12630,9 @@ export default {
             if (!drawer) return;
             const isOpen = drawer.style.display !== "none";
             const nextOpen = typeof forceState === "boolean" ? forceState : !isOpen;
+            if (nextOpen && typeof closeAllTopDrawers === "function") closeAllTopDrawers("cloudSyncDrawer");
             drawer.style.display = nextOpen ? "block" : "none";
+            if (typeof syncTopDrawerBackdrop === "function") syncTopDrawerBackdrop();
             updateCloudSyncBadgeUI("idle");
             if (nextOpen) {
                 const inp = document.getElementById("cloudSyncRoomInput");

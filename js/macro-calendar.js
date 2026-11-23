@@ -5,6 +5,7 @@
 
     // 内置经官方日历核验的高影响宏观事件 (UTC+8)
     const BUILTIN_MACRO_EVENTS = [
+        { id: "msci_20261130", title: "MSCI 指数季度调整生效窗口 (关注 MSTR 权重)", market: "BOTH", impact: "HIGH", iso: "2026-12-01T05:00:00+08:00" },
         { id: "fomc_202612", title: "美联储 FOMC 利率决议 & 点阵图", market: "BOTH", impact: "HIGH", iso: "2026-12-10T03:00:00+08:00" },
         { id: "cpi_202612", title: "美国 11 月 CPI 通胀数据", market: "BOTH", impact: "HIGH", iso: "2026-12-10T21:30:00+08:00" },
         { id: "ppi_202612", title: "美国 11 月 PPI 生产者物价", market: "BOTH", impact: "MED", iso: "2026-12-15T21:30:00+08:00" },
@@ -134,7 +135,9 @@
         const el = document.getElementById("macroCalendarDrawer");
         if (!el) return;
         const show = typeof forceState === "boolean" ? forceState : el.style.display === "none";
+        if (show && typeof closeAllTopDrawers === "function") closeAllTopDrawers("macroCalendarDrawer");
         el.style.display = show ? "block" : "none";
+        if (typeof syncTopDrawerBackdrop === "function") syncTopDrawerBackdrop();
         if (show) window.updateMacroClockUI();
     };
 
