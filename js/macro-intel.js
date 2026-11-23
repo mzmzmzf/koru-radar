@@ -44,7 +44,18 @@
 
     async function fetchJsonSafe(url, timeoutMs = 6500) {
         if (typeof smartFetchJson === "function") {
-            return await smartFetchJson(url, timeoutMs);
+            try {
+                const wrapped = await smartFetchJson(url, { timeoutMs });
+                if (wrapped && wrapped.data !== undefined) return wrapped.data;
+            } catch (e) {}
+        }
+        const relay = getRelayUrl();
+        if (relay) {
+            try {
+                const sep = relay.includes("?") ? "&" : "?";
+                const res = await fetch(`${relay}${sep}url=${encodeURIComponent(url)}`);
+                if (res.ok) return await res.json();
+            } catch (e) {}
         }
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), timeoutMs);
