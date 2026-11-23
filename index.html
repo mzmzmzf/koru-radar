@@ -9326,7 +9326,7 @@ export default {
 
             const krw = Number(latestUsdKrw) || 0;
             const jpy = Number(latestUsdJpy) || 0;
-            const vix = (typeof latestVixValue !== "undefined" && Number(latestVixValue)) ? Number(latestVixValue) : 0;
+            const vix = (typeof latestVixState !== "undefined" && latestVixState && Number(latestVixState.value)) ? Number(latestVixState.value) : 0;
             const fngVal = latestFngData && isFinite(latestFngData.value) ? Number(latestFngData.value) : null;
             const fngInfo = fngVal !== null && typeof classifyFngScore === "function" ? classifyFngScore(fngVal) : null;
             const fngLabel = latestFngData?.cnLabel || fngInfo?.cnLabel || "--";
