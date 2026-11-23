@@ -37,7 +37,9 @@
     }
 
     function getRelayUrl() {
-        return typeof getCustomRelayBase === "function" ? (getCustomRelayBase() || "") : "";
+        const custom = typeof getCustomRelayBase === "function" ? (getCustomRelayBase() || "") : "";
+        if (custom) return custom;
+        return typeof LEGACY_WORKERS_DEV_URL === "string" ? LEGACY_WORKERS_DEV_URL : "";
     }
 
     async function fetchJsonSafe(url, timeoutMs = 6500) {
