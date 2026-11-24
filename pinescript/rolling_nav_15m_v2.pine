@@ -103,6 +103,7 @@ var int   addSeqInLeg        = 0
 var int   lastSidewaysIdx    = -99
 var int   lastExitIdx        = -99
 var int   lastRejectShortIdx = -99
+var int   lastSupportLongIdx = -99
 var bool  pausedInCurrentLeg = false
 
 var int   bearTrapIdx        = -99
@@ -118,6 +119,7 @@ sigStartShort  = false
 sigAddLong     = false
 sigAddShort    = false
 sigRejectShort = false
+sigSupportLong = false
 sigTrap        = false
 sigExit        = false
 
@@ -144,15 +146,15 @@ if (prevSpikeDn or curSpikeDn) and isBullReject and (bar_index - bullTrapIdx >= 
         label.new(bar_index, low, "⚠️假空", yloc=yloc.belowbar, style=label.style_label_up, color=color.new(#10b981, 15), textcolor=color.white, size=size.small)
         barMarked := true
 
-// --- B. 右侧黄金空 / 多点（预警后 1~12 根死叉/金叉缩量回踩） ---
-if bar_index - bearTrapIdx >= 1 and bar_index - bearTrapIdx <= 12 and ema10 < ema15 and close < ema15 and htfBias != 1 and sessionOk
+// --- B. 右侧黄金空 / 多点（严格遵守 MA50 多空领地隔离） ---
+if bar_index - bearTrapIdx >= 1 and bar_index - bearTrapIdx <= 12 and ema10 < ema15 and ema15 < ma50 and close < ma50 and close < ema15 and htfBias != 1 and sessionOk
     if high >= math.min(ema10, ema15) * 0.999 and close < open and isVolShrunk
         if showTrapAlerts and not barMarked
             label.new(bar_index, high, "🎯空", yloc=yloc.abovebar, style=label.style_label_down, color=#eab308, textcolor=#111827, size=size.small)
             barMarked := true
         bearTrapIdx := -99
 
-if bar_index - bullTrapIdx >= 1 and bar_index - bullTrapIdx <= 12 and ema10 > ema15 and close > ema15 and htfBias != -1 and sessionOk
+if bar_index - bullTrapIdx >= 1 and bar_index - bullTrapIdx <= 12 and ema10 > ema15 and ema15 > ma50 and close > ma50 and close > ema15 and htfBias != -1 and sessionOk
     if low <= math.max(ema10, ema15) * 1.001 and close > open and isVolShrunk
         if showTrapAlerts and not barMarked
             label.new(bar_index, low, "🎯多", yloc=yloc.belowbar, style=label.style_label_up, color=#eab308, textcolor=#111827, size=size.small)
@@ -200,8 +202,11 @@ if not isSideways and bias == 1 and all4Bull and body < 1.8 * atr14 and addCoold
         lastAddBias        := 1
         addSeqInLeg        += 1
         sigAddLong         := true
+        r3lAdd = math.min(low, math.min(low[1], low[2]))
+        alsoSup = r3lAdd <= math.max(ema15 * 1.0015, ema15 + 0.1 * atr14) and close > ema10
+        addLongLbl = alsoSup ? ("+多#" + str.tostring(addSeqInLeg) + "·撑") : ("+多#" + str.tostring(addSeqInLeg))
         if not barMarked
-            label.new(bar_index, low, "+多#" + str.tostring(addSeqInLeg), yloc=yloc.belowbar, style=label.style_label_up, color=#0284c7, textcolor=color.white, size=size.small)
+            label.new(bar_index, low, addLongLbl, yloc=yloc.belowbar, style=label.style_label_up, color=#0284c7, textcolor=color.white, size=size.small)
             barMarked := true
 else if not isSideways and bias == -1 and all4Bear and body < 1.8 * atr14 and addCooldownOk and (bar_index - lastStartIdx >= 1)
     nearEmaZone = (high >= ema10 - 0.25 * atr14 or high[1] >= ema10 - 0.25 * atr14) and close <= ema15 + 0.15 * atr14
@@ -254,23 +259,40 @@ else if (bias == 1 or bias == -1) and isSideways
 else if bias == 0 or (not all4Bull and not all4Bear and isDeepChop)
     stateCode := 0
 
-// --- D. 反抽压制确认空（🎯压空 · 精简防叠标 + 趋势门禁 + 7根冷却） ---
+// --- D1. 反抽压制确认空（🎯压空 · 严格 MA50 下方领地隔离 + 6根冷却） ---
+strictBearZone = close < ma50 and ema15 < ma50
 ma50DownOrFlat = not na(ma50[4]) ? ma50 <= ma50[4] * 1.0005 : true
-bearBackdropOk = not isDeepChop and sessionOk and ema10 < ema15 and ema15 < ma50 and ma50DownOrFlat and close < ma50 and htfBias != 1
+bearBackdropOk = strictBearZone and not isDeepChop and sessionOk and ema10 < ema15 and ma50DownOrFlat and htfBias != 1
 recent3High    = math.max(high, math.max(high[1], high[2]))
 touchedResist  = recent3High >= math.min(ema15 * 0.9985, ema15 - 0.1 * atr14) and recent3High <= ma50 * 1.009
 bearRejCandle  = close < open and close < ema10
 noBullThrust   = not (not na(volMa20) and volMa20 > 0 and close[1] > open[1] and volume[1] > volMa20 * 1.6)
 pathAOk        = bearBackdropOk and touchedResist and bearRejCandle and noBullThrust
 
-pathBOk = bar_index - bearTrapIdx >= 2 and bar_index - bearTrapIdx <= 10 and not na(bearTrapHigh) and high < bearTrapHigh and close < open and close < ema10
+pathBOk = strictBearZone and bar_index - bearTrapIdx >= 2 and bar_index - bearTrapIdx <= 10 and not na(bearTrapHigh) and high < bearTrapHigh and close < open and close < ema10
 
-rejectShortCdOk = (bar_index - lastRejectShortIdx >= 7) and (lastAddBias != -1 or bar_index - lastAddIdx >= 4) and (lastStartBias != -1 or bar_index - lastStartIdx >= 4)
+rejectShortCdOk = (bar_index - lastRejectShortIdx >= 6) and (lastAddBias != -1 or bar_index - lastAddIdx >= 4) and (lastStartBias != -1 or bar_index - lastStartIdx >= 4)
 if showRejectShort and (pathAOk or pathBOk) and rejectShortCdOk
     lastRejectShortIdx := bar_index
     sigRejectShort     := true
     if not barMarked
         label.new(bar_index, high, "🎯压空", yloc=yloc.abovebar, style=label.style_label_down, color=#be185d, textcolor=color.white, size=size.small)
+        barMarked := true
+
+// --- D2. 对称回踩支撑确认多（🎯撑多 · 严格 MA50 上方多头领地 + 6根冷却） ---
+strictBullZone  = close > ma50 and ema15 > ma50
+ma50UpOrFlat    = not na(ma50[4]) ? ma50 >= ma50[4] * 0.9995 : true
+bullBackdropOk  = strictBullZone and not isDeepChop and sessionOk and htfBias == 1 and ema10 > ema15 and ma50UpOrFlat
+recent3Low      = math.min(low, math.min(low[1], low[2]))
+touchedSupport  = recent3Low <= math.max(ema15 * 1.0015, ema15 + 0.1 * atr14) and recent3Low >= ma50 * 0.991
+bullReclCandle  = close > open and close > ema10
+noBearThrust    = not (not na(volMa20) and volMa20 > 0 and close[1] < open[1] and volume[1] > volMa20 * 1.6)
+supportLongCdOk = (bar_index - lastSupportLongIdx >= 6) and (lastAddBias != 1 or bar_index - lastAddIdx >= 4) and (lastStartBias != 1 or bar_index - lastStartIdx >= 4)
+if showRejectShort and bullBackdropOk and touchedSupport and bullReclCandle and noBearThrust and supportLongCdOk
+    lastSupportLongIdx := bar_index
+    sigSupportLong     := true
+    if not barMarked
+        label.new(bar_index, low, "🎯撑多", yloc=yloc.belowbar, style=label.style_label_up, color=#0d9488, textcolor=color.white, size=size.small)
         barMarked := true
 
 // ============================================================================
@@ -320,6 +342,7 @@ if showHudTable and barstate.islast
 // ============================================================================
 alertcondition(sigStartLong or sigStartShort, title="🚀 底仓启动 (4门全绿)", message="{{ticker}} {{interval}} 触发 15m 滚仓底仓启动信号 @ {{close}}")
 alertcondition(sigAddLong or sigAddShort, title="+1/5 顺势加仓 (#1/#2)", message="{{ticker}} {{interval}} 触发 15m 顺势加仓信号 @ {{close}}")
-alertcondition(sigRejectShort, title="🎯 反抽压制确认空", message="{{ticker}} {{interval}} 触发 🎯反抽压制空 @ {{close}}")
+alertcondition(sigRejectShort, title="🎯 反抽压制空 (🎯压空)", message="{{ticker}} {{interval}} 触发 🎯压空 @ {{close}}")
+alertcondition(sigSupportLong, title="🎯 回踩支撑多 (🎯撑多)", message="{{ticker}} {{interval}} 触发 🎯撑多 @ {{close}}")
 alertcondition(sigTrap, title="⚠️ 孤立巨柱假多/假空预警", message="{{ticker}} {{interval}} 出现孤立巨柱流动性猎杀预警 @ {{close}}")
 alertcondition(sigExit, title="✂️ 破位/击穿防线止盈", message="{{ticker}} {{interval}} 触发 ✂️止盈退场信号 @ {{close}}")

@@ -2951,6 +2951,9 @@ export default {
                     if (m.kind === "REJECT_SHORT") {
                         return { bg: "#be185d", fg: "#ffffff", border: "rgba(244,114,182,0.7)" };
                     }
+                    if (m.kind === "SUPPORT_LONG") {
+                        return { bg: "#0d9488", fg: "#ffffff", border: "rgba(45,212,191,0.7)" };
+                    }
                     if (m.kind === "TRAP") {
                         return m.position === "aboveBar"
                             ? { bg: isDark ? "rgba(244,63,94,0.22)" : "rgba(254,226,226,0.95)", fg: isDark ? "#fda4af" : "#be123c", border: "#f43f5e" }

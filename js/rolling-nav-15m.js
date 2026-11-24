@@ -242,6 +242,7 @@
         let lastSidewaysBarIdx = -99;
         let lastExitBarIdx = -99;
         let lastRejectShortIdx = -99;
+        let lastSupportLongIdx = -99;
         let pausedInCurrentLeg = false;
 
         // 流动性猎杀 / 孤立巨柱反转追踪器
@@ -402,8 +403,8 @@
                 });
             }
 
-            // --- B. 右侧黄金空/多点（需 1H 不逆势且非深度枯竭段） ---
-            const bearCrossActive = ema10 < ema15 && c.close < ema15;
+            // --- B. 右侧黄金空/多点（严格遵守 MA50 多空领地隔离 + 1H 不逆势） ---
+            const bearCrossActive = ema10 < ema15 && ema15 < ma50 && c.close < ma50 && c.close < ema15;
             if (i - bearTrapIdx >= 1 && i - bearTrapIdx <= 12 && bearCrossActive && htfBias !== "LONG" && sessionOk) {
                 const touchedZone = c.high >= Math.min(ema10, ema15) * 0.999;
                 if (touchedZone && c.close < c.open && isVolShrunk) {
@@ -419,7 +420,7 @@
                     bearTrapIdx = -99;
                 }
             }
-            const bullCrossActive = ema10 > ema15 && c.close > ema15;
+            const bullCrossActive = ema10 > ema15 && ema15 > ma50 && c.close > ma50 && c.close > ema15;
             if (i - bullTrapIdx >= 1 && i - bullTrapIdx <= 12 && bullCrossActive && htfBias !== "SHORT" && sessionOk) {
                 const touchedZone = c.low <= Math.max(ema10, ema15) * 1.001;
                 if (touchedZone && c.close > c.open && isVolShrunk) {
@@ -498,12 +499,14 @@
                     lastAddBarIdx = i;
                     lastAddBias = "LONG";
                     addSeqInLeg += 1;
+                    const r3l = Math.min(c.low, prev.low, candles[i - 2].low);
+                    const alsoSupport = r3l <= Math.max(ema15 * 1.0015, ema15 + 0.1 * atr) && c.close > ema10;
                     pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "belowBar",
                         color: "#10b981",
                         shape: "arrowUp",
-                        text: `+多#${addSeqInLeg}`,
+                        text: alsoSupport ? `+多#${addSeqInLeg}·撑` : `+多#${addSeqInLeg}`,
                         _kind: "ADD",
                         _side: "LONG"
                     });
@@ -570,10 +573,10 @@
                 state = "CHOP_SLEEP";
             }
 
-            // --- D. 反抽压制确认空（🎯压空 · 精简防叠标 + 趋势门禁 + 7根冷却） ---
-            // 路径 A：空头均线秩序确立 + 非深度横盘 + 非凌晨枯竭段，近 3 根触及 EMA15~MA50*1.009 或供给块后收阴跌破 EMA10
+            // --- D1. 反抽压制确认空（🎯压空 · 严格 MA50 下方领地隔离 + 6根冷却） ---
+            const strictBearTerritory = c.close < ma50 && ema15 < ma50;
             const ma50DownOrFlat = isFinite(ma50Prev4) ? (ma50 <= ma50Prev4 * 1.0005) : true;
-            const bearBackdropOk = !isDeepChop && sessionOk && ema10 < ema15 && ema15 < ma50 && ma50DownOrFlat && c.close < ma50 && htfBias !== "LONG";
+            const bearBackdropOk = strictBearTerritory && !isDeepChop && sessionOk && ema10 < ema15 && ma50DownOrFlat && htfBias !== "LONG";
             const recent3High = Math.max(c.high, prev.high, candles[i - 2].high);
             const hitSupplyBlock = supplyBlocks.some(b =>
                 (b.createdIdx === undefined || b.createdIdx <= i) &&
@@ -586,13 +589,13 @@
             const noBullVolThrust = !(volMa > 0 && prev.close > prev.open && prev.vol > volMa * 1.6);
             const pathAOk = bearBackdropOk && touchedResistBand && bearRejectionCandle && noBullVolThrust;
 
-            // 路径 B：⚠️假多 预警后 2~10 根内出现不破前高且跌破 EMA10 的次高点承压阴线（防巨阳首根抢跑）
-            const pathBOk = (i - bearTrapIdx >= 2 && i - bearTrapIdx <= 10 && bearTrapHigh > 0)
+            // 路径 B 也严格锁死在 MA50 下方空头领地，彻底杜绝主升浪逆势摸顶做空
+            const pathBOk = strictBearTerritory && (i - bearTrapIdx >= 2 && i - bearTrapIdx <= 10 && bearTrapHigh > 0)
                 && c.high < bearTrapHigh
                 && c.close < c.open
                 && c.close < ema10;
 
-            const rejectShortCooldownOk = (i - lastRejectShortIdx >= 7)
+            const rejectShortCooldownOk = (i - lastRejectShortIdx >= 6)
                 && (lastAddBias !== "SHORT" || i - lastAddBarIdx >= 4)
                 && (lastStartBias !== "SHORT" || i - lastStartBarIdx >= 4);
             if ((pathAOk || pathBOk) && rejectShortCooldownOk) {
@@ -605,6 +608,36 @@
                     text: "🎯压空",
                     _kind: "REJECT_SHORT",
                     _side: "SHORT"
+                });
+            }
+
+            // --- D2. 对称回踩支撑确认多（🎯撑多 · 严格 MA50 上方多头领地 + 6根冷却） ---
+            const strictBullTerritory = c.close > ma50 && ema15 > ma50;
+            const ma50UpOrFlat = isFinite(ma50Prev4) ? (ma50 >= ma50Prev4 * 0.9995) : true;
+            const bullBackdropOk = strictBullTerritory && !isDeepChop && sessionOk && htfBias === "LONG" && ema10 > ema15 && ma50UpOrFlat;
+            const recent3Low = Math.min(c.low, prev.low, candles[i - 2].low);
+            const hitDemandBlock = demandBlocks.some(b =>
+                (b.createdIdx === undefined || b.createdIdx <= i) &&
+                isFinite(Number(b.bottom)) && isFinite(Number(b.top)) &&
+                recent3Low <= Number(b.top) * 1.001 && recent3Low >= Number(b.bottom) * 0.998
+            );
+            const touchedSupportBand = recent3Low <= Math.max(ema15 * 1.0015, ema15 + 0.1 * atr)
+                && (recent3Low >= ma50 * 0.991 || hitDemandBlock);
+            const bullReclaimCandle = c.close > c.open && c.close > ema10;
+            const noBearVolThrust = !(volMa > 0 && prev.close < prev.open && prev.vol > volMa * 1.6);
+            const supportLongCooldownOk = (i - lastSupportLongIdx >= 6)
+                && (lastAddBias !== "LONG" || i - lastAddBarIdx >= 4)
+                && (lastStartBias !== "LONG" || i - lastStartBarIdx >= 4);
+            if (bullBackdropOk && touchedSupportBand && bullReclaimCandle && noBearVolThrust && supportLongCooldownOk) {
+                lastSupportLongIdx = i;
+                pushUniqueBarMarker(i, {
+                    time: c.time,
+                    position: "belowBar",
+                    color: "#0d9488",
+                    shape: "arrowUp",
+                    text: "🎯撑多",
+                    _kind: "SUPPORT_LONG",
+                    _side: "LONG"
                 });
             }
 
@@ -668,7 +701,7 @@
         }
 
         const finalMarkers = markers.filter(m => {
-            if (riskGuard.isBlocked && m._barIdx >= n - 2 && (m._kind === "ADD" || m._kind === "START" || m._kind === "REJECT_SHORT") && m._side === effectiveBias) {
+            if (riskGuard.isBlocked && m._barIdx >= n - 2 && (m._kind === "ADD" || m._kind === "START" || m._kind === "REJECT_SHORT" || m._kind === "SUPPORT_LONG") && m._side === effectiveBias) {
                 return false;
             }
             return true;
