@@ -85,15 +85,15 @@ async function fetchCryptoCompareFallbackCandles(ticker, interval) {
     const sym = String(ticker || "").toUpperCase();
     if (sym === "KORU") return [];
     const cfgMap = {
-        "1":   { ep: "histominute", agg: 1,  limit: 240 },
-        "5":   { ep: "histominute", agg: 5,  limit: 240 },
-        "15":  { ep: "histominute", agg: 15, limit: 240 },
-        "60":  { ep: "histohour",   agg: 1,  limit: 240 },
-        "240": { ep: "histohour",   agg: 4,  limit: 240 },
-        "D":   { ep: "histoday",    agg: 1,  limit: 240 },
-        "3D":  { ep: "histoday",    agg: 3,  limit: 240 },
-        "W":   { ep: "histoday",    agg: 7,  limit: 240 },
-        "M":   { ep: "histoday",    agg: 30, limit: 240 }
+        "1":   { ep: "histominute", agg: 1,  limit: 600 },
+        "5":   { ep: "histominute", agg: 5,  limit: 600 },
+        "15":  { ep: "histominute", agg: 15, limit: 600 },
+        "60":  { ep: "histohour",   agg: 1,  limit: 600 },
+        "240": { ep: "histohour",   agg: 4,  limit: 600 },
+        "D":   { ep: "histoday",    agg: 1,  limit: 600 },
+        "3D":  { ep: "histoday",    agg: 3,  limit: 600 },
+        "W":   { ep: "histoday",    agg: 7,  limit: 600 },
+        "M":   { ep: "histoday",    agg: 30, limit: 600 }
     };
     const cfg = cfgMap[interval] || cfgMap["60"];
     const url = `https://min-api.cryptocompare.com/data/v2/${cfg.ep}?fsym=${encodeURIComponent(sym)}&tsym=USD&limit=${cfg.limit}&aggregate=${cfg.agg}`;
@@ -122,9 +122,31 @@ async function fetchCryptoCompareFallbackCandles(ticker, interval) {
     return [];
 }
 
-async function fetchOkxCandlesForSymbol(symObj, interval) {
+function parseOkxCandleRows(rows) {
+    if (!Array.isArray(rows) || !rows.length) return [];
+    const seen = new Set();
+    const out = [];
+    for (let i = rows.length - 1; i >= 0; i--) {
+        const row = rows[i];
+        const t = Math.floor(parseInt(row[0], 10) / 1000);
+        if (!isFinite(t) || seen.has(t)) continue;
+        seen.add(t);
+        out.push({
+            time: t,
+            open: parseFloat(row[1]),
+            high: parseFloat(row[2]),
+            low: parseFloat(row[3]),
+            close: parseFloat(row[4]),
+            vol: parseFloat(row[5]) || 0
+        });
+    }
+    return out;
+}
+
+async function fetchOkxCandlesForSymbol(symObj, interval, opts = {}) {
     const barMap = { "1": "1m", "5": "5m", "15": "15m", "60": "1H", "240": "4H", "D": "1Dutc", "3D": "3Dutc", "W": "1Wutc", "M": "1Mutc" };
     const bar = barMap[interval] || "1H";
+    const pages = Math.max(1, Math.min(5, Number(opts.pages) || 3));
     const tk = String(symObj.ticker || symObj.id || "").toUpperCase().replace(/^OKX:/, "");
     const candidates = [...new Set([
         symObj.okxInstId || `${tk}-USDT-SWAP`,
@@ -135,33 +157,44 @@ async function fetchOkxCandlesForSymbol(symObj, interval) {
 
     for (const instId of candidates) {
         try {
-            const primaryUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=240`;
+            let activeBar = bar;
+            const primaryUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${activeBar}&limit=300`;
             let { data: json } = await smartFetchJson(primaryUrl, { timeoutMs: 2800 });
-            if ((json?.code !== "0" || !Array.isArray(json.data) || json.data.length === 0) && bar.endsWith("utc")) {
-                const fallbackBar = bar.replace("utc", "");
-                const fbUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${fallbackBar}&limit=240`;
+            if ((json?.code !== "0" || !Array.isArray(json.data) || json.data.length === 0) && activeBar.endsWith("utc")) {
+                activeBar = activeBar.replace("utc", "");
+                const fbUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${activeBar}&limit=300`;
                 const fbOut = await smartFetchJson(fbUrl, { timeoutMs: 2800 });
                 json = fbOut.data;
             }
             if (json?.code === "0" && Array.isArray(json.data) && json.data.length >= 5) {
-                const rawReversed = json.data.slice().reverse();
-                const seenTimes = new Set();
-                const candles = [];
-                rawReversed.forEach(row => {
-                    const t = Math.floor(parseInt(row[0], 10) / 1000);
-                    if (!seenTimes.has(t)) {
-                        seenTimes.add(t);
-                        candles.push({
-                            time: t,
-                            open: parseFloat(row[1]),
-                            high: parseFloat(row[2]),
-                            low: parseFloat(row[3]),
-                            close: parseFloat(row[4]),
-                            vol: parseFloat(row[5]) || 0
-                        });
+                symObj._resolvedOkxInstId = instId;
+                symObj._resolvedOkxBar = activeBar;
+                let merged = parseOkxCandleRows(json.data);
+
+                // 自动续拉更早的历史分页（默认 3 页 ≈ 900 根 K 线，15m 约覆盖 9.4 天）
+                for (let p = 1; p < pages; p++) {
+                    if (!merged.length) break;
+                    const oldestMs = merged[0].time * 1000;
+                    const histUrl = `https://www.okx.com/api/v5/market/history-candles?instId=${instId}&bar=${activeBar}&after=${oldestMs}&limit=300`;
+                    try {
+                        let { data: hJson } = await smartFetchJson(histUrl, { timeoutMs: 2600 });
+                        if (hJson?.code !== "0" || !Array.isArray(hJson.data) || hJson.data.length === 0) {
+                            const altUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${activeBar}&after=${oldestMs}&limit=300`;
+                            const altOut = await smartFetchJson(altUrl, { timeoutMs: 2600 });
+                            hJson = altOut.data;
+                        }
+                        if (hJson?.code === "0" && Array.isArray(hJson.data) && hJson.data.length > 0) {
+                            const older = parseOkxCandleRows(hJson.data).filter(x => x.time < merged[0].time);
+                            if (!older.length) break;
+                            merged = older.concat(merged);
+                        } else {
+                            break;
+                        }
+                    } catch (e) {
+                        break;
                     }
-                });
-                return candles;
+                }
+                return merged;
             }
         } catch (e) {}
     }
@@ -172,6 +205,29 @@ async function fetchOkxCandlesForSymbol(symObj, interval) {
     }
     return [];
 }
+
+// 供主图向左拖动至边界时懒加载更早历史 K 线
+window.fetchOlderOkxCandles = async function (symObj, interval, beforeSec, limit = 300) {
+    if (!symObj || symObj.market !== "OKX" || !isFinite(beforeSec) || beforeSec <= 0) return [];
+    const barMap = { "1": "1m", "5": "5m", "15": "15m", "60": "1H", "240": "4H", "D": "1Dutc", "3D": "3Dutc", "W": "1Wutc", "M": "1Mutc" };
+    const tk = String(symObj.ticker || symObj.id || "").toUpperCase().replace(/^OKX:/, "");
+    const instId = symObj._resolvedOkxInstId || symObj.okxInstId || `${tk}-USDT-SWAP`;
+    const bar = symObj._resolvedOkxBar || barMap[interval] || "1H";
+    const afterMs = Math.floor(beforeSec * 1000);
+    try {
+        const histUrl = `https://www.okx.com/api/v5/market/history-candles?instId=${instId}&bar=${bar}&after=${afterMs}&limit=${limit}`;
+        let { data: json } = await smartFetchJson(histUrl, { timeoutMs: 2800 });
+        if (json?.code !== "0" || !Array.isArray(json.data) || json.data.length === 0) {
+            const altUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&after=${afterMs}&limit=${limit}`;
+            const altOut = await smartFetchJson(altUrl, { timeoutMs: 2800 });
+            json = altOut.data;
+        }
+        if (json?.code === "0" && Array.isArray(json.data) && json.data.length > 0) {
+            return parseOkxCandleRows(json.data).filter(x => x.time < beforeSec);
+        }
+    } catch (e) {}
+    return [];
+};
 
 function parseYahooChartPayload(json, aggStep = 1) {
     const result = json?.chart?.result?.[0];
@@ -198,7 +254,7 @@ function parseYahooChartPayload(json, aggStep = 1) {
         }
     }
     if (rawCandles.length < 5) return [];
-    return aggregateCandlesByStep(rawCandles, aggStep).slice(-240);
+    return aggregateCandlesByStep(rawCandles, aggStep).slice(-900);
 }
 
 function parseEastmoneyUsKlineRows(klines, aggStep = 1) {
@@ -235,7 +291,7 @@ function parseEastmoneyUsKlineRows(klines, aggStep = 1) {
 
     parsed.sort((a, b) => a.time - b.time);
     if (parsed.length < 5) return [];
-    return aggregateCandlesByStep(parsed, aggStep).slice(-240);
+    return aggregateCandlesByStep(parsed, aggStep).slice(-900);
 }
 
 async function resolveEastmoneyUsSecId(ticker) {
@@ -277,7 +333,7 @@ async function fetchEastmoneyUsCandles(symObj, interval) {
     const aggMap = { "1": 1,   "5": 1,   "15": 1,    "60": 1,    "240": 4,    "D": 1,     "3D": 3,     "W": 1,     "M": 1 };
     const klt = kltMap[interval] || "60";
     const aggStep = aggMap[interval] || 1;
-    const lmt = Math.min(960, 245 * aggStep);
+    const lmt = Math.min(1200, 600 * aggStep);
 
     const knownSecId = symObj.emSecId || await resolveEastmoneyUsSecId(tk);
     const secIdCandidates = [...new Set([

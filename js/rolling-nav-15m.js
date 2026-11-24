@@ -238,6 +238,7 @@
         let lastStartBias = "NEUTRAL";
         let lastAddBarIdx = -99;
         let lastAddBias = "NEUTRAL";
+        let addSeqInLeg = 0;
         let lastSidewaysBarIdx = -99;
         let lastExitBarIdx = -99;
         let pausedInCurrentLeg = false;
@@ -307,6 +308,7 @@
             const emaGap = Math.abs(ema10 - ema15);
             const midGap = Math.abs(ema15 - ma50);
             const isVolShrunk = volMa > 0 && ((c.vol < volMa * 0.85) || (prev.vol < volMa * 0.85));
+            const isVolAddOk = volMa > 0 && ((c.vol <= volMa * 1.05) || (prev.vol <= volMa * 1.05));
             const isVolExpanded = volMa > 0 && (c.vol > volMa * 1.15);
             const sess = getBeijingSessionInfo(c.time);
 
@@ -317,8 +319,8 @@
             const ema15SlopeUp = isFinite(ema15Prev2) ? (ema15 > ema15Prev2) : true;
             const ema15SlopeDn = isFinite(ema15Prev2) ? (ema15 < ema15Prev2) : true;
 
-            const maBullOk = ema10 > ema15 && ema15 > ma50 && ma50SlopeUp && ema15SlopeUp && emaGap >= 0.15 * atr && midGap >= 0.22 * atr;
-            const maBearOk = ema10 < ema15 && ema15 < ma50 && ma50SlopeDn && ema15SlopeDn && emaGap >= 0.15 * atr && midGap >= 0.22 * atr;
+            const maBullOk = ema10 > ema15 && ema15 > ma50 && ma50SlopeUp && ema15SlopeUp && emaGap >= 0.12 * atr && midGap >= 0.18 * atr;
+            const maBearOk = ema10 < ema15 && ema15 < ma50 && ma50SlopeDn && ema15SlopeDn && emaGap >= 0.12 * atr && midGap >= 0.18 * atr;
             const candidateDir = maBullOk ? "LONG" : (maBearOk ? "SHORT" : "NEUTRAL");
 
             // Gate 1：1H 跨周期同向共振
@@ -326,12 +328,12 @@
             const htfBearOk = htfBias === "SHORT";
             const gate1Ok = (candidateDir === "LONG" && htfBullOk) || (candidateDir === "SHORT" && htfBearOk);
 
-            // Gate 3：ADX(14) 强度 & 考夫曼效率系数 ER(10)（彻底筛掉宽幅震荡/画门行情）
+            // Gate 3：ADX(14) 强度(>=19.5) & 考夫曼效率系数 ER(10)(>=0.23)（兼顾阶梯顺势与横盘排杂）
             const adxValid = isFinite(adx);
             const erValid = isFinite(er);
-            const isDeepChop = (adxValid && adx < 20 && erValid && er < 0.25) || (erValid && er < 0.20);
-            const adxPass = adxValid && adx >= 22 && (!isFinite(prevAdx) || adx >= prevAdx - 0.15);
-            const erPass = erValid && er >= 0.35;
+            const isDeepChop = (adxValid && adx < 17 && erValid && er < 0.18) || (erValid && er < 0.15);
+            const adxPass = adxValid && adx >= 19.5 && (!isFinite(prevAdx) || adx >= prevAdx - 0.25);
+            const erPass = erValid && er >= 0.23;
             const gate3Ok = !isDeepChop && (adxPass || erPass);
 
             // Gate 4：SMC 空间距离 (>1.5 ATR) + 拥挤度 (<63%) + 排除 03:00-07:30 枯竭时段
@@ -447,6 +449,7 @@
                 state = "TREND_START";
                 trendAnchorPrice = c.close;
                 pausedInCurrentLeg = false;
+                addSeqInLeg = 0;
                 const canMarkStart = (lastStartBias !== "LONG" && (i - lastStartBarIdx >= 6)) || (i - lastStartBarIdx >= 12);
                 if (canMarkStart) {
                     lastStartBarIdx = i;
@@ -466,6 +469,7 @@
                 state = "TREND_START";
                 trendAnchorPrice = c.close;
                 pausedInCurrentLeg = false;
+                addSeqInLeg = 0;
                 const canMarkStart = (lastStartBias !== "SHORT" && (i - lastStartBarIdx >= 6)) || (i - lastStartBarIdx >= 12);
                 if (canMarkStart) {
                     lastStartBarIdx = i;
@@ -482,49 +486,53 @@
                 }
             }
 
-            // 阶段二：4 门全绿 + 缩量回踩 + 同向 6 根冷却才发 +多 / +空
-            const addCooldownOk = (bias !== lastAddBias) || (i - lastAddBarIdx >= 6);
-            if (!isSideways && bias === "LONG" && all4Bull && body < 1.8 * atr && addCooldownOk && (i - lastStartBarIdx >= 2)) {
-                const pullbackTouch = (c.low <= ema10 * 1.001 || prev.low <= ema10 * 1.001) && c.close >= ema15 * 0.999;
-                const holdConfirm = c.close > c.open && c.close > prev.low;
-                if (pullbackTouch && holdConfirm && isVolShrunk) {
+            // 阶段二：4 门全绿 + 回踩靠近 10/15 EMA + 量能<=1.05均量 + 实体<1.8ATR + 同向 3 根冷却（带序号 #1/#2）
+            const addCooldownOk = (bias !== lastAddBias) || (i - lastAddBarIdx >= 3);
+            if (!isSideways && bias === "LONG" && all4Bull && body < 1.8 * atr && addCooldownOk && (i - lastStartBarIdx >= 1)) {
+                const nearEmaZone = (c.low <= ema10 + 0.25 * atr || prev.low <= ema10 + 0.25 * atr) && c.close >= ema15 - 0.15 * atr;
+                const holdConfirm = c.close > c.open && c.close >= prev.low;
+                if (nearEmaZone && holdConfirm && isVolAddOk) {
                     state = "ROLLING";
                     pausedInCurrentLeg = false;
                     lastAddBarIdx = i;
                     lastAddBias = "LONG";
+                    addSeqInLeg += 1;
                     pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "belowBar",
                         color: "#10b981",
                         shape: "arrowUp",
-                        text: "+多",
+                        text: `+多#${addSeqInLeg}`,
                         _kind: "ADD",
                         _side: "LONG"
                     });
                 }
-            } else if (!isSideways && bias === "SHORT" && all4Bear && body < 1.8 * atr && addCooldownOk && (i - lastStartBarIdx >= 2)) {
-                const pullbackTouch = (c.high >= ema10 * 0.999 || prev.high >= ema10 * 0.999) && c.close <= ema15 * 1.001;
-                const holdConfirm = c.close < c.open && c.close < prev.high;
-                if (pullbackTouch && holdConfirm && isVolShrunk) {
+            } else if (!isSideways && bias === "SHORT" && all4Bear && body < 1.8 * atr && addCooldownOk && (i - lastStartBarIdx >= 1)) {
+                const nearEmaZone = (c.high >= ema10 - 0.25 * atr || prev.high >= ema10 - 0.25 * atr) && c.close <= ema15 + 0.15 * atr;
+                const holdConfirm = c.close < c.open && c.close <= prev.high;
+                if (nearEmaZone && holdConfirm && isVolAddOk) {
                     state = "ROLLING";
                     pausedInCurrentLeg = false;
                     lastAddBarIdx = i;
                     lastAddBias = "SHORT";
+                    addSeqInLeg += 1;
                     pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "aboveBar",
                         color: "#ef4444",
                         shape: "arrowDown",
-                        text: "+空",
+                        text: `+空#${addSeqInLeg}`,
                         _kind: "ADD",
                         _side: "SHORT"
                     });
                 }
             }
 
-            // 阶段三：走横休眠（单波仅提示 1 次，待新加仓或新趋势重置） / 放量破 15 EMA 止盈
-            const breakLongExit = bias === "LONG" && c.close < ema15 && isVolExpanded;
-            const breakShortExit = bias === "SHORT" && c.close > ema15 && isVolExpanded;
+            // 阶段三：走横休眠（单波仅提示 1 次，待新加仓或新趋势重置） / 放量破 15 EMA 或击穿防守线止盈
+            const longTrailLine = ema15 - 0.5 * atr;
+            const shortTrailLine = ema15 + 0.5 * atr;
+            const breakLongExit = bias === "LONG" && ((c.close < ema15 && isVolExpanded) || c.close < longTrailLine);
+            const breakShortExit = bias === "SHORT" && ((c.close > ema15 && isVolExpanded) || c.close > shortTrailLine);
             if ((bias === "LONG" || bias === "SHORT") && (breakLongExit || breakShortExit)) {
                 state = "TRIM_EXIT";
                 if (i - lastExitBarIdx >= 6) {
@@ -540,6 +548,7 @@
                 }
                 bias = "NEUTRAL";
                 pausedInCurrentLeg = false;
+                addSeqInLeg = 0;
             } else if ((bias === "LONG" || bias === "SHORT") && isSideways) {
                 state = "TRIM_EXIT";
                 if (!pausedInCurrentLeg && (i - lastSidewaysBarIdx >= 12)) {
@@ -654,7 +663,7 @@
             stateLabel: stateNameMap[state] || "💤 震荡休眠",
             shortStateLabel: shortStateMap[state] || "休眠",
             bias,
-            markers: finalMarkers.slice(-30),
+            markers: finalMarkers.slice(-45),
             trailingPoints,
             latestTrailing: (bias !== "NEUTRAL" && latestTrailObj && latestTrailObj.time === lastBar.time) ? latestTrailObj.value : null,
             hypotheticalBep,

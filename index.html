@@ -4392,6 +4392,9 @@ export default {
             lwChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
                 renderDrawOverlay();
                 syncAllTimeScalesFrom(lwChart, range);
+                if (range && range.from < 18) {
+                    maybeLoadOlderOkxHistory();
+                }
             });
 
             if (typeof ResizeObserver !== "undefined") {
@@ -4497,6 +4500,62 @@ export default {
 
         // [market-feed K线聚合与抓取] 已拆分至 ./js/market-feed.js
 
+        let isLoadingOlderHistory = false;
+        let lastOlderHistoryLoadTs = 0;
+
+        async function maybeLoadOlderOkxHistory() {
+            if (isLoadingOlderHistory || chartEngineMode !== "STRAT" || !lwChart || !lwCandleSeries) return;
+            if (Date.now() - lastOlderHistoryLoadTs < 1200) return;
+            const symObj = getActiveSymbolObj();
+            if (!symObj || symObj.market !== "OKX" || typeof fetchOlderOkxCandles !== "function") return;
+            if (!Array.isArray(lwLastDataCache) || lwLastDataCache.length < 30 || lwLastDataCache.length >= 3000) return;
+
+            const reqSymId = symObj.id;
+            const reqInterval = tvInterval;
+            const oldestTime = lwLastDataCache[0].time;
+            isLoadingOlderHistory = true;
+            lastOlderHistoryLoadTs = Date.now();
+            try {
+                const older = await fetchOlderOkxCandles(symObj, reqInterval, oldestTime, 300);
+                if (!older || !older.length) return;
+                if (getActiveSymbolObj().id !== reqSymId || tvInterval !== reqInterval) return;
+
+                let savedRange = null;
+                try { savedRange = lwChart.timeScale().getVisibleLogicalRange(); } catch (e) {}
+
+                const combinedRaw = older.concat(
+                    lwLastDataCache.map(x => ({ time: x.time, open: x.open, high: x.high, low: x.low, close: x.close, vol: x.vol }))
+                );
+                const { enriched, markers, lastSH, lastSL, supplyBlocks, demandBlocks, structureLines, marketBias } = computeBreakout33AndSmc(combinedRaw);
+                const addedCount = enriched.length - lwLastDataCache.length;
+                if (addedCount <= 0) return;
+
+                lwLastDataCache = enriched;
+                lwLastSmcSnapshot = { lastSH, lastSL, supplyBlocks, demandBlocks, structureLines, marketBias };
+
+                const p = getChartPalette();
+                lwCandleSeries.setData(enriched.map(x => ({ time: x.time, open: x.open, high: x.high, low: x.low, close: x.close })));
+                lwEma10Series.setData(enriched.map(x => ({ time: x.time, value: x.ema10 })));
+                lwEma15Series.setData(enriched.map(x => ({ time: x.time, value: x.ema15 })));
+                lwMa50Series.setData(enriched.filter(x => x.ma50 !== null).map(x => ({ time: x.time, value: x.ma50 })));
+                lwVolSeries.setData(enriched.map(x => ({ time: x.time, value: x.vol, color: x.close >= x.open ? p.volUp : p.volDown })));
+                lwCandleSeries.setMarkers(buildMergedChartMarkers(markers, enriched));
+                renderAllLwPriceLines();
+
+                if (savedRange) {
+                    const shiftedRange = { from: savedRange.from + addedCount, to: savedRange.to + addedCount };
+                    lwChart.timeScale().setVisibleLogicalRange(shiftedRange);
+                    if (showCvdSubchart || showNetposSubchart || showMacdSubchart) {
+                        await renderActiveSubcharts(enriched, symObj, reqInterval, shiftedRange);
+                    }
+                }
+                renderDrawOverlay();
+            } catch (e) {
+            } finally {
+                isLoadingOlderHistory = false;
+            }
+        }
+
         async function fetchAndRenderStrategyChart(preserveViewport = false) {
             if (chartEngineMode !== "STRAT") return;
             const engineReady = await ensureLightweightChartsLoaded();
@@ -4529,7 +4588,17 @@ export default {
                     lastUsEquityFetchTs = Date.now();
                     candles = await fetchUsEquityCandlesForSymbol(symObj, reqInterval);
                 } else {
-                    candles = await fetchOkxCandlesForSymbol(symObj, reqInterval);
+                    const hasDeepCache = preserveViewport && Array.isArray(lwLastDataCache) && lwLastDataCache.length >= 260;
+                    const fresh = await fetchOkxCandlesForSymbol(symObj, reqInterval, { pages: hasDeepCache ? 1 : 3 });
+                    if (hasDeepCache && Array.isArray(fresh) && fresh.length >= 5) {
+                        const freshStart = fresh[0].time;
+                        const olderPart = lwLastDataCache
+                            .filter(x => x.time < freshStart)
+                            .map(x => ({ time: x.time, open: x.open, high: x.high, low: x.low, close: x.close, vol: x.vol }));
+                        candles = olderPart.concat(fresh);
+                    } else {
+                        candles = fresh;
+                    }
                 }
 
                 // 防止快速切换品种时旧请求覆盖新画面
@@ -4636,10 +4705,10 @@ export default {
                     targetViewportRange = savedRange;
                     if (!targetViewportRange && !preserveViewport) {
                         const totalBars = enriched.length;
-                        const leftPad = Math.max(3, Math.round(totalBars * 0.02));
-                        const rightPad = Math.max(14, Math.round(totalBars * 0.28));
+                        const visibleSpan = Math.min(totalBars, 210);
+                        const rightPad = Math.max(16, Math.round(visibleSpan * 0.14));
                         targetViewportRange = {
-                            from: -leftPad,
+                            from: Math.max(-3, totalBars - visibleSpan),
                             to: (totalBars - 1) + rightPad
                         };
                     }
