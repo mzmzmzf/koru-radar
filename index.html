@@ -325,6 +325,8 @@
                     <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                         <button type="button" class="btn-sm draw-tool-btn" data-tool="hline" onclick="selectDrawTool('hline')">📏 水平线</button>
                         <button type="button" class="btn-sm draw-tool-btn" data-tool="trend" onclick="selectDrawTool('trend')">╱ 趋势线段</button>
+                        <button type="button" class="btn-sm draw-tool-btn" data-tool="arrow" onclick="selectDrawTool('arrow')">↗ 箭头</button>
+                        <button type="button" class="btn-sm draw-tool-btn" data-tool="brush" onclick="selectDrawTool('brush')">✍️ 涂鸦</button>
                         <button type="button" class="btn-sm draw-tool-btn" data-tool="channel" onclick="selectDrawTool('channel')">⫽ 平行通道</button>
                         <button type="button" class="btn-sm draw-tool-btn" data-tool="fib" onclick="selectDrawTool('fib')">🔱 斐波那契</button>
                         <button type="button" class="btn-sm draw-tool-btn" data-tool="rect" onclick="selectDrawTool('rect')">▭ 矩形箱体</button>
@@ -440,6 +442,12 @@
                                 </button>
                                 <button type="button" class="float-dock-tool-btn draw-tool-btn" data-tool="trend" onclick="selectDrawToolFromFloat('trend')" title="趋势线段">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><line x1="5" y1="19" x2="19" y2="5"/><circle cx="5" cy="19" r="2" fill="currentColor"/><circle cx="19" cy="5" r="2" fill="currentColor"/></svg>
+                                </button>
+                                <button type="button" class="float-dock-tool-btn draw-tool-btn" data-tool="arrow" onclick="selectDrawToolFromFloat('arrow')" title="箭头标记">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="10 5 19 5 19 14"/></svg>
+                                </button>
+                                <button type="button" class="float-dock-tool-btn draw-tool-btn" data-tool="brush" onclick="selectDrawToolFromFloat('brush')" title="自由涂鸦画笔">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3-4 5-4 7 0s4 4 7-2 4-7 4-7"/></svg>
                                 </button>
                                 <button type="button" class="float-dock-tool-btn draw-tool-btn" data-tool="channel" onclick="selectDrawToolFromFloat('channel')" title="平行通道">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="15" x2="16" y2="3"/><line x1="8" y1="21" x2="20" y2="9"/><line x1="6" y1="18" x2="18" y2="6" stroke-dasharray="2 3"/></svg>
@@ -5243,13 +5251,24 @@ export default {
         }
 
         function hitTestSingleShapeBody(d, px, py) {
+            if (d.type === "brush" && Array.isArray(d.points) && d.points.length >= 2) {
+                let prevX = null, prevY = null;
+                for (const pt of d.points) {
+                    const cx = timeToOverlayX(pt.time);
+                    const cy = priceToOverlayY(pt.price);
+                    if (cx === null || cy === null) { prevX = null; prevY = null; continue; }
+                    if (prevX !== null && distToSegment(px, py, prevX, prevY, cx, cy) <= 10) return true;
+                    prevX = cx; prevY = cy;
+                }
+                return false;
+            }
             const x1 = timeToOverlayX(d.p1.time);
             const y1 = priceToOverlayY(d.p1.price);
             const x2 = timeToOverlayX(d.p2.time);
             const y2 = priceToOverlayY(d.p2.price);
             if (x1 === null || y1 === null || x2 === null || y2 === null) return false;
 
-            if (d.type === "trend") {
+            if (d.type === "trend" || d.type === "arrow") {
                 return distToSegment(px, py, x1, y1, x2, y2) <= 10;
             } else if (d.type === "channel") {
                 if (distToSegment(px, py, x1, y1, x2, y2) <= 10) return true;
@@ -5663,34 +5682,51 @@ export default {
             const isUnlocked = item.locked === false;
             const showHandles = isHighlighted || isUnlocked;
 
-            if (item.type === "trend") {
+            if (item.type === "trend" || item.type === "arrow") {
                 const customStroke = resolveItemCustomColor(item, isDark ? "#38bdf8" : "#0284c7");
                 const lineColor = customStroke;
                 ctx.strokeStyle = lineColor;
                 const trendLw = Number(item.lineWidth) || 2;
                 ctx.lineWidth = showHandles ? trendLw + 0.6 : trendLw;
+                ctx.lineCap = "round";
                 ctx.setLineDash([]);
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
                 ctx.lineTo(x2, y2);
                 ctx.stroke();
 
-                // 端点圆锚（解锁状态下显示可拖拽放大圆锚与中点平移手柄）
-                [ [x1, y1, item.p1.price], [x2, y2, item.p2.price] ].forEach(([ax, ay, ap], idx) => {
-                    ctx.fillStyle = isUnlocked ? lineColor : (isDark ? "#0b0f19" : "#FAF7EE");
-                    ctx.strokeStyle = (isUnlocked || isHighlighted) ? "#ffffff" : lineColor;
-                    ctx.lineWidth = 2;
+                // 箭头头部（指向 p2）
+                if (item.type === "arrow" && Math.hypot(x2 - x1, y2 - y1) > 6) {
+                    const ang = Math.atan2(y2 - y1, x2 - x1);
+                    const headLen = Math.max(10, trendLw * 4.2);
+                    const spread = 0.44;
+                    ctx.fillStyle = lineColor;
                     ctx.beginPath();
-                    ctx.arc(ax, ay, isUnlocked ? 5.5 : (isHighlighted ? 4.5 : 3.2), 0, Math.PI * 2);
+                    ctx.moveTo(x2, y2);
+                    ctx.lineTo(x2 - headLen * Math.cos(ang - spread), y2 - headLen * Math.sin(ang - spread));
+                    ctx.lineTo(x2 - headLen * Math.cos(ang + spread), y2 - headLen * Math.sin(ang + spread));
+                    ctx.closePath();
                     ctx.fill();
-                    ctx.stroke();
+                }
 
-                    if (showHandles) {
-                        const tag = Number(ap).toFixed(dec);
-                        ctx.fillStyle = lineColor;
-                        ctx.fillText(tag, ax + 8, ay + (idx === 0 ? -6 : 13));
-                    }
-                });
+                // 端点圆锚（箭头未选中且锁定时隐藏圆锚，保持画面干净）
+                if (item.type === "trend" || showHandles) {
+                    [ [x1, y1, item.p1.price], [x2, y2, item.p2.price] ].forEach(([ax, ay, ap], idx) => {
+                        ctx.fillStyle = isUnlocked ? lineColor : (isDark ? "#0b0f19" : "#FAF7EE");
+                        ctx.strokeStyle = (isUnlocked || isHighlighted) ? "#ffffff" : lineColor;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(ax, ay, isUnlocked ? 5.5 : (isHighlighted ? 4.5 : 3.2), 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        if (showHandles) {
+                            const tag = Number(ap).toFixed(dec);
+                            ctx.fillStyle = lineColor;
+                            ctx.fillText(tag, ax + 8, ay + (idx === 0 ? -6 : 13));
+                        }
+                    });
+                }
 
                 if (isUnlocked) {
                     const mx = (x1 + x2) * 0.5, my = (y1 + y2) * 0.5;
@@ -5702,6 +5738,24 @@ export default {
                     ctx.fill();
                     ctx.stroke();
                 }
+            } else if (item.type === "brush" && Array.isArray(item.points) && item.points.length >= 2) {
+                const lineColor = resolveItemCustomColor(item, isDark ? "#38bdf8" : "#0284c7");
+                const brushLw = Number(item.lineWidth) || 2;
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = showHandles ? brushLw + 0.8 : brushLw;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                let started = false;
+                for (const pt of item.points) {
+                    const bx = timeToOverlayX(pt.time);
+                    const by = priceToOverlayY(pt.price);
+                    if (bx === null || by === null) { started = false; continue; }
+                    if (!started) { ctx.moveTo(bx, by); started = true; }
+                    else { ctx.lineTo(bx, by); }
+                }
+                ctx.stroke();
             } else if (item.type === "channel") {
                 const baseColor = resolveItemCustomColor(item, isDark ? "#38bdf8" : "#0284c7");
                 const fillColor = hexToRgba(baseColor, isDark ? 0.12 : 0.13);
@@ -5998,6 +6052,7 @@ export default {
                     startPrice: pt.price,
                     origP1: { ...hit.shape.p1, logical: timeToApproxLogical(hit.shape.p1.time) },
                     origP2: { ...hit.shape.p2, logical: timeToApproxLogical(hit.shape.p2.time) },
+                    origPoints: Array.isArray(hit.shape.points) ? hit.shape.points.map(p => ({ ...p, logical: timeToApproxLogical(p.time) })) : null,
                     origOffset: Number(hit.shape.channelOffsetPrice || 0)
                 };
             }
@@ -6117,12 +6172,17 @@ export default {
                     type: activeDrawTool,
                     p1: pt,
                     p2: pt,
+                    points: activeDrawTool === "brush" ? [pt] : undefined,
+                    _lastScreen: activeDrawTool === "brush" ? { x: sx, y: sy } : undefined,
                     channelOffsetPrice: 0,
                     locked: false,
                     color: activeDrawColor || "#38bdf8",
                     lineWidth: activeDrawLineWidth || 2,
                     colorVariant: rectColorPreset
                 };
+                if (activeDrawTool === "brush" && e.pointerId !== undefined) {
+                    try { overlay.setPointerCapture(e.pointerId); } catch (err) {}
+                }
                 renderDrawOverlay();
             });
 
@@ -6174,6 +6234,13 @@ export default {
                             price: parseFloat(newP2.toFixed(dec)),
                             logical: newL2
                         };
+                        if (shape.type === "brush" && Array.isArray(activeHandleDrag.origPoints)) {
+                            shape.points = activeHandleDrag.origPoints.map(op => {
+                                const nl = op.logical + dLogical;
+                                const np = Math.max(0.000001, op.price + dPrice);
+                                return { time: logicalToApproxTimestamp(nl), price: parseFloat(np.toFixed(dec)), logical: nl };
+                            });
+                        }
                     }
                     renderDrawOverlay();
                     return;
@@ -6187,7 +6254,14 @@ export default {
                 const pt = screenToChartPoint(sx, sy);
                 if (!pt) return;
 
-                if (activeDrawTool === "channel" && draftStep === 2) {
+                if (activeDrawTool === "brush" && Array.isArray(draftDrawing.points)) {
+                    const ls = draftDrawing._lastScreen;
+                    if (!ls || Math.hypot(sx - ls.x, sy - ls.y) >= 4) {
+                        draftDrawing.points.push(pt);
+                        draftDrawing.p2 = pt;
+                        draftDrawing._lastScreen = { x: sx, y: sy };
+                    }
+                } else if (activeDrawTool === "channel" && draftStep === 2) {
                     const baseMid = (draftDrawing.p1.price + draftDrawing.p2.price) * 0.5;
                     const dec = getActiveSymbolDecimals(pt.price);
                     draftDrawing.channelOffsetPrice = parseFloat((pt.price - baseMid).toFixed(dec));
@@ -6223,6 +6297,18 @@ export default {
                 }
 
                 if (activeDrawTool === "none" || !draftDrawing || !draftDownScreen) return;
+                if (activeDrawTool === "brush") {
+                    try { overlay.releasePointerCapture(e.pointerId); } catch (err) {}
+                    delete draftDrawing._lastScreen;
+                    if (Array.isArray(draftDrawing.points) && draftDrawing.points.length >= 2) {
+                        finalizeCurrentDraftDrawing();
+                    } else {
+                        draftDrawing = null;
+                        draftDownScreen = null;
+                        renderDrawOverlay();
+                    }
+                    return;
+                }
                 const movedDist = Math.hypot(sx - draftDownScreen.x, sy - draftDownScreen.y);
 
                 if (movedDist > 8) {

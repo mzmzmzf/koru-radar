@@ -568,17 +568,32 @@
                 state = "CHOP_SLEEP";
             }
 
-            // --- D. 反抽压制确认空（🎯反抽压制空） ---
-            // 空头大周期/结构背景下，近 3 根 15m 最高价触及 EMA15 附近且未越过 MA50*1.004，随后承压收阴跌破 EMA10 且未放量硬冲
-            const bearBackdropOk = htfBias === "SHORT" && ema15 < ma50 && ma50SlopeDn && c.close < ma50;
+            // --- D. 反抽压制确认空（🎯反抽压制空 · 双路径确认） ---
+            // 路径 A：MA50 向下或走平背景下，近 3 根 15m 最高价触及 EMA15 / MA50 / 供给块（上限放宽至 MA50*1.009 或供给块内），随后收承压阴线（不误杀放量阴线砸盘）
+            const ma50DownOrFlat = isFinite(ma50Prev4) ? (ma50 <= ma50Prev4 * 1.0005) : true;
+            const bearBackdropOk = ma50DownOrFlat && c.close < ma50 && (htfBias !== "LONG" || ema15 <= ma50);
             const recent3High = Math.max(c.high, prev.high, candles[i - 2].high);
-            const touchedEma15Band = recent3High >= Math.min(ema15 * 0.9985, ema15 - 0.1 * atr) && recent3High <= ma50 * 1.004;
-            const bearRejectionCandle = c.close < ema10 && c.close < c.open;
-            const noBullVolThrust = !(volMa > 0 && prev.close > prev.open && prev.vol > volMa * 1.55) && !(volMa > 0 && c.vol > volMa * 1.8);
+            const hitSupplyBlock = supplyBlocks.some(b =>
+                (b.createdIdx === undefined || b.createdIdx <= i) &&
+                isFinite(Number(b.bottom)) && isFinite(Number(b.top)) &&
+                recent3High >= Number(b.bottom) * 0.999 && recent3High <= Number(b.top) * 1.002
+            );
+            const touchedResistBand = recent3High >= Math.min(ema15 * 0.9985, ema15 - 0.1 * atr)
+                && (recent3High <= ma50 * 1.009 || hitSupplyBlock);
+            const bearRejectionCandle = c.close < c.open && (c.close < ema10 || (upperWick >= body * 1.15 && c.close <= ema15));
+            const noBullVolThrust = !(volMa > 0 && prev.close > prev.open && prev.vol > volMa * 1.6);
+            const pathAOk = bearBackdropOk && touchedResistBand && bearRejectionCandle && noBullVolThrust;
+
+            // 路径 B：⚠️假多 预警后 1~8 根内出现不破前高的次高点反抽承压阴线
+            const pathBOk = (i - bearTrapIdx >= 1 && i - bearTrapIdx <= 8 && bearTrapHigh > 0)
+                && c.high < bearTrapHigh
+                && c.close < c.open
+                && (c.close < (prev.open + prev.close) * 0.5 || upperWick >= body * 1.1);
+
             const rejectShortCooldownOk = (i - lastRejectShortIdx >= 5)
-                && (lastAddBias !== "SHORT" || i - lastAddBarIdx >= 3)
-                && (lastStartBias !== "SHORT" || i - lastStartBarIdx >= 3);
-            if (bearBackdropOk && touchedEma15Band && bearRejectionCandle && noBullVolThrust && rejectShortCooldownOk) {
+                && (lastAddBias !== "SHORT" || i - lastAddBarIdx >= 2)
+                && (lastStartBias !== "SHORT" || i - lastStartBarIdx >= 2);
+            if ((pathAOk || pathBOk) && rejectShortCooldownOk) {
                 lastRejectShortIdx = i;
                 pushUniqueBarMarker(i, {
                     time: c.time,
