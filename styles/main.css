@@ -446,8 +446,8 @@ body.chart-tab-active {
     .header-bar { padding: 8px 10px; gap: 6px; }
     .header-logo span { display: none; }
     .top-floating-drawer { top: 86px; max-height: calc(100dvh - 96px); }
-    .terminal-tabs { padding: 5px 8px; gap: 5px; }
-    .tab-btn { font-size: 12px; padding: 7px 2px; gap: 3px; }
+    .terminal-tabs { padding: 5px 6px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+    .tab-btn { font-size: 11px; padding: 6px 4px; gap: 2px; white-space: nowrap; }
 }
 
 /* 四红线联合熔断状态灯 */
@@ -550,7 +550,7 @@ body.chart-tab-active {
 
 .view-panel { display: none; padding: 12px 14px; max-width: 960px; margin: 0 auto; }
 .view-panel.active { display: block; }
-#view-btc, #view-koru, #view-macro { max-width: 1240px; }
+#view-btc, #view-koru, #view-macro, #view-pyramid { max-width: 1240px; }
 .macro-kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));

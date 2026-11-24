@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#131314">
     <link rel="manifest" href="./manifest.json">
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
-    <link rel="stylesheet" href="./styles/main.css?v=20261124">
+    <link rel="stylesheet" href="./styles/main.css?v=20261125">
 </head>
 <body>
 
@@ -156,6 +156,7 @@
     <nav class="terminal-tabs">
         <button class="tab-btn active" id="btnTabChart" onclick="switchMainTab('chart')">📈 极简看盘</button>
         <button class="tab-btn" id="btnTabMacro" onclick="switchMainTab('macro')">🧭 盘前宏观</button>
+        <button class="tab-btn" id="btnTabPyramid" onclick="switchMainTab('pyramid')">🚀 滚仓沙盒</button>
         <button class="tab-btn" id="btnTabKoru" onclick="switchMainTab('koru')">🛰️ KORU 雷达</button>
         <button class="tab-btn" id="btnTabBtc" onclick="switchMainTab('btc')">⚡ BTC 开单</button>
     </nav>
@@ -1829,6 +1830,116 @@
         </div>
     </main>
 
+    <!-- ========================================================================= -->
+    <!-- 模块 3：🚀 独立全品种动态滚仓沙盒 & 仓位安全垫校验台                        -->
+    <!-- ========================================================================= -->
+    <main class="view-panel" id="view-pyramid">
+        <div class="card" style="border-top: 3px solid var(--neon-amber); margin-bottom:12px;">
+            <div class="card-title" style="flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span>🚀 动态滚仓沙盒 &amp; 安全垫校验台</span>
+                    <span class="badge" id="phLivePriceText" style="color:var(--neon-cyan); border-color:var(--neon-cyan); font-family:monospace;">现价: 待同步</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <div class="side-switch-group">
+                        <button type="button" class="btn-side active-long" id="btnPhSideLong" onclick="pyrHubSetSide('LONG')">🟢 做多滚仓</button>
+                        <button type="button" class="btn-side" id="btnPhSideShort" onclick="pyrHubSetSide('SHORT')">🔴 做空滚仓</button>
+                    </div>
+                    <button type="button" class="btn-sm" onclick="pyrHubRefreshPrice()" style="border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">🔄 刷现价</button>
+                    <button type="button" class="btn-sm" onclick="pyrHubJumpToChart()" style="border-color:var(--neon-emerald); color:#34d399; font-weight:700;">📈 去主图看线</button>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div id="phSymbolPills" style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;"></div>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <input type="text" id="phCustomSymInput" placeholder="自定义币种 (如 HYPE/DOGE)" class="form-input" style="width:165px; padding:4px 8px; font-size:11.5px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); pyrHubAddCustomSymbol();}">
+                    <button type="button" class="btn-sm" onclick="pyrHubAddCustomSymbol()" style="border-color:var(--neon-emerald); color:var(--neon-emerald); font-weight:700;">+ 切换</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="btc-workspace-grid">
+            <!-- 左栏：当前持仓状态 + 拟操作安全垫预演 -->
+            <div class="btc-col-left">
+                <div id="phCurrentPosGrid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; margin-bottom:12px;"></div>
+
+                <div class="card">
+                    <div class="card-title" style="flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                        <span>🛡️ 逐笔实盘录入 &amp; 加仓前安全垫预演</span>
+                        <button type="button" class="btn-sm" onclick="pyrHubResetPosition()" style="font-size:10px; color:#f87171; border-color:rgba(248,113,113,0.4);">🧹 重置当前单</button>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:10px;">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size:10.5px;">逐仓杠杆 (x)</label>
+                            <input type="number" id="phLeverage" min="1" max="125" step="1" value="10" class="form-input" style="padding:5px 7px; font-size:12px;" oninput="pyrHubUpdateSettings()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="font-size:10.5px;">安全垫红线 (%)</label>
+                            <input type="number" id="phMinCushion" min="0.5" max="20" step="0.1" value="2.5" class="form-input" style="padding:5px 7px; font-size:12px; color:var(--neon-amber);" oninput="pyrHubUpdateSettings()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="font-size:10.5px;">单笔基准 1R ($)</label>
+                            <input type="number" id="phInitRiskUsd" min="10" step="50" value="200" class="form-input" style="padding:5px 7px; font-size:12px;" oninput="pyrHubUpdateSettings()">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:5px; margin-bottom:10px;">
+                        <button type="button" class="btn-sm active" id="btnPhAct_ADD" onclick="pyrHubSetActionTab('ADD')" style="padding:6px 2px; font-weight:700;">➕ 底仓/加仓</button>
+                        <button type="button" class="btn-sm" id="btnPhAct_REDUCE" onclick="pyrHubSetActionTab('REDUCE')" style="padding:6px 2px; font-weight:700;">✂️ 分批减仓</button>
+                        <button type="button" class="btn-sm" id="btnPhAct_SL" onclick="pyrHubSetActionTab('SL')" style="padding:6px 2px; font-weight:700;">🛑 推移动SL</button>
+                        <button type="button" class="btn-sm" id="btnPhAct_CLOSE" onclick="pyrHubSetActionTab('CLOSE')" style="padding:6px 2px; font-weight:700;">✅ 全部平仓</button>
+                    </div>
+
+                    <div class="form-grid" style="margin-bottom:8px;">
+                        <div class="form-group" id="phActPriceWrap">
+                            <label class="form-label">拟成交价格 (USDT)</label>
+                            <input type="number" id="phActPrice" step="any" placeholder="输入实际/拟成交价" class="form-input" oninput="pyrHubEvaluatePreview()">
+                        </div>
+                        <div class="form-group" id="phActQtyWrap">
+                            <label class="form-label">拟成交数量 (币本位枚数)</label>
+                            <input type="number" id="phActQty" step="any" placeholder="如 0.5 / 20 / 50" class="form-input" oninput="pyrHubEvaluatePreview()">
+                        </div>
+                        <div class="form-group" id="phActSlWrap">
+                            <label class="form-label">同步设置新止损 SL (选填)</label>
+                            <input type="number" id="phActNewSl" step="any" placeholder="建议推过新 BEP" class="form-input" style="color:#34d399;" oninput="pyrHubEvaluatePreview()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">操作备注 / 形态依据 (选填)</label>
+                            <input type="text" id="phActNote" placeholder="如: 破位回踩EMA15 / 弱反抽压制" class="form-input">
+                        </div>
+                    </div>
+
+                    <div id="phPreviewBox" style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:8px; padding:9px 11px; margin-bottom:10px; line-height:1.5;"></div>
+
+                    <button type="button" class="btn-action" onclick="pyrHubCommitAction()" style="background: linear-gradient(135deg, #0284c7, #10b981);">
+                        ✅ 确认记入实盘滚仓台账
+                    </button>
+                </div>
+            </div>
+
+            <!-- 右栏：当前单逐笔成交明细 + 历史复盘胜率对比 -->
+            <div class="btc-col-right">
+                <div class="card" style="margin-bottom:12px;">
+                    <div class="card-title" style="margin-bottom:6px;">
+                        <span>📋 当前滚仓逐笔明细（含安全垫审计）</span>
+                    </div>
+                    <div id="phFillsList"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title" style="margin-bottom:8px;">
+                        <span>📊 滚仓复盘统计（达标 vs 违规对比）</span>
+                        <button type="button" class="btn-sm" onclick="pyrHubExportCsv()" style="font-size:10.5px; color:var(--neon-cyan); padding:2px 7px;">📤 导出 CSV</button>
+                    </div>
+                    <div id="phReviewStats" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:6px; margin-bottom:8px;"></div>
+                    <div id="phClosedList"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
     <div id="priceAlertToastStack" class="price-alert-toast-stack"></div>
     <div id="appToast">已成功复制完整实战挂单计划至剪贴板！</div>
 
@@ -1839,6 +1950,7 @@
     <script src="./js/macro-calendar.js"></script>
     <script src="./js/macro-intel.js"></script>
     <script src="./js/key-levels.js"></script>
+    <script src="./js/pyramid-hub.js"></script>
     <script src="./js/whale-radar.js"></script>
     <script>
         const LEGACY_WORKERS_DEV_URL = "https://quant-relay.zhefeng0513.workers.dev";
@@ -4455,6 +4567,11 @@ export default {
 
             if (showPyramidPositionLines && (symKey === "BTC" || symKey === "KORU")) {
                 renderPyramidPositionLinesOnChart(symKey, p);
+            }
+            if (showPyramidPositionLines && typeof getPyramidHubChartLines === "function") {
+                getPyramidHubChartLines(symKey).forEach(pl => {
+                    pushLwPriceLineSpec(pl.price, pl.color, 2, LightweightCharts.LineStyle.Dashed, pl.title, true);
+                });
             }
             if (symKey === "BTC" && typeof getActiveWhaleMagnetLines === "function") {
                 getActiveWhaleMagnetLines().forEach(ml => {
@@ -9345,13 +9462,15 @@ export default {
             const btnMacro = document.getElementById("btnTabMacro");
             const btnKoru = document.getElementById("btnTabKoru");
             const btnBtc = document.getElementById("btnTabBtc");
+            const btnPyr = document.getElementById("btnTabPyramid");
             const viewChart = document.getElementById("view-chart");
             const viewMacro = document.getElementById("view-macro");
             const viewKoru = document.getElementById("view-koru");
             const viewBtc = document.getElementById("view-btc");
+            const viewPyr = document.getElementById("view-pyramid");
 
-            [btnChart, btnMacro, btnKoru, btnBtc].forEach(b => { if (b) b.classList.remove("active"); });
-            [viewChart, viewMacro, viewKoru, viewBtc].forEach(v => { if (v) v.classList.remove("active"); });
+            [btnChart, btnMacro, btnKoru, btnBtc, btnPyr].forEach(b => { if (b) b.classList.remove("active"); });
+            [viewChart, viewMacro, viewKoru, viewBtc, viewPyr].forEach(v => { if (v) v.classList.remove("active"); });
             document.body.classList.toggle("chart-tab-active", tab === "chart");
 
             if (tab === "chart") {
@@ -9375,6 +9494,10 @@ export default {
                 if (!document.querySelector(".koru-subview.active")) {
                     switchKoruSubTab("overview");
                 }
+            } else if (tab === "pyramid") {
+                if (btnPyr) btnPyr.classList.add("active");
+                if (viewPyr) viewPyr.classList.add("active");
+                if (typeof initPyramidHubView === "function") initPyramidHubView();
             } else {
                 if (btnBtc) btnBtc.classList.add("active");
                 if (viewBtc) viewBtc.classList.add("active");
