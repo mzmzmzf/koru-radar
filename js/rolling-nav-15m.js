@@ -1,4 +1,4 @@
-// 专属《15m 滚仓导航指标》核心状态机 + 流动性猎杀反转捕捉 + 动态追踪防守线 + 安全垫护栏
+// 专属《15m 滚仓导航指标》核心状态机 + 流动性猎杀反转捕捉 + 动态追踪防守线 + 安全垫风控联动
 
 (function () {
     function getBeijingSessionInfo(unixSec) {
@@ -8,15 +8,15 @@
         const hm = h + m / 60;
         // 北京时间 (UTC+8) 流动性与时段分类
         if (hm >= 20.5 || hm < 1.5) {
-            return { code: "US_EU_PRIME", label: "🇺🇸 欧美黄金窗", quality: "HIGH", weight: 1.0, color: "#10b981" };
+            return { code: "US_EU_PRIME", label: "🇺🇸欧美窗", quality: "HIGH", weight: 1.0, color: "#10b981" };
         }
         if (hm >= 15.0 && hm < 20.5) {
-            return { code: "EU_ACTIVE", label: "🇪🇺 欧盘活跃", quality: "MED", weight: 0.9, color: "#38bdf8" };
+            return { code: "EU_ACTIVE", label: "🇪🇺欧盘", quality: "MED", weight: 0.9, color: "#38bdf8" };
         }
         if (hm >= 8.0 && hm < 15.0) {
-            return { code: "ASIA_TRAP", label: "🌏 亚盘(防假突破)", quality: "CAUTION", weight: 0.75, color: "#f59e0b" };
+            return { code: "ASIA_TRAP", label: "🌏亚盘防诱", quality: "CAUTION", weight: 0.75, color: "#f59e0b" };
         }
-        return { code: "LATE_NIGHT", label: "🌙 凌晨低流动性", quality: "LOW", weight: 0.5, color: "#94a3b8" };
+        return { code: "LATE_NIGHT", label: "🌙凌晨低流", quality: "LOW", weight: 0.5, color: "#94a3b8" };
     }
 
     function calcAtr14(candles) {
@@ -53,7 +53,7 @@
     }
 
     /**
-     * 计算《15m 滚仓导航指标》状态机、信号标记、追踪防守线与安全垫
+     * 计算《15m 滚仓导航指标》状态机、极简信号标记、追踪防守线与安全垫风控联动
      * @param {Array} candles enrichedCandles (含 time, open, high, low, close, vol, ema10, ema15, ma50)
      * @param {Object} opts { longPct, activePosAvg, activePosSide, activePosQty }
      */
@@ -61,15 +61,16 @@
         const empty = {
             state: "NEUTRAL",
             stateLabel: "观望静默",
+            shortStateLabel: "观望",
             bias: "NEUTRAL",
             markers: [],
             trailingPoints: [],
             latestTrailing: null,
             hypotheticalBep: null,
             cushionPct: null,
+            riskGuard: { level: "OK", isBlocked: false, headline: "", actionTip: "" },
             session: getBeijingSessionInfo(Math.floor(Date.now() / 1000)),
-            trapAlert: null,
-            summaryText: "等待 10/15 EMA 与 50 MA 形成顺向趋势"
+            trapAlert: null
         };
         if (!Array.isArray(candles) || candles.length < 25) return empty;
 
@@ -81,9 +82,14 @@
         let state = "NEUTRAL"; // NEUTRAL | TREND_START | ROLLING | TRIM_EXIT
         let bias = "NEUTRAL";  // LONG | SHORT | NEUTRAL
         let trendAnchorPrice = null;
-        let lastAddBarIdx = -99;
-        let lastTrimBarIdx = -99;
+
+        // 冷却与同向去重追踪器（防止连刷和文字重叠）
         let lastStartBarIdx = -99;
+        let lastStartBias = "NEUTRAL";
+        let lastAddBarIdx = -99;
+        let lastAddBias = "NEUTRAL";
+        let lastSidewaysBarIdx = -99;
+        let lastExitBarIdx = -99;
 
         // 流动性猎杀 / 孤立巨柱反转追踪器（第 1 步预警 -> 第 2 步右侧黄金进场）
         let bearTrapIdx = -99;
@@ -93,6 +99,14 @@
 
         const markers = [];
         const trailingPoints = [];
+
+        const pushUniqueBarMarker = (barIdx, marker) => {
+            if (markers.length > 0 && markers[markers.length - 1].time === marker.time) {
+                return; // 同一根 K 线只保留最高优先级信号，避免重叠
+            }
+            marker._barIdx = barIdx;
+            markers.push(marker);
+        };
 
         for (let i = 20; i < n; i++) {
             const c = candles[i];
@@ -113,34 +127,36 @@
             const isVolExpanded = volMa > 0 && (c.vol > volMa * 1.15);
             const sess = getBeijingSessionInfo(c.time);
 
-            // --- A. 第 1 步：孤立巨柱 + 长影/反包（流动性猎杀预警） ---
+            // --- A. 第 1 步：孤立巨柱 + 长影/反包（流动性猎杀预警，8 根冷却防连刷） ---
             const prevSpikeUp = (prev.high - prev.ema10) > 2.2 * atr && (prev.close > prev.open);
             const curSpikeUp = (c.high - ema10) > 2.2 * atr;
             const isBearReject = (c.close < c.open && body > Math.abs(prev.close - prev.open) * 0.7) || (upperWick > body * 1.35 && upperWick > 0.6 * atr);
-            if ((prevSpikeUp || curSpikeUp) && isBearReject && (i - bearTrapIdx > 4)) {
+            if ((prevSpikeUp || curSpikeUp) && isBearReject && (i - bearTrapIdx >= 8)) {
                 bearTrapIdx = i;
                 bearTrapHigh = Math.max(c.high, prev.high);
-                markers.push({
+                pushUniqueBarMarker(i, {
                     time: c.time,
                     position: "aboveBar",
                     color: "#f43f5e",
                     shape: "arrowDown",
-                    text: "⚠️假突破预警"
+                    text: "⚠️假多",
+                    _kind: "TRAP"
                 });
             }
 
             const prevSpikeDn = (prev.ema10 - prev.low) > 2.2 * atr && (prev.close < prev.open);
             const curSpikeDn = (ema10 - c.low) > 2.2 * atr;
             const isBullReject = (c.close > c.open && body > Math.abs(prev.close - prev.open) * 0.7) || (lowerWick > body * 1.35 && lowerWick > 0.6 * atr);
-            if ((prevSpikeDn || curSpikeDn) && isBullReject && (i - bullTrapIdx > 4)) {
+            if ((prevSpikeDn || curSpikeDn) && isBullReject && (i - bullTrapIdx >= 8)) {
                 bullTrapIdx = i;
                 bullTrapLow = Math.min(c.low, prev.low);
-                markers.push({
+                pushUniqueBarMarker(i, {
                     time: c.time,
                     position: "belowBar",
                     color: "#10b981",
                     shape: "arrowUp",
-                    text: "⚠️诱空预警"
+                    text: "⚠️假空",
+                    _kind: "TRAP"
                 });
             }
 
@@ -149,26 +165,30 @@
             if (i - bearTrapIdx >= 1 && i - bearTrapIdx <= 12 && bearCrossActive) {
                 const touchedZone = c.high >= Math.min(ema10, ema15) * 0.999;
                 if (touchedZone && c.close < c.open && isVolShrunk) {
-                    markers.push({
+                    pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "aboveBar",
                         color: "#fbbf24",
                         shape: "arrowDown",
-                        text: "🎯黄金空点"
+                        text: "🎯空",
+                        _kind: "GOLDEN_ENTRY",
+                        _side: "SHORT"
                     });
-                    bearTrapIdx = -99; // 触发后重置，避免重复
+                    bearTrapIdx = -99;
                 }
             }
             const bullCrossActive = ema10 > ema15 && c.close > ema15;
             if (i - bullTrapIdx >= 1 && i - bullTrapIdx <= 12 && bullCrossActive) {
                 const touchedZone = c.low <= Math.max(ema10, ema15) * 1.001;
                 if (touchedZone && c.close > c.open && isVolShrunk) {
-                    markers.push({
+                    pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "belowBar",
                         color: "#fbbf24",
                         shape: "arrowUp",
-                        text: "🎯黄金多点"
+                        text: "🎯多",
+                        _kind: "GOLDEN_ENTRY",
+                        _side: "LONG"
                     });
                     bullTrapIdx = -99;
                 }
@@ -180,7 +200,7 @@
             const bullTrend = ema10 > ema15 && ema15 > ma50 && ma50SlopeUp && emaGap >= 0.12 * atr;
             const bearTrend = ema10 < ema15 && ema15 < ma50 && ma50SlopeDn && emaGap >= 0.12 * atr;
 
-            // 走横/均线走平检测（最近 5 根收窄 + EMA 间距 < 0.15 ATR）
+            // 走横/均线走平检测（最近 5 根窄幅收窄 + EMA 间距 < 0.15 ATR）
             let hi5 = -Infinity, lo5 = Infinity;
             for (let k = i - 4; k <= i; k++) {
                 hi5 = Math.max(hi5, candles[k].close);
@@ -188,89 +208,115 @@
             }
             const isSideways = emaGap < 0.15 * atr && (hi5 - lo5) < 1.15 * atr;
 
-            // 阶段一：趋势启动
+            // 阶段一：趋势启动（仅允许方向切换，或同向间隔 >= 12 根 K 线的新波段才打底仓标）
             if (bullTrend && bias !== "LONG") {
                 bias = "LONG";
                 state = "TREND_START";
                 trendAnchorPrice = c.close;
-                if (i - lastStartBarIdx >= 6) {
+                const canMarkStart = (lastStartBias !== "LONG" && (i - lastStartBarIdx >= 6)) || (i - lastStartBarIdx >= 12);
+                if (canMarkStart) {
                     lastStartBarIdx = i;
-                    const crowdWarn = longPct >= 63 ? "(多拥挤)" : "";
-                    markers.push({
+                    lastStartBias = "LONG";
+                    const crowdWarn = longPct >= 63 ? "⚠" : "";
+                    pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "belowBar",
                         color: "#38bdf8",
                         shape: "circle",
-                        text: `🚀底仓试多${crowdWarn}`
+                        text: `🚀底多${crowdWarn}`,
+                        _kind: "START",
+                        _side: "LONG"
                     });
                 }
             } else if (bearTrend && bias !== "SHORT") {
                 bias = "SHORT";
                 state = "TREND_START";
                 trendAnchorPrice = c.close;
-                if (i - lastStartBarIdx >= 6) {
+                const canMarkStart = (lastStartBias !== "SHORT" && (i - lastStartBarIdx >= 6)) || (i - lastStartBarIdx >= 12);
+                if (canMarkStart) {
                     lastStartBarIdx = i;
-                    markers.push({
+                    lastStartBias = "SHORT";
+                    pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "aboveBar",
                         color: "#f87171",
                         shape: "circle",
-                        text: "🚀底仓试空"
+                        text: "🚀底空",
+                        _kind: "START",
+                        _side: "SHORT"
                     });
                 }
             }
 
-            // 阶段二：顺势 +1/5 缩量回踩加仓信号
-            if (bias === "LONG" && bullTrend && body < 1.8 * atr && (i - lastAddBarIdx >= 3)) {
+            // 阶段二：顺势 +1/5 缩量回踩加仓信号（同向强制 6 根冷却 + 走横时禁发）
+            const addCooldownOk = (bias !== lastAddBias) || (i - lastAddBarIdx >= 6);
+            if (!isSideways && bias === "LONG" && bullTrend && body < 1.8 * atr && addCooldownOk && (i - lastStartBarIdx >= 2)) {
                 const pullbackTouch = (c.low <= ema10 * 1.001 || prev.low <= ema10 * 1.001) && c.close >= ema15 * 0.999;
                 const holdConfirm = c.close > c.open && c.close > prev.low;
                 if (pullbackTouch && holdConfirm && isVolShrunk) {
                     state = "ROLLING";
                     lastAddBarIdx = i;
-                    const lowLiqTag = sess.quality === "LOW" ? "(慎)" : "";
-                    markers.push({
+                    lastAddBias = "LONG";
+                    const lowLiqTag = sess.quality === "LOW" ? "⚠" : "";
+                    pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "belowBar",
                         color: sess.quality === "LOW" ? "#94a3b8" : "#10b981",
                         shape: "arrowUp",
-                        text: `+1/5加多${lowLiqTag}`
+                        text: `+多${lowLiqTag}`,
+                        _kind: "ADD",
+                        _side: "LONG"
                     });
                 }
-            } else if (bias === "SHORT" && bearTrend && body < 1.8 * atr && (i - lastAddBarIdx >= 3)) {
+            } else if (!isSideways && bias === "SHORT" && bearTrend && body < 1.8 * atr && addCooldownOk && (i - lastStartBarIdx >= 2)) {
                 const pullbackTouch = (c.high >= ema10 * 0.999 || prev.high >= ema10 * 0.999) && c.close <= ema15 * 1.001;
                 const holdConfirm = c.close < c.open && c.close < prev.high;
                 if (pullbackTouch && holdConfirm && isVolShrunk) {
                     state = "ROLLING";
                     lastAddBarIdx = i;
-                    const lowLiqTag = sess.quality === "LOW" ? "(慎)" : "";
-                    markers.push({
+                    lastAddBias = "SHORT";
+                    const lowLiqTag = sess.quality === "LOW" ? "⚠" : "";
+                    pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "aboveBar",
                         color: sess.quality === "LOW" ? "#94a3b8" : "#ef4444",
                         shape: "arrowDown",
-                        text: `+1/5加空${lowLiqTag}`
+                        text: `+空${lowLiqTag}`,
+                        _kind: "ADD",
+                        _side: "SHORT"
                     });
                 }
             }
 
-            // 阶段三：走横停火 / 放量破 15 EMA 减仓止盈
+            // 阶段三：走横停火（8根冷却） / 放量破 15 EMA 减仓止盈（6根冷却）
             const breakLongExit = bias === "LONG" && c.close < ema15 && isVolExpanded;
             const breakShortExit = bias === "SHORT" && c.close > ema15 && isVolExpanded;
-            if ((bias === "LONG" || bias === "SHORT") && (isSideways || breakLongExit || breakShortExit)) {
+            if ((bias === "LONG" || bias === "SHORT") && (breakLongExit || breakShortExit)) {
                 state = "TRIM_EXIT";
-                if (i - lastTrimBarIdx >= 5) {
-                    lastTrimBarIdx = i;
-                    const label = (breakLongExit || breakShortExit) ? "✂️破位止盈" : "⏸走横停火";
-                    markers.push({
+                if (i - lastExitBarIdx >= 6) {
+                    lastExitBarIdx = i;
+                    pushUniqueBarMarker(i, {
                         time: c.time,
                         position: bias === "LONG" ? "aboveBar" : "belowBar",
                         color: "#f59e0b",
                         shape: "square",
-                        text: label
+                        text: "✂️盈",
+                        _kind: "EXIT"
                     });
                 }
-                if (breakLongExit || breakShortExit) {
-                    bias = "NEUTRAL";
+                bias = "NEUTRAL";
+            } else if ((bias === "LONG" || bias === "SHORT") && isSideways) {
+                state = "TRIM_EXIT";
+                if (i - lastSidewaysBarIdx >= 8) {
+                    lastSidewaysBarIdx = i;
+                    pushUniqueBarMarker(i, {
+                        time: c.time,
+                        position: bias === "LONG" ? "aboveBar" : "belowBar",
+                        color: "#f59e0b",
+                        shape: "square",
+                        text: "⏸停",
+                        _kind: "SIDEWAYS"
+                    });
                 }
             }
 
@@ -293,7 +339,6 @@
         let hypotheticalBep = null;
         let cushionPct = null;
         if (baseAvg > 0 && (effectiveBias === "LONG" || effectiveBias === "SHORT")) {
-            // 现有 1 份 + 拟加 0.2 份 (+1/5)
             const blended = (baseAvg * 1.0 + lastBar.close * 0.2) / 1.2;
             const isLong = effectiveBias === "LONG";
             hypotheticalBep = blended * (isLong ? 1.002 : 0.998);
@@ -302,28 +347,78 @@
                 : 0;
         }
 
+        // 安全垫红线与状态机联动风控评估
+        const cStr = cushionPct !== null ? `${cushionPct >= 0 ? "+" : ""}${cushionPct.toFixed(2)}%` : "--";
+        let riskGuard = { level: "OK", isBlocked: false, headline: "", actionTip: "" };
+        if (cushionPct !== null) {
+            if (cushionPct < 0) {
+                riskGuard = {
+                    level: "LOCKED_NEG",
+                    isBlocked: true,
+                    headline: `⛔ 垫穿 ${cStr} · 严禁加仓`,
+                    actionTip: "仅守防线或减仓"
+                };
+            } else if (cushionPct < 1.5) {
+                riskGuard = {
+                    level: "LOCKED_THIN",
+                    isBlocked: true,
+                    headline: `🚨 垫薄 ${cStr} · 暂停加仓`,
+                    actionTip: "低于1.5%红线"
+                };
+            } else if (cushionPct < 2.5) {
+                riskGuard = {
+                    level: "CAUTION",
+                    isBlocked: false,
+                    headline: "",
+                    actionTip: `缓冲偏窄 ${cStr}`
+                };
+            }
+        }
+
+        // 若实时安全垫已触发禁加红线，屏蔽最新 2 根 K 线上的同向新增开仓/加仓提示，消除自相矛盾
+        const finalMarkers = markers.filter(m => {
+            if (riskGuard.isBlocked && m._barIdx >= n - 2 && (m._kind === "ADD" || m._kind === "START") && m._side === effectiveBias) {
+                return false;
+            }
+            return true;
+        }).map(m => ({
+            time: m.time,
+            position: m.position,
+            color: m.color,
+            shape: m.shape,
+            text: m.text
+        }));
+
         const stateNameMap = {
-            TREND_START: bias === "LONG" ? "阶段一 · 多头启动试探" : "阶段一 · 空头启动试探",
-            ROLLING: bias === "LONG" ? "阶段二 · 顺势滚多窗口" : "阶段二 · 顺势滚空窗口",
-            TRIM_EXIT: "阶段三 · 走横停火 / 锁利",
-            NEUTRAL: "静默过滤 · 震荡无趋势"
+            TREND_START: bias === "LONG" ? "多头启动" : "空头启动",
+            ROLLING: bias === "LONG" ? "顺势滚多" : "顺势滚空",
+            TRIM_EXIT: "走横停火 / 锁利",
+            NEUTRAL: "震荡静默"
+        };
+        const shortStateMap = {
+            TREND_START: bias === "LONG" ? "多启" : "空启",
+            ROLLING: bias === "LONG" ? "滚多" : "滚空",
+            TRIM_EXIT: "停火",
+            NEUTRAL: "静默"
         };
 
         const trapAlert = (n - 1 - bearTrapIdx <= 10 && bearTrapHigh > 0)
-            ? { side: "SHORT", slRef: bearTrapHigh, text: `⚠️ 假突破监测中 (强高止损参考 ${bearTrapHigh.toFixed(1)})` }
+            ? { side: "SHORT", slRef: bearTrapHigh, text: `⚠️假多监测 · 强高SL ${bearTrapHigh.toFixed(1)}` }
             : ((n - 1 - bullTrapIdx <= 10 && bullTrapLow > 0)
-                ? { side: "LONG", slRef: bullTrapLow, text: `⚠️ 诱空监测中 (强低止损参考 ${bullTrapLow.toFixed(1)})` }
+                ? { side: "LONG", slRef: bullTrapLow, text: `⚠️假空监测 · 强低SL ${bullTrapLow.toFixed(1)}` }
                 : null);
 
         return {
             state,
             stateLabel: stateNameMap[state] || "观望静默",
+            shortStateLabel: shortStateMap[state] || "观望",
             bias,
-            markers: markers.slice(-36),
+            markers: finalMarkers.slice(-30),
             trailingPoints,
             latestTrailing: latestTrailObj ? latestTrailObj.value : null,
             hypotheticalBep,
             cushionPct,
+            riskGuard,
             session: latestSess,
             trapAlert
         };

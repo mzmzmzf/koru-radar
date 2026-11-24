@@ -2912,16 +2912,23 @@ export default {
                 ctx.restore();
             }
 
-            // 2. 绘制顶部紧凑状态机与安全垫护栏卡片
+            // 2. 绘制顶部紧凑状态机与安全垫风控联动卡片（风控红线优先接管主标题）
             ctx.save();
             const padX = 10;
             const cPct = nav.cushionPct;
-            const cWarn = cPct !== null && cPct < 1.5;
-            const cText = cPct !== null ? `安全垫 ${cPct >= 0 ? "+" : ""}${cPct.toFixed(2)}%${cWarn ? " 🚨禁加" : ""}` : "安全垫 待定";
+            const rg = nav.riskGuard || { level: "OK", isBlocked: false, headline: "", actionTip: "" };
+            const isNeg = rg.level === "LOCKED_NEG";
+            const isBlocked = Boolean(rg.isBlocked);
+            const cStr = cPct !== null ? `${cPct >= 0 ? "+" : ""}${cPct.toFixed(2)}%` : "待定";
             const trailText = nav.latestTrailing ? `防线 ${Number(nav.latestTrailing).toFixed(dec)}` : "";
-            const tfWarn = tvInterval !== "15" ? " · 建议15m" : "";
-            const line1 = `🧭 15m滚仓导航 · ${nav.stateLabel}${tfWarn}`;
-            const line2 = `${nav.session.label} | ${cText}${trailText ? " | " + trailText : ""}`;
+            const tfWarn = tvInterval !== "15" ? " · 切15m" : "";
+
+            const line1 = isBlocked
+                ? `${rg.headline}${tfWarn}`
+                : `🧭 15m导航 · ${nav.stateLabel}${tfWarn}`;
+            const line2 = isBlocked
+                ? `原:${nav.shortStateLabel || nav.stateLabel}(已锁) | ${rg.actionTip}${trailText ? " | " + trailText : ""} | ${nav.session.label}`
+                : `${nav.session.label} | 垫 ${cStr}${trailText ? " | " + trailText : ""}`;
             const line3 = nav.trapAlert ? nav.trapAlert.text : "";
 
             ctx.font = "700 10.5px -apple-system, BlinkMacSystemFont, monospace";
@@ -2933,18 +2940,26 @@ export default {
             const bx = Math.max(8, plotW - boxW - 10);
             const by = 8;
 
-            ctx.fillStyle = isDark ? "rgba(15, 23, 42, 0.88)" : "rgba(255, 253, 248, 0.94)";
-            ctx.strokeStyle = cWarn ? "#ef4444" : (nav.state === "ROLLING" ? "#10b981" : (nav.state === "TRIM_EXIT" ? "#f59e0b" : "#38bdf8"));
-            ctx.lineWidth = 1.2;
+            if (isNeg) {
+                ctx.fillStyle = isDark ? "rgba(69, 10, 10, 0.92)" : "rgba(254, 226, 226, 0.96)";
+                ctx.strokeStyle = "#ef4444";
+            } else if (isBlocked) {
+                ctx.fillStyle = isDark ? "rgba(67, 20, 7, 0.90)" : "rgba(255, 237, 213, 0.96)";
+                ctx.strokeStyle = "#f97316";
+            } else {
+                ctx.fillStyle = isDark ? "rgba(15, 23, 42, 0.88)" : "rgba(255, 253, 248, 0.94)";
+                ctx.strokeStyle = nav.state === "ROLLING" ? "#10b981" : (nav.state === "TRIM_EXIT" ? "#f59e0b" : "#38bdf8");
+            }
+            ctx.lineWidth = isBlocked ? 1.5 : 1.2;
             ctx.beginPath();
             if (ctx.roundRect) ctx.roundRect(bx, by, boxW, boxH, 7);
             else ctx.rect(bx, by, boxW, boxH);
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = isDark ? "#f8fafc" : "#111827";
+            ctx.fillStyle = isBlocked ? (isDark ? "#fca5a5" : "#b91c1c") : (isDark ? "#f8fafc" : "#111827");
             ctx.fillText(line1, bx + padX, by + 14);
-            ctx.fillStyle = cWarn ? "#f87171" : (isDark ? "#94a3b8" : "#475569");
+            ctx.fillStyle = isBlocked ? (isDark ? "#fde68a" : "#92400e") : (isDark ? "#94a3b8" : "#475569");
             ctx.fillText(line2, bx + padX, by + 29);
             if (line3) {
                 ctx.fillStyle = "#f59e0b";
@@ -4694,14 +4709,16 @@ export default {
             }
             if (showRollingNav15m && lwLastRollingNavSnapshot && isFinite(lwLastRollingNavSnapshot.hypotheticalBep) && lwLastRollingNavSnapshot.hypotheticalBep > 0) {
                 const cPct = lwLastRollingNavSnapshot.cushionPct;
+                const isNeg = cPct !== null && cPct < 0;
                 const isDanger = cPct !== null && cPct < 1.5;
                 const cStr = cPct !== null ? `${cPct >= 0 ? "+" : ""}${cPct.toFixed(2)}%` : "--";
+                const bepTag = isNeg ? `⛔禁加(${cStr})` : (isDanger ? `🚨垫薄(${cStr})` : `🧭+⅕均(${cStr})`);
                 pushLwPriceLineSpec(
                     lwLastRollingNavSnapshot.hypotheticalBep,
-                    isDanger ? "#ef4444" : "#f59e0b",
+                    isNeg ? "#ef4444" : (isDanger ? "#f97316" : "#f59e0b"),
                     1,
                     LightweightCharts.LineStyle.Dotted,
-                    `${isDanger ? "🚨禁加" : "🧭+1/5新BEP"}(垫${cStr})`,
+                    bepTag,
                     true
                 );
             }
