@@ -2892,24 +2892,27 @@ export default {
             const nav = lwLastRollingNavSnapshot;
             if (!nav) return;
 
-            // 1. 绘制动态追踪防守线 (15 EMA ± 0.5 ATR)
+            // 1. 绘制动态追踪防守线 (15 EMA ± 0.5 ATR)，跨波段非连续 K 线自动断笔
             if (Array.isArray(nav.trailingPoints) && nav.trailingPoints.length >= 2) {
                 ctx.save();
                 ctx.setLineDash([5, 4]);
                 ctx.lineWidth = 1.8;
+                const barStepSec = (Array.isArray(lwLastDataCache) && lwLastDataCache.length >= 2)
+                    ? Math.max(60, Math.abs(lwLastDataCache[lwLastDataCache.length - 1].time - lwLastDataCache[lwLastDataCache.length - 2].time))
+                    : 900;
                 let prevPt = null;
                 for (const pt of nav.trailingPoints) {
                     const x = timeToOverlayX(pt.time);
                     const y = priceToOverlayY(pt.value);
                     if (x === null || y === null) { prevPt = null; continue; }
-                    if (prevPt && prevPt.bias === pt.bias) {
+                    if (prevPt && prevPt.bias === pt.bias && (pt.time - prevPt.time) <= barStepSec * 2.5) {
                         ctx.strokeStyle = pt.bias === "LONG" ? "rgba(16, 185, 129, 0.85)" : "rgba(244, 63, 94, 0.85)";
                         ctx.beginPath();
                         ctx.moveTo(prevPt.x, prevPt.y);
                         ctx.lineTo(x, y);
                         ctx.stroke();
                     }
-                    prevPt = { x, y, bias: pt.bias };
+                    prevPt = { x, y, time: pt.time, bias: pt.bias };
                 }
                 ctx.restore();
             }
