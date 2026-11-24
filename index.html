@@ -2876,7 +2876,9 @@ export default {
             const nav = compute15mRollingNavigator(enriched, {
                 longPct: typeof latestBtcLongPct !== "undefined" ? latestBtcLongPct : 0,
                 activePosAvg,
-                activePosSide
+                activePosSide,
+                supplyBlocks: lwLastSmcSnapshot?.supplyBlocks || [],
+                demandBlocks: lwLastSmcSnapshot?.demandBlocks || []
             });
             lwLastRollingNavSnapshot = nav;
             if (Array.isArray(nav.markers) && nav.markers.length) {
@@ -2912,24 +2914,28 @@ export default {
                 ctx.restore();
             }
 
-            // 2. 绘制顶部紧凑状态机与安全垫风控联动卡片（风控红线优先接管主标题）
+            // 2. 绘制顶部紧凑状态机 + 4重过滤门状态条 + 安全垫风控联动卡片
             ctx.save();
             const padX = 10;
             const cPct = nav.cushionPct;
             const rg = nav.riskGuard || { level: "OK", isBlocked: false, headline: "", actionTip: "" };
             const isNeg = rg.level === "LOCKED_NEG";
             const isBlocked = Boolean(rg.isBlocked);
+            const isSleep = nav.state === "CHOP_SLEEP";
             const cStr = cPct !== null ? `${cPct >= 0 ? "+" : ""}${cPct.toFixed(2)}%` : "待定";
             const trailText = nav.latestTrailing ? `防线 ${Number(nav.latestTrailing).toFixed(dec)}` : "";
             const tfWarn = tvInterval !== "15" ? " · 切15m" : "";
+            const gateStrip = nav.gates && nav.gates.stripText ? nav.gates.stripText : "";
 
             const line1 = isBlocked
                 ? `${rg.headline}${tfWarn}`
-                : `🧭 15m导航 · ${nav.stateLabel}${tfWarn}`;
-            const line2 = isBlocked
-                ? `原:${nav.shortStateLabel || nav.stateLabel}(已锁) | ${rg.actionTip}${trailText ? " | " + trailText : ""} | ${nav.session.label}`
+                : (isSleep ? `${nav.stateLabel}${tfWarn}` : `🧭 15m导航 · ${nav.stateLabel}${tfWarn}`);
+            const line2 = gateStrip
+                ? `${gateStrip} | ${nav.session.label}`
                 : `${nav.session.label} | 垫 ${cStr}${trailText ? " | " + trailText : ""}`;
-            const line3 = nav.trapAlert ? nav.trapAlert.text : "";
+            const line3 = isBlocked
+                ? `原:${nav.shortStateLabel}(已锁) | ${rg.actionTip}${trailText ? " | " + trailText : ""}`
+                : (nav.trapAlert ? nav.trapAlert.text : `垫 ${cStr}${trailText ? " | " + trailText : ""}`);
 
             ctx.font = "700 10.5px -apple-system, BlinkMacSystemFont, monospace";
             const w1 = ctx.measureText(line1).width;
@@ -2946,6 +2952,9 @@ export default {
             } else if (isBlocked) {
                 ctx.fillStyle = isDark ? "rgba(67, 20, 7, 0.90)" : "rgba(255, 237, 213, 0.96)";
                 ctx.strokeStyle = "#f97316";
+            } else if (isSleep) {
+                ctx.fillStyle = isDark ? "rgba(15, 23, 42, 0.84)" : "rgba(248, 250, 252, 0.94)";
+                ctx.strokeStyle = isDark ? "#475569" : "#94a3b8";
             } else {
                 ctx.fillStyle = isDark ? "rgba(15, 23, 42, 0.88)" : "rgba(255, 253, 248, 0.94)";
                 ctx.strokeStyle = nav.state === "ROLLING" ? "#10b981" : (nav.state === "TRIM_EXIT" ? "#f59e0b" : "#38bdf8");
@@ -2957,12 +2966,12 @@ export default {
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = isBlocked ? (isDark ? "#fca5a5" : "#b91c1c") : (isDark ? "#f8fafc" : "#111827");
+            ctx.fillStyle = isBlocked ? (isDark ? "#fca5a5" : "#b91c1c") : (isSleep ? (isDark ? "#cbd5e1" : "#475569") : (isDark ? "#f8fafc" : "#111827"));
             ctx.fillText(line1, bx + padX, by + 14);
-            ctx.fillStyle = isBlocked ? (isDark ? "#fde68a" : "#92400e") : (isDark ? "#94a3b8" : "#475569");
+            ctx.fillStyle = isDark ? "#cbd5e1" : "#334155";
             ctx.fillText(line2, bx + padX, by + 29);
             if (line3) {
-                ctx.fillStyle = "#f59e0b";
+                ctx.fillStyle = isBlocked ? (isDark ? "#fde68a" : "#92400e") : (nav.trapAlert ? "#f59e0b" : (isDark ? "#94a3b8" : "#64748b"));
                 ctx.fillText(line3, bx + padX, by + 44);
             }
             ctx.restore();
