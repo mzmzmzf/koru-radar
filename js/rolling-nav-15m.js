@@ -241,6 +241,7 @@
         let addSeqInLeg = 0;
         let lastSidewaysBarIdx = -99;
         let lastExitBarIdx = -99;
+        let lastRejectShortIdx = -99;
         let pausedInCurrentLeg = false;
 
         // 流动性猎杀 / 孤立巨柱反转追踪器
@@ -567,6 +568,29 @@
                 state = "CHOP_SLEEP";
             }
 
+            // --- D. 反抽压制确认空（🎯反抽压制空） ---
+            // 空头大周期/结构背景下，近 3 根 15m 最高价触及 EMA15 附近且未越过 MA50*1.004，随后承压收阴跌破 EMA10 且未放量硬冲
+            const bearBackdropOk = htfBias === "SHORT" && ema15 < ma50 && ma50SlopeDn && c.close < ma50;
+            const recent3High = Math.max(c.high, prev.high, candles[i - 2].high);
+            const touchedEma15Band = recent3High >= Math.min(ema15 * 0.9985, ema15 - 0.1 * atr) && recent3High <= ma50 * 1.004;
+            const bearRejectionCandle = c.close < ema10 && c.close < c.open;
+            const noBullVolThrust = !(volMa > 0 && prev.close > prev.open && prev.vol > volMa * 1.55) && !(volMa > 0 && c.vol > volMa * 1.8);
+            const rejectShortCooldownOk = (i - lastRejectShortIdx >= 5)
+                && (lastAddBias !== "SHORT" || i - lastAddBarIdx >= 3)
+                && (lastStartBias !== "SHORT" || i - lastStartBarIdx >= 3);
+            if (bearBackdropOk && touchedEma15Band && bearRejectionCandle && noBullVolThrust && rejectShortCooldownOk) {
+                lastRejectShortIdx = i;
+                pushUniqueBarMarker(i, {
+                    time: c.time,
+                    position: "aboveBar",
+                    color: "#be185d",
+                    shape: "arrowDown",
+                    text: "🎯反抽压制空",
+                    _kind: "REJECT_SHORT",
+                    _side: "SHORT"
+                });
+            }
+
             // 动态追踪防守线：仅在有效持仓偏向期间绘制 15 EMA ± 0.5 * ATR(14)
             if (bias === "LONG") {
                 trailingPoints.push({ time: c.time, value: ema15 - 0.5 * atr, bias: "LONG" });
@@ -627,7 +651,7 @@
         }
 
         const finalMarkers = markers.filter(m => {
-            if (riskGuard.isBlocked && m._barIdx >= n - 2 && (m._kind === "ADD" || m._kind === "START") && m._side === effectiveBias) {
+            if (riskGuard.isBlocked && m._barIdx >= n - 2 && (m._kind === "ADD" || m._kind === "START" || m._kind === "REJECT_SHORT") && m._side === effectiveBias) {
                 return false;
             }
             return true;
