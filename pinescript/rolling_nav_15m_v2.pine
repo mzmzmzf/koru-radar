@@ -1,0 +1,322 @@
+//@version=5
+indicator("15m 滚仓导航 v2.0 (4重门禁 + 反抽压制空)", shorttitle="15m滚仓导航v2", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// ============================================================================
+// 1. 参数设置（与网页终端 js/rolling-nav-15m.js 1:1 对齐）
+// ============================================================================
+grpCore   = "核心均线与过滤门参数"
+htfTf     = input.timeframe("60", "大周期方向锚 (默认 1H)", group=grpCore)
+adxMin    = input.float(19.5, "ADX(14) 最低趋势门槛", step=0.5, minval=10, maxval=40, group=grpCore)
+erMin     = input.float(0.23, "考夫曼效率系数 ER(10) 门槛", step=0.01, minval=0.10, maxval=0.60, group=grpCore)
+addVolCap = input.float(1.05, "顺势加仓量能上限 (× Vol_MA20)", step=0.05, minval=0.5, maxval=2.0, group=grpCore)
+addCdBars = input.int(3, "同向加仓最小冷却 K 线数", minval=1, maxval=12, group=grpCore)
+
+grpFilter = "时段与信号开关"
+useSessionFilter = input.bool(true, "过滤北京时间 03:00–07:30 枯竭段", group=grpFilter)
+showRejectShort  = input.bool(true, "显示「🎯反抽压制空」双路径信号", group=grpFilter)
+showTrapAlerts   = input.bool(true, "显示「⚠️假多 / ⚠️假空」与「🎯多 / 🎯空」", group=grpFilter)
+showMAs          = input.bool(true, "显示 EMA10 / EMA15 / MA50", group=grpFilter)
+showTrailLine    = input.bool(true, "显示动态追踪防守线 (15 EMA ± 0.5 ATR)", group=grpFilter)
+showHudTable     = input.bool(true, "显示右上角 4 门体检与状态 HUD", group=grpFilter)
+
+// ============================================================================
+// 2. 核心指标计算
+// ============================================================================
+ema10   = ta.ema(close, 10)
+ema15   = ta.ema(close, 15)
+ma50    = ta.sma(close, 50)
+atr14   = ta.atr(14)
+volMa20 = ta.sma(volume, 20)
+
+[_, _, adx14] = ta.dmi(14, 14)
+
+// 考夫曼效率系数 ER(10)
+netChange10 = math.abs(close - close[10])
+pathSum10   = math.sum(math.abs(close - close[1]), 10)
+er10        = pathSum10 > 0 ? netChange10 / pathSum10 : 0.0
+
+// 1H 跨周期共振（无未来函数）
+htfClose = request.security(syminfo.tickerid, htfTf, close, lookahead=barmerge.lookahead_off)
+htfEma15 = request.security(syminfo.tickerid, htfTf, ta.ema(close, 15), lookahead=barmerge.lookahead_off)
+htfMa50  = request.security(syminfo.tickerid, htfTf, ta.sma(close, 50), lookahead=barmerge.lookahead_off)
+htfBias  = htfClose > htfEma15 and htfEma15 > htfMa50 ? 1 : (htfClose < htfEma15 and htfEma15 < htfMa50 ? -1 : 0)
+
+// 北京时间 (UTC+8) 时段判定
+bjHour = hour(time, "Asia/Shanghai")
+bjMin  = minute(time, "Asia/Shanghai")
+bjHm   = bjHour + bjMin / 60.0
+isDeadZone = bjHm >= 3.0 and bjHm < 7.5
+sessionLabel = bjHm >= 20.5 or bjHm < 1.5 ? "🇺🇸欧美窗" : (bjHm >= 15.0 and bjHm < 20.5 ? "🇪🇺欧盘" : (bjHm >= 8.0 and bjHm < 15.0 ? "🌏亚盘防诱" : (isDeadZone ? "🌙03-07枯竭" : "🌙凌晨低流")))
+sessionOk = not useSessionFilter or not isDeadZone
+
+// K 线形态与量能辅助
+body       = math.abs(close - open)
+upperWick  = high - math.max(open, close)
+lowerWick  = math.min(open, close) - low
+emaGap     = math.abs(ema10 - ema15)
+midGap     = math.abs(ema15 - ma50)
+isVolShrunk   = not na(volMa20) and volMa20 > 0 and (volume < volMa20 * 0.85 or volume[1] < volMa20 * 0.85)
+isVolAddOk    = not na(volMa20) and volMa20 > 0 and (volume <= volMa20 * addVolCap or volume[1] <= volMa20 * addVolCap)
+isVolExpanded = not na(volMa20) and volMa20 > 0 and volume > volMa20 * 1.15
+
+// ============================================================================
+// 3. 四道硬性前置过滤门 (Gate 1 ~ Gate 4)
+// ============================================================================
+// Gate 2：三均线秩序 + 开口 + 斜率
+ma50SlopeUp  = not na(ma50[4]) ? ma50 > ma50[4] : true
+ma50SlopeDn  = not na(ma50[4]) ? ma50 < ma50[4] : true
+ema15SlopeUp = not na(ema15[2]) ? ema15 > ema15[2] : true
+ema15SlopeDn = not na(ema15[2]) ? ema15 < ema15[2] : true
+
+maBullOk = ema10 > ema15 and ema15 > ma50 and ma50SlopeUp and ema15SlopeUp and emaGap >= 0.12 * atr14 and midGap >= 0.18 * atr14
+maBearOk = ema10 < ema15 and ema15 < ma50 and ma50SlopeDn and ema15SlopeDn and emaGap >= 0.12 * atr14 and midGap >= 0.18 * atr14
+
+// Gate 1：1H 同向共振
+htfBullOk = htfBias == 1
+htfBearOk = htfBias == -1
+
+// Gate 3：ADX(14) & ER(10) 震荡排杂
+isDeepChop = (adx14 < 17 and er10 < 0.18) or er10 < 0.15
+adxPass    = adx14 >= adxMin and adx14 >= nz(adx14[1], adx14) - 0.25
+erPass     = er10 >= erMin
+gate3Ok    = not isDeepChop and (adxPass or erPass)
+
+// Gate 4：时段门禁
+all4Bull = maBullOk and htfBullOk and gate3Ok and sessionOk
+all4Bear = maBearOk and htfBearOk and gate3Ok and sessionOk
+
+// 5 根窄幅走横检测
+hi5Close   = ta.highest(close, 5)
+lo5Close   = ta.lowest(close, 5)
+isSideways = (emaGap < 0.15 * atr14 and (hi5Close - lo5Close) < 1.15 * atr14) or isDeepChop
+
+// ============================================================================
+// 4. 状态机持久化变量与信号触发
+// ============================================================================
+var int   stateCode          = 0   // 0=CHOP_SLEEP, 1=TREND_START, 2=ROLLING, 3=TRIM_EXIT
+var int   bias               = 0   // 1=LONG, -1=SHORT, 0=NEUTRAL
+var int   lastStartIdx       = -99
+var int   lastStartBias      = 0
+var int   lastAddIdx         = -99
+var int   lastAddBias        = 0
+var int   addSeqInLeg        = 0
+var int   lastSidewaysIdx    = -99
+var int   lastExitIdx        = -99
+var int   lastRejectShortIdx = -99
+var bool  pausedInCurrentLeg = false
+
+var int   bearTrapIdx        = -99
+var float bearTrapHigh       = na
+var int   bullTrapIdx        = -99
+var float bullTrapLow        = na
+
+barMarked = false
+
+// 警报标记（用于 alertcondition）
+sigStartLong   = false
+sigStartShort  = false
+sigAddLong     = false
+sigAddShort    = false
+sigRejectShort = false
+sigTrap        = false
+sigExit        = false
+
+// --- A. 孤立巨柱诱多 / 诱空预警（8 根冷却） ---
+prevSpikeUp  = (high[1] - ema10[1]) > 2.2 * atr14 and close[1] > open[1]
+curSpikeUp   = (high - ema10) > 2.2 * atr14
+isBearReject = (close < open and body > math.abs(close[1] - open[1]) * 0.7) or (upperWick > body * 1.35 and upperWick > 0.6 * atr14)
+if (prevSpikeUp or curSpikeUp) and isBearReject and (bar_index - bearTrapIdx >= 8)
+    bearTrapIdx  := bar_index
+    bearTrapHigh := math.max(high, high[1])
+    sigTrap      := true
+    if showTrapAlerts and not barMarked
+        label.new(bar_index, high, "⚠️假多", yloc=yloc.abovebar, style=label.style_label_down, color=color.new(#f43f5e, 15), textcolor=color.white, size=size.small)
+        barMarked := true
+
+prevSpikeDn  = (ema10[1] - low[1]) > 2.2 * atr14 and close[1] < open[1]
+curSpikeDn   = (ema10 - low) > 2.2 * atr14
+isBullReject = (close > open and body > math.abs(close[1] - open[1]) * 0.7) or (lowerWick > body * 1.35 and lowerWick > 0.6 * atr14)
+if (prevSpikeDn or curSpikeDn) and isBullReject and (bar_index - bullTrapIdx >= 8)
+    bullTrapIdx := bar_index
+    bullTrapLow := math.min(low, low[1])
+    sigTrap     := true
+    if showTrapAlerts and not barMarked
+        label.new(bar_index, low, "⚠️假空", yloc=yloc.belowbar, style=label.style_label_up, color=color.new(#10b981, 15), textcolor=color.white, size=size.small)
+        barMarked := true
+
+// --- B. 右侧黄金空 / 多点（预警后 1~12 根死叉/金叉缩量回踩） ---
+if bar_index - bearTrapIdx >= 1 and bar_index - bearTrapIdx <= 12 and ema10 < ema15 and close < ema15 and htfBias != 1 and sessionOk
+    if high >= math.min(ema10, ema15) * 0.999 and close < open and isVolShrunk
+        if showTrapAlerts and not barMarked
+            label.new(bar_index, high, "🎯空", yloc=yloc.abovebar, style=label.style_label_down, color=#eab308, textcolor=#111827, size=size.small)
+            barMarked := true
+        bearTrapIdx := -99
+
+if bar_index - bullTrapIdx >= 1 and bar_index - bullTrapIdx <= 12 and ema10 > ema15 and close > ema15 and htfBias != -1 and sessionOk
+    if low <= math.max(ema10, ema15) * 1.001 and close > open and isVolShrunk
+        if showTrapAlerts and not barMarked
+            label.new(bar_index, low, "🎯多", yloc=yloc.belowbar, style=label.style_label_up, color=#eab308, textcolor=#111827, size=size.small)
+            barMarked := true
+        bullTrapIdx := -99
+
+// --- C. 三段式滚仓主状态机 ---
+// 阶段一：趋势启动底仓
+if all4Bull and bias != 1
+    bias               := 1
+    stateCode          := 1
+    pausedInCurrentLeg := false
+    addSeqInLeg        := 0
+    canMarkStart = (lastStartBias != 1 and bar_index - lastStartIdx >= 6) or (bar_index - lastStartIdx >= 12)
+    if canMarkStart
+        lastStartIdx  := bar_index
+        lastStartBias := 1
+        sigStartLong  := true
+        if not barMarked
+            label.new(bar_index, low, "🚀底多", yloc=yloc.belowbar, style=label.style_label_up, color=#059669, textcolor=color.white, size=size.small)
+            barMarked := true
+else if all4Bear and bias != -1
+    bias               := -1
+    stateCode          := 1
+    pausedInCurrentLeg := false
+    addSeqInLeg        := 0
+    canMarkStart = (lastStartBias != -1 and bar_index - lastStartIdx >= 6) or (bar_index - lastStartIdx >= 12)
+    if canMarkStart
+        lastStartIdx  := bar_index
+        lastStartBias := -1
+        sigStartShort := true
+        if not barMarked
+            label.new(bar_index, high, "🚀底空", yloc=yloc.abovebar, style=label.style_label_down, color=#dc2626, textcolor=color.white, size=size.small)
+            barMarked := true
+
+// 阶段二：顺势 +1/5 加仓（3 根冷却 + 序号 #1/#2）
+addCooldownOk = (bias != lastAddBias) or (bar_index - lastAddIdx >= addCdBars)
+if not isSideways and bias == 1 and all4Bull and body < 1.8 * atr14 and addCooldownOk and (bar_index - lastStartIdx >= 1)
+    nearEmaZone = (low <= ema10 + 0.25 * atr14 or low[1] <= ema10 + 0.25 * atr14) and close >= ema15 - 0.15 * atr14
+    holdConfirm = close > open and close >= low[1]
+    if nearEmaZone and holdConfirm and isVolAddOk
+        stateCode          := 2
+        pausedInCurrentLeg := false
+        lastAddIdx         := bar_index
+        lastAddBias        := 1
+        addSeqInLeg        += 1
+        sigAddLong         := true
+        if not barMarked
+            label.new(bar_index, low, "+多#" + str.tostring(addSeqInLeg), yloc=yloc.belowbar, style=label.style_label_up, color=#0284c7, textcolor=color.white, size=size.small)
+            barMarked := true
+else if not isSideways and bias == -1 and all4Bear and body < 1.8 * atr14 and addCooldownOk and (bar_index - lastStartIdx >= 1)
+    nearEmaZone = (high >= ema10 - 0.25 * atr14 or high[1] >= ema10 - 0.25 * atr14) and close <= ema15 + 0.15 * atr14
+    holdConfirm = close < open and close <= high[1]
+    if nearEmaZone and holdConfirm and isVolAddOk
+        stateCode          := 2
+        pausedInCurrentLeg := false
+        lastAddIdx         := bar_index
+        lastAddBias        := -1
+        addSeqInLeg        += 1
+        sigAddShort        := true
+        if not barMarked
+            label.new(bar_index, high, "+空#" + str.tostring(addSeqInLeg), yloc=yloc.abovebar, style=label.style_label_down, color=#d97706, textcolor=color.white, size=size.small)
+            barMarked := true
+
+// 阶段三：破位/击穿防守线止盈 与 单波去重走横停火
+longTrailLine  = ema15 - 0.5 * atr14
+shortTrailLine = ema15 + 0.5 * atr14
+breakLongExit  = bias == 1 and ((close < ema15 and isVolExpanded) or close < longTrailLine)
+breakShortExit = bias == -1 and ((close > ema15 and isVolExpanded) or close > shortTrailLine)
+
+if (bias == 1 or bias == -1) and (breakLongExit or breakShortExit)
+    stateCode := 3
+    if bar_index - lastExitIdx >= 6
+        lastExitIdx := bar_index
+        sigExit     := true
+        if not barMarked
+            if bias == 1
+                label.new(bar_index, high, "✂️盈", yloc=yloc.abovebar, style=label.style_label_down, color=#334155, textcolor=color.white, size=size.small)
+            else
+                label.new(bar_index, low, "✂️盈", yloc=yloc.belowbar, style=label.style_label_up, color=#334155, textcolor=color.white, size=size.small)
+            barMarked := true
+    bias               := 0
+    pausedInCurrentLeg := false
+    addSeqInLeg        := 0
+else if (bias == 1 or bias == -1) and isSideways
+    stateCode := 3
+    if not pausedInCurrentLeg and (bar_index - lastSidewaysIdx >= 12)
+        lastSidewaysIdx    := bar_index
+        pausedInCurrentLeg := true
+        if not barMarked
+            if bias == 1
+                label.new(bar_index, high, "⏸停", yloc=yloc.abovebar, style=label.style_label_down, color=#475569, textcolor=color.white, size=size.small)
+            else
+                label.new(bar_index, low, "⏸停", yloc=yloc.belowbar, style=label.style_label_up, color=#475569, textcolor=color.white, size=size.small)
+            barMarked := true
+else if bias == 0 or (not all4Bull and not all4Bear and isDeepChop)
+    stateCode := 0
+
+// --- D. 反抽压制确认空（🎯反抽压制空 · 双路径确认） ---
+ma50DownOrFlat = not na(ma50[4]) ? ma50 <= ma50[4] * 1.0005 : true
+bearBackdropOk = ma50DownOrFlat and close < ma50 and (htfBias != 1 or ema15 <= ma50)
+recent3High    = math.max(high, math.max(high[1], high[2]))
+touchedResist  = recent3High >= math.min(ema15 * 0.9985, ema15 - 0.1 * atr14) and recent3High <= ma50 * 1.009
+bearRejCandle  = close < open and (close < ema10 or (upperWick >= body * 1.15 and close <= ema15))
+noBullThrust   = not (not na(volMa20) and volMa20 > 0 and close[1] > open[1] and volume[1] > volMa20 * 1.6)
+pathAOk        = bearBackdropOk and touchedResist and bearRejCandle and noBullThrust
+
+pathBOk = bar_index - bearTrapIdx >= 1 and bar_index - bearTrapIdx <= 8 and not na(bearTrapHigh) and high < bearTrapHigh and close < open and (close < (open[1] + close[1]) * 0.5 or upperWick >= body * 1.1)
+
+rejectShortCdOk = (bar_index - lastRejectShortIdx >= 5) and (lastAddBias != -1 or bar_index - lastAddIdx >= 2) and (lastStartBias != -1 or bar_index - lastStartIdx >= 2)
+if showRejectShort and (pathAOk or pathBOk) and rejectShortCdOk
+    lastRejectShortIdx := bar_index
+    sigRejectShort     := true
+    if not barMarked
+        label.new(bar_index, high, "🎯反抽压制空", yloc=yloc.abovebar, style=label.style_label_down, color=#be185d, textcolor=color.white, size=size.small)
+        barMarked := true
+
+// ============================================================================
+// 5. 主图均线 & 动态追踪防守线（跨波段自动断笔）
+// ============================================================================
+plot(showMAs ? ema10 : na, "EMA 10", color=#f59e0b, linewidth=1)
+plot(showMAs ? ema15 : na, "EMA 15", color=#2563eb, linewidth=1)
+plot(showMAs ? ma50  : na, "MA 50",  color=#dc2626, linewidth=2)
+
+trailVal = bias == 1 ? longTrailLine : (bias == -1 ? shortTrailLine : na)
+trailCol = bias == 1 ? color.new(#10b981, 10) : color.new(#f43f5e, 10)
+plot(showTrailLine ? trailVal : na, "追踪防守线", color=trailCol, linewidth=2, style=plot.style_linebr)
+
+// ============================================================================
+// 6. 右上角 4 门体检与状态 HUD 表格
+// ============================================================================
+var table hud = table.new(position.top_right, 2, 5, bgcolor=color.new(#0f172a, 12), border_color=color.new(#475569, 40), border_width=1, frame_color=color.new(#475569, 30), frame_width=1)
+
+if showHudTable and barstate.islast
+    allPassNow = all4Bull or all4Bear
+    hdrText = not allPassNow and stateCode != 3 ? "💤 震荡休眠 · 过滤无效行情" : (stateCode == 2 ? (bias == 1 ? "🧭 顺势滚多 · 4门全绿" : "🧭 顺势滚空 · 4门全绿") : (stateCode == 1 ? (bias == 1 ? "🧭 多头启动 · 4门全绿" : "🧭 空头启动 · 4门全绿") : "⏸ 走横停火 / 锁利"))
+    hdrCol  = not allPassNow and stateCode != 3 ? #334155 : (stateCode == 2 ? #059669 : (stateCode == 3 ? #d97706 : #0284c7))
+
+    g1Txt = htfBias == 1 ? "🟢 1H 多头" : (htfBias == -1 ? "🟣 1H 空头" : "⚪ 1H 走平")
+    g2Txt = maBullOk ? "🟢 多头排列" : (maBearOk ? "🟢 空头排列" : "⚪ 均线未成")
+    g3Txt = (gate3Ok ? "🟢 " : "🔴震 ") + "A" + str.tostring(math.round(adx14)) + " / E" + str.tostring(er10, "#.##")
+    g4Txt = (sessionOk ? "🟢 " : "🔴 ") + sessionLabel
+    defTxt = not na(trailVal) ? ("防线 " + str.tostring(trailVal, format.mintick)) : "空仓观望 · 等4门全绿"
+
+    table.cell(hud, 0, 0, "15m 滚仓导航 v2", text_color=color.white, bgcolor=hdrCol, text_size=size.small, text_halign=text.align_left)
+    table.cell(hud, 1, 0, hdrText, text_color=color.white, bgcolor=hdrCol, text_size=size.small, text_halign=text.align_right)
+
+    table.cell(hud, 0, 1, "Gate1 大周期", text_color=#94a3b8, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(hud, 1, 1, g1Txt, text_color=color.white, text_size=size.tiny, text_halign=text.align_right)
+
+    table.cell(hud, 0, 2, "Gate2 均线秩序", text_color=#94a3b8, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(hud, 1, 2, g2Txt, text_color=color.white, text_size=size.tiny, text_halign=text.align_right)
+
+    table.cell(hud, 0, 3, "Gate3 趋势效率", text_color=#94a3b8, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(hud, 1, 3, g3Txt, text_color=gate3Ok ? #34d399 : #fca5a5, text_size=size.tiny, text_halign=text.align_right)
+
+    table.cell(hud, 0, 4, g4Txt, text_color=sessionOk ? #cbd5e1 : #fca5a5, text_size=size.tiny, text_halign=text.align_left)
+    table.cell(hud, 1, 4, defTxt, text_color=not na(trailVal) ? #fbbf24 : #94a3b8, text_size=size.tiny, text_halign=text.align_right)
+
+// ============================================================================
+// 7. TradingView 手机/桌面警报条件
+// ============================================================================
+alertcondition(sigStartLong or sigStartShort, title="🚀 底仓启动 (4门全绿)", message="{{ticker}} {{interval}} 触发 15m 滚仓底仓启动信号 @ {{close}}")
+alertcondition(sigAddLong or sigAddShort, title="+1/5 顺势加仓 (#1/#2)", message="{{ticker}} {{interval}} 触发 15m 顺势加仓信号 @ {{close}}")
+alertcondition(sigRejectShort, title="🎯 反抽压制确认空", message="{{ticker}} {{interval}} 触发 🎯反抽压制空 @ {{close}}")
+alertcondition(sigTrap, title="⚠️ 孤立巨柱假多/假空预警", message="{{ticker}} {{interval}} 出现孤立巨柱流动性猎杀预警 @ {{close}}")
+alertcondition(sigExit, title="✂️ 破位/击穿防线止盈", message="{{ticker}} {{interval}} 触发 ✂️止盈退场信号 @ {{close}}")
