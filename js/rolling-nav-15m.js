@@ -517,12 +517,14 @@
                     lastAddBarIdx = i;
                     lastAddBias = "SHORT";
                     addSeqInLeg += 1;
+                    const r3h = Math.max(c.high, prev.high, candles[i - 2].high);
+                    const alsoReject = r3h >= Math.min(ema15 * 0.9985, ema15 - 0.1 * atr) && c.close < ema10;
                     pushUniqueBarMarker(i, {
                         time: c.time,
                         position: "aboveBar",
                         color: "#ef4444",
                         shape: "arrowDown",
-                        text: `+空#${addSeqInLeg}`,
+                        text: alsoReject ? `+空#${addSeqInLeg}·压` : `+空#${addSeqInLeg}`,
                         _kind: "ADD",
                         _side: "SHORT"
                     });
@@ -568,10 +570,10 @@
                 state = "CHOP_SLEEP";
             }
 
-            // --- D. 反抽压制确认空（🎯反抽压制空 · 双路径确认） ---
-            // 路径 A：MA50 向下或走平背景下，近 3 根 15m 最高价触及 EMA15 / MA50 / 供给块（上限放宽至 MA50*1.009 或供给块内），随后收承压阴线（不误杀放量阴线砸盘）
+            // --- D. 反抽压制确认空（🎯压空 · 精简防叠标 + 趋势门禁 + 7根冷却） ---
+            // 路径 A：空头均线秩序确立 + 非深度横盘 + 非凌晨枯竭段，近 3 根触及 EMA15~MA50*1.009 或供给块后收阴跌破 EMA10
             const ma50DownOrFlat = isFinite(ma50Prev4) ? (ma50 <= ma50Prev4 * 1.0005) : true;
-            const bearBackdropOk = ma50DownOrFlat && c.close < ma50 && (htfBias !== "LONG" || ema15 <= ma50);
+            const bearBackdropOk = !isDeepChop && sessionOk && ema10 < ema15 && ema15 < ma50 && ma50DownOrFlat && c.close < ma50 && htfBias !== "LONG";
             const recent3High = Math.max(c.high, prev.high, candles[i - 2].high);
             const hitSupplyBlock = supplyBlocks.some(b =>
                 (b.createdIdx === undefined || b.createdIdx <= i) &&
@@ -580,19 +582,19 @@
             );
             const touchedResistBand = recent3High >= Math.min(ema15 * 0.9985, ema15 - 0.1 * atr)
                 && (recent3High <= ma50 * 1.009 || hitSupplyBlock);
-            const bearRejectionCandle = c.close < c.open && (c.close < ema10 || (upperWick >= body * 1.15 && c.close <= ema15));
+            const bearRejectionCandle = c.close < c.open && c.close < ema10;
             const noBullVolThrust = !(volMa > 0 && prev.close > prev.open && prev.vol > volMa * 1.6);
             const pathAOk = bearBackdropOk && touchedResistBand && bearRejectionCandle && noBullVolThrust;
 
-            // 路径 B：⚠️假多 预警后 1~8 根内出现不破前高的次高点反抽承压阴线
-            const pathBOk = (i - bearTrapIdx >= 1 && i - bearTrapIdx <= 8 && bearTrapHigh > 0)
+            // 路径 B：⚠️假多 预警后 2~10 根内出现不破前高且跌破 EMA10 的次高点承压阴线（防巨阳首根抢跑）
+            const pathBOk = (i - bearTrapIdx >= 2 && i - bearTrapIdx <= 10 && bearTrapHigh > 0)
                 && c.high < bearTrapHigh
                 && c.close < c.open
-                && (c.close < (prev.open + prev.close) * 0.5 || upperWick >= body * 1.1);
+                && c.close < ema10;
 
-            const rejectShortCooldownOk = (i - lastRejectShortIdx >= 5)
-                && (lastAddBias !== "SHORT" || i - lastAddBarIdx >= 2)
-                && (lastStartBias !== "SHORT" || i - lastStartBarIdx >= 2);
+            const rejectShortCooldownOk = (i - lastRejectShortIdx >= 7)
+                && (lastAddBias !== "SHORT" || i - lastAddBarIdx >= 4)
+                && (lastStartBias !== "SHORT" || i - lastStartBarIdx >= 4);
             if ((pathAOk || pathBOk) && rejectShortCooldownOk) {
                 lastRejectShortIdx = i;
                 pushUniqueBarMarker(i, {
@@ -600,7 +602,7 @@
                     position: "aboveBar",
                     color: "#be185d",
                     shape: "arrowDown",
-                    text: "🎯反抽压制空",
+                    text: "🎯压空",
                     _kind: "REJECT_SHORT",
                     _side: "SHORT"
                 });

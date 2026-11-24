@@ -213,8 +213,11 @@ else if not isSideways and bias == -1 and all4Bear and body < 1.8 * atr14 and ad
         lastAddBias        := -1
         addSeqInLeg        += 1
         sigAddShort        := true
+        r3hAdd = math.max(high, math.max(high[1], high[2]))
+        alsoRej = r3hAdd >= math.min(ema15 * 0.9985, ema15 - 0.1 * atr14) and close < ema10
+        addShortLbl = alsoRej ? ("+空#" + str.tostring(addSeqInLeg) + "·压") : ("+空#" + str.tostring(addSeqInLeg))
         if not barMarked
-            label.new(bar_index, high, "+空#" + str.tostring(addSeqInLeg), yloc=yloc.abovebar, style=label.style_label_down, color=#d97706, textcolor=color.white, size=size.small)
+            label.new(bar_index, high, addShortLbl, yloc=yloc.abovebar, style=label.style_label_down, color=#d97706, textcolor=color.white, size=size.small)
             barMarked := true
 
 // 阶段三：破位/击穿防守线止盈 与 单波去重走横停火
@@ -251,23 +254,23 @@ else if (bias == 1 or bias == -1) and isSideways
 else if bias == 0 or (not all4Bull and not all4Bear and isDeepChop)
     stateCode := 0
 
-// --- D. 反抽压制确认空（🎯反抽压制空 · 双路径确认） ---
+// --- D. 反抽压制确认空（🎯压空 · 精简防叠标 + 趋势门禁 + 7根冷却） ---
 ma50DownOrFlat = not na(ma50[4]) ? ma50 <= ma50[4] * 1.0005 : true
-bearBackdropOk = ma50DownOrFlat and close < ma50 and (htfBias != 1 or ema15 <= ma50)
+bearBackdropOk = not isDeepChop and sessionOk and ema10 < ema15 and ema15 < ma50 and ma50DownOrFlat and close < ma50 and htfBias != 1
 recent3High    = math.max(high, math.max(high[1], high[2]))
 touchedResist  = recent3High >= math.min(ema15 * 0.9985, ema15 - 0.1 * atr14) and recent3High <= ma50 * 1.009
-bearRejCandle  = close < open and (close < ema10 or (upperWick >= body * 1.15 and close <= ema15))
+bearRejCandle  = close < open and close < ema10
 noBullThrust   = not (not na(volMa20) and volMa20 > 0 and close[1] > open[1] and volume[1] > volMa20 * 1.6)
 pathAOk        = bearBackdropOk and touchedResist and bearRejCandle and noBullThrust
 
-pathBOk = bar_index - bearTrapIdx >= 1 and bar_index - bearTrapIdx <= 8 and not na(bearTrapHigh) and high < bearTrapHigh and close < open and (close < (open[1] + close[1]) * 0.5 or upperWick >= body * 1.1)
+pathBOk = bar_index - bearTrapIdx >= 2 and bar_index - bearTrapIdx <= 10 and not na(bearTrapHigh) and high < bearTrapHigh and close < open and close < ema10
 
-rejectShortCdOk = (bar_index - lastRejectShortIdx >= 5) and (lastAddBias != -1 or bar_index - lastAddIdx >= 2) and (lastStartBias != -1 or bar_index - lastStartIdx >= 2)
+rejectShortCdOk = (bar_index - lastRejectShortIdx >= 7) and (lastAddBias != -1 or bar_index - lastAddIdx >= 4) and (lastStartBias != -1 or bar_index - lastStartIdx >= 4)
 if showRejectShort and (pathAOk or pathBOk) and rejectShortCdOk
     lastRejectShortIdx := bar_index
     sigRejectShort     := true
     if not barMarked
-        label.new(bar_index, high, "🎯反抽压制空", yloc=yloc.abovebar, style=label.style_label_down, color=#be185d, textcolor=color.white, size=size.small)
+        label.new(bar_index, high, "🎯压空", yloc=yloc.abovebar, style=label.style_label_down, color=#be185d, textcolor=color.white, size=size.small)
         barMarked := true
 
 // ============================================================================
