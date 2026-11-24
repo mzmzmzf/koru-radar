@@ -267,6 +267,7 @@
                         </div>
                         <button type="button" class="btn-sm active" id="btnToggleSmcBlocks" onclick="toggleSmcBlocks()" title="独立开关：SMC 供需订单块与 BOS/CHoCH 结构线">🧱 SMC色块</button>
                         <button type="button" class="btn-sm active" id="btnTogglePyrLines" onclick="togglePyramidPositionLines()" title="独立开关：将 BTC / KORU 滚仓底仓、均价、新BEP、新止损与浮动R倍数投射到 K 线主图">📌 滚仓持仓线</button>
+                        <button type="button" class="btn-sm" id="btnToggleRollingNav15m" onclick="toggleRollingNav15m()" title="独立开关：专属《15m 滚仓导航指标》，含三段式状态机、+1/5缩量回踩信号、假突破猎杀预警、15EMA±0.5ATR追踪防线与安全垫HUD">🧭 15m滚仓导航</button>
                         <button type="button" class="btn-sm" id="btnToggleAdaptiveTrail" onclick="toggleAdaptiveTrail()" title="独立开关：ATR 自适应趋势追踪丝带（绿多/橙空移动防守带）">🎗️ 追踪丝带</button>
                         <button type="button" class="btn-sm" id="btnToggleVolProfile" onclick="toggleVolumeProfileZones()" title="独立开关：历史筹码峰与流动性支撑/阻力带（显示成交量K与占比%）">📊 筹码阻力带</button>
                         <button type="button" class="btn-sm" id="btnToggleTrendPanel" onclick="toggleTrendSignalsPanel()" title="独立开关：右下角量化状态体检面板（信号得分/趋势强度/动量超买超卖）">📋 量化体检</button>
@@ -1951,6 +1952,7 @@
     <script src="./js/macro-intel.js"></script>
     <script src="./js/key-levels.js"></script>
     <script src="./js/pyramid-hub.js"></script>
+    <script src="./js/rolling-nav-15m.js"></script>
     <script src="./js/whale-radar.js"></script>
     <script>
         const LEGACY_WORKERS_DEV_URL = "https://quant-relay.zhefeng0513.workers.dev";
@@ -2837,6 +2839,119 @@ export default {
         let isChartLogScale = localStorage.getItem("quant_chart_log") !== "false"; // 默认开启 Log 对数坐标
         let showSmcBlocks = localStorage.getItem("quant_smc_blocks") !== "false"; // 默认开启 SMC 供需色块与 BOS/CHoCH 结构线
         let showPyramidPositionLines = localStorage.getItem("quant_show_pyr_lines") !== "false"; // 默认开启主图滚仓持仓线联动
+        let showRollingNav15m = localStorage.getItem("quant_rolling_nav_15m") === "true";
+        let lwLastRollingNavSnapshot = null;
+
+        function toggleRollingNav15m() {
+            showRollingNav15m = !showRollingNav15m;
+            localStorage.setItem("quant_rolling_nav_15m", showRollingNav15m ? "true" : "false");
+            syncChartControlButtons();
+            if (chartEngineMode === "STRAT" && Array.isArray(lwLastDataCache) && lwLastDataCache.length >= 25) {
+                const res = computeBreakout33AndSmc(lwLastDataCache);
+                if (lwCandleSeries) lwCandleSeries.setMarkers(buildMergedChartMarkers(res.markers, lwLastDataCache));
+                renderAllLwPriceLines();
+                renderDrawOverlay();
+            }
+            showToast(showRollingNav15m
+                ? `🧭 已开启【15m 滚仓导航】状态机、追踪防线与安全垫${tvInterval !== "15" ? "（建议切至 15m 周期体验最佳）" : ""}`
+                : "已关闭 15m 滚仓导航指标");
+        }
+
+        function buildMergedChartMarkers(baseMarkers, enriched) {
+            const list = Array.isArray(baseMarkers) ? baseMarkers.slice() : [];
+            if (!showRollingNav15m || typeof compute15mRollingNavigator !== "function" || !Array.isArray(enriched) || enriched.length < 25) {
+                lwLastRollingNavSnapshot = null;
+                return list;
+            }
+            const symKey = typeof getCurrentSymKey === "function" ? getCurrentSymKey() : "BTC";
+            let activePosAvg = 0, activePosSide = null;
+            if (typeof getPyramidHubChartLines === "function") {
+                const hubLines = getPyramidHubChartLines(symKey);
+                const avgLine = hubLines.find(x => String(x.title || "").includes("均价"));
+                if (avgLine && avgLine.price > 0) {
+                    activePosAvg = avgLine.price;
+                    activePosSide = String(avgLine.title || "").includes("空") ? "SHORT" : "LONG";
+                }
+            }
+            const nav = compute15mRollingNavigator(enriched, {
+                longPct: typeof latestBtcLongPct !== "undefined" ? latestBtcLongPct : 0,
+                activePosAvg,
+                activePosSide
+            });
+            lwLastRollingNavSnapshot = nav;
+            if (Array.isArray(nav.markers) && nav.markers.length) {
+                list.push(...nav.markers);
+            }
+            list.sort((a, b) => Number(a.time) - Number(b.time));
+            return list;
+        }
+
+        function draw15mRollingNavigatorOverlay(ctx, dec, isDark, plotW, canvasH) {
+            const nav = lwLastRollingNavSnapshot;
+            if (!nav) return;
+
+            // 1. 绘制动态追踪防守线 (15 EMA ± 0.5 ATR)
+            if (Array.isArray(nav.trailingPoints) && nav.trailingPoints.length >= 2) {
+                ctx.save();
+                ctx.setLineDash([5, 4]);
+                ctx.lineWidth = 1.8;
+                let prevPt = null;
+                for (const pt of nav.trailingPoints) {
+                    const x = timeToOverlayX(pt.time);
+                    const y = priceToOverlayY(pt.value);
+                    if (x === null || y === null) { prevPt = null; continue; }
+                    if (prevPt && prevPt.bias === pt.bias) {
+                        ctx.strokeStyle = pt.bias === "LONG" ? "rgba(16, 185, 129, 0.85)" : "rgba(244, 63, 94, 0.85)";
+                        ctx.beginPath();
+                        ctx.moveTo(prevPt.x, prevPt.y);
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                    }
+                    prevPt = { x, y, bias: pt.bias };
+                }
+                ctx.restore();
+            }
+
+            // 2. 绘制顶部紧凑状态机与安全垫护栏卡片
+            ctx.save();
+            const padX = 10;
+            const cPct = nav.cushionPct;
+            const cWarn = cPct !== null && cPct < 1.5;
+            const cText = cPct !== null ? `安全垫 ${cPct >= 0 ? "+" : ""}${cPct.toFixed(2)}%${cWarn ? " 🚨禁加" : ""}` : "安全垫 待定";
+            const trailText = nav.latestTrailing ? `防线 ${Number(nav.latestTrailing).toFixed(dec)}` : "";
+            const tfWarn = tvInterval !== "15" ? " · 建议15m" : "";
+            const line1 = `🧭 15m滚仓导航 · ${nav.stateLabel}${tfWarn}`;
+            const line2 = `${nav.session.label} | ${cText}${trailText ? " | " + trailText : ""}`;
+            const line3 = nav.trapAlert ? nav.trapAlert.text : "";
+
+            ctx.font = "700 10.5px -apple-system, BlinkMacSystemFont, monospace";
+            const w1 = ctx.measureText(line1).width;
+            const w2 = ctx.measureText(line2).width;
+            const w3 = line3 ? ctx.measureText(line3).width : 0;
+            const boxW = Math.min(plotW - 16, Math.max(w1, w2, w3) + padX * 2);
+            const boxH = line3 ? 52 : 38;
+            const bx = Math.max(8, plotW - boxW - 10);
+            const by = 8;
+
+            ctx.fillStyle = isDark ? "rgba(15, 23, 42, 0.88)" : "rgba(255, 253, 248, 0.94)";
+            ctx.strokeStyle = cWarn ? "#ef4444" : (nav.state === "ROLLING" ? "#10b981" : (nav.state === "TRIM_EXIT" ? "#f59e0b" : "#38bdf8"));
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(bx, by, boxW, boxH, 7);
+            else ctx.rect(bx, by, boxW, boxH);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = isDark ? "#f8fafc" : "#111827";
+            ctx.fillText(line1, bx + padX, by + 14);
+            ctx.fillStyle = cWarn ? "#f87171" : (isDark ? "#94a3b8" : "#475569");
+            ctx.fillText(line2, bx + padX, by + 29);
+            if (line3) {
+                ctx.fillStyle = "#f59e0b";
+                ctx.fillText(line3, bx + padX, by + 44);
+            }
+            ctx.restore();
+        }
         let showAdaptiveTrail = localStorage.getItem("quant_adaptive_trail") === "true"; // 独立开关：ATR 自适应追踪丝带
         let showVolumeProfileZones = localStorage.getItem("quant_vol_profile_zones") === "true"; // 独立开关：历史筹码峰/流动性阻力带
         let showTrendSignalsPanel = localStorage.getItem("quant_trend_signals_panel") === "true"; // 独立开关：右下角量化体检面板
@@ -4000,6 +4115,10 @@ export default {
             if (pyrLinesBtn) {
                 pyrLinesBtn.classList.toggle("active", showPyramidPositionLines);
             }
+            const nav15Btn = document.getElementById("btnToggleRollingNav15m");
+            if (nav15Btn) {
+                nav15Btn.classList.toggle("active", showRollingNav15m);
+            }
             const trailBtn = document.getElementById("btnToggleAdaptiveTrail");
             if (trailBtn) {
                 trailBtn.classList.toggle("active", showAdaptiveTrail);
@@ -4462,7 +4581,7 @@ export default {
                         });
                     }
                     if (canTailAppendUpdate) {
-                        lwCandleSeries.setMarkers(markers);
+                        lwCandleSeries.setMarkers(buildMergedChartMarkers(markers, enriched));
                         renderAllLwPriceLines();
                     }
                 } else {
@@ -4485,7 +4604,7 @@ export default {
                         color: x.close >= x.open ? p.volUp : p.volDown
                     })));
 
-                    lwCandleSeries.setMarkers(markers);
+                    lwCandleSeries.setMarkers(buildMergedChartMarkers(markers, enriched));
                     renderAllLwPriceLines();
 
                     targetViewportRange = savedRange;
@@ -4572,6 +4691,19 @@ export default {
                 getPyramidHubChartLines(symKey).forEach(pl => {
                     pushLwPriceLineSpec(pl.price, pl.color, 2, LightweightCharts.LineStyle.Dashed, pl.title, true);
                 });
+            }
+            if (showRollingNav15m && lwLastRollingNavSnapshot && isFinite(lwLastRollingNavSnapshot.hypotheticalBep) && lwLastRollingNavSnapshot.hypotheticalBep > 0) {
+                const cPct = lwLastRollingNavSnapshot.cushionPct;
+                const isDanger = cPct !== null && cPct < 1.5;
+                const cStr = cPct !== null ? `${cPct >= 0 ? "+" : ""}${cPct.toFixed(2)}%` : "--";
+                pushLwPriceLineSpec(
+                    lwLastRollingNavSnapshot.hypotheticalBep,
+                    isDanger ? "#ef4444" : "#f59e0b",
+                    1,
+                    LightweightCharts.LineStyle.Dotted,
+                    `${isDanger ? "🚨禁加" : "🧭+1/5新BEP"}(垫${cStr})`,
+                    true
+                );
             }
             if (symKey === "BTC" && typeof getActiveWhaleMagnetLines === "function") {
                 getActiveWhaleMagnetLines().forEach(ml => {
@@ -5021,6 +5153,9 @@ export default {
             }
             if (showSmcBlocks) {
                 drawSmcBlocksAndStructures(ctx, dec, isDark, plotW);
+            }
+            if (showRollingNav15m) {
+                draw15mRollingNavigatorOverlay(ctx, dec, isDark, plotW, h);
             }
 
             // 渲染未锁定水平线的可拖拽控制手柄指示条（方便鼠标与手指精准定位上下拖动）
@@ -7094,7 +7229,7 @@ export default {
                     structureLines: res.structureLines,
                     marketBias: res.marketBias
                 };
-                lwCandleSeries.setMarkers(res.markers);
+                lwCandleSeries.setMarkers(buildMergedChartMarkers(res.markers, lwLastDataCache));
                 const sigBadge = document.getElementById("stratLatestSignalBadge");
                 if (sigBadge) {
                     sigBadge.textContent = res.latestSignalText;

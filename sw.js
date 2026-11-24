@@ -1,4 +1,4 @@
-const CACHE_NAME = "quant-terminal-v21";
+const CACHE_NAME = "quant-terminal-v22";
 const ASSETS = [
     "./",
     "./index.html",
@@ -11,6 +11,7 @@ const ASSETS = [
     "./js/macro-intel.js",
     "./js/key-levels.js",
     "./js/pyramid-hub.js",
+    "./js/rolling-nav-15m.js",
     "./js/whale-radar.js"
 ];
 
