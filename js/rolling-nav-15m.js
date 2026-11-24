@@ -631,13 +631,19 @@
                 return false;
             }
             return true;
-        }).map(m => ({
-            time: m.time,
-            position: m.position,
-            color: m.color,
-            shape: m.shape,
-            text: m.text
-        }));
+        }).map(m => {
+            const bar = candles[m._barIdx];
+            return {
+                time: m.time,
+                position: m.position,
+                color: m.color,
+                shape: m.shape,
+                text: m.text,
+                kind: m._kind || "",
+                side: m._side || "",
+                anchorPrice: bar ? (m.position === "aboveBar" ? bar.high : bar.low) : null
+            };
+        });
 
         const stateNameMap = {
             TREND_START: bias === "LONG" ? "多头启动 · 4门全绿" : "空头启动 · 4门全绿",

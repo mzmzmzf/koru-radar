@@ -2881,9 +2881,7 @@ export default {
                 demandBlocks: lwLastSmcSnapshot?.demandBlocks || []
             });
             lwLastRollingNavSnapshot = nav;
-            if (Array.isArray(nav.markers) && nav.markers.length) {
-                list.push(...nav.markers);
-            }
+            // 15m 滚仓信号改由 Canvas 渲染为高辨识度圆角彩色胶囊标签，不再叠加原生小字避免重复
             list.sort((a, b) => Number(a.time) - Number(b.time));
             return list;
         }
@@ -2913,6 +2911,101 @@ export default {
                         ctx.stroke();
                     }
                     prevPt = { x, y, time: pt.time, bias: pt.bias };
+                }
+                ctx.restore();
+            }
+
+            // 1B. 在 Canvas 上绘制 TradingView 风格圆角彩色胶囊信号标签（带小三角指针与防重叠避让）
+            if (Array.isArray(nav.markers) && nav.markers.length) {
+                ctx.save();
+                ctx.font = "700 10.5px -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif";
+                ctx.textBaseline = "middle";
+                const pillH = 18;
+                const padX = 6;
+                const triH = 4;
+                const gapFromBar = 7;
+                const placedBoxes = [];
+
+                const getPillStyle = (m) => {
+                    if (m.kind === "START") {
+                        return m.side === "LONG"
+                            ? { bg: "#059669", fg: "#ffffff", border: "rgba(16,185,129,0.5)" }
+                            : { bg: "#dc2626", fg: "#ffffff", border: "rgba(239,68,68,0.5)" };
+                    }
+                    if (m.kind === "ADD") {
+                        return m.side === "LONG"
+                            ? { bg: "#0284c7", fg: "#ffffff", border: "rgba(56,189,248,0.5)" }
+                            : { bg: "#d97706", fg: "#ffffff", border: "rgba(245,158,11,0.5)" };
+                    }
+                    if (m.kind === "GOLDEN_ENTRY") {
+                        return { bg: "#eab308", fg: "#111827", border: "#ca8a04" };
+                    }
+                    if (m.kind === "TRAP") {
+                        return m.position === "aboveBar"
+                            ? { bg: isDark ? "rgba(244,63,94,0.22)" : "rgba(254,226,226,0.95)", fg: isDark ? "#fda4af" : "#be123c", border: "#f43f5e" }
+                            : { bg: isDark ? "rgba(16,185,129,0.22)" : "rgba(209,250,229,0.95)", fg: isDark ? "#6ee7b7" : "#047857", border: "#10b981" };
+                    }
+                    if (m.kind === "EXIT") {
+                        return { bg: isDark ? "#334155" : "#1e293b", fg: "#f8fafc", border: "rgba(148,163,184,0.45)" };
+                    }
+                    // SIDEWAYS (⏸停)
+                    return { bg: isDark ? "#475569" : "#475569", fg: "#f8fafc", border: "rgba(148,163,184,0.4)" };
+                };
+
+                for (const m of nav.markers) {
+                    if (!isFinite(m.anchorPrice)) continue;
+                    const x = timeToOverlayX(m.time);
+                    const ay = priceToOverlayY(m.anchorPrice);
+                    if (x === null || ay === null || x < 10 || x > plotW - 10) continue;
+
+                    const label = String(m.text || "");
+                    const textW = ctx.measureText(label).width;
+                    const pillW = Math.ceil(textW + padX * 2);
+                    const isAbove = m.position === "aboveBar";
+                    const bx = Math.max(4, Math.min(plotW - pillW - 4, Math.round(x - pillW / 2)));
+                    let by = isAbove
+                        ? Math.round(ay - gapFromBar - triH - pillH)
+                        : Math.round(ay + gapFromBar + triH);
+
+                    // 防重叠：若与同侧已画胶囊相交，自动向外错开一层
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        const hit = placedBoxes.some(b =>
+                            bx < b.x + b.w + 3 && bx + pillW + 3 > b.x &&
+                            by < b.y + b.h + 3 && by + pillH + 3 > b.y
+                        );
+                        if (!hit) break;
+                        by += isAbove ? -(pillH + 4) : (pillH + 4);
+                    }
+                    by = Math.max(6, Math.min(canvasH - pillH - 6, by));
+                    placedBoxes.push({ x: bx, y: by, w: pillW, h: pillH });
+
+                    const st = getPillStyle(m);
+                    ctx.fillStyle = st.bg;
+                    ctx.strokeStyle = st.border;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(bx, by, pillW, pillH, 5);
+                    else ctx.rect(bx, by, pillW, pillH);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // 小三角指针指向对应 K 线极值
+                    const tipX = Math.max(bx + 6, Math.min(bx + pillW - 6, x));
+                    ctx.beginPath();
+                    if (isAbove) {
+                        ctx.moveTo(tipX - 3.5, by + pillH - 0.5);
+                        ctx.lineTo(tipX + 3.5, by + pillH - 0.5);
+                        ctx.lineTo(tipX, by + pillH + triH);
+                    } else {
+                        ctx.moveTo(tipX - 3.5, by + 0.5);
+                        ctx.lineTo(tipX + 3.5, by + 0.5);
+                        ctx.lineTo(tipX, by - triH);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.fillStyle = st.fg;
+                    ctx.fillText(label, bx + padX, by + pillH / 2 + 0.5);
                 }
                 ctx.restore();
             }
