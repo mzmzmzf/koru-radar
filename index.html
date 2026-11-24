@@ -2935,7 +2935,9 @@ export default {
                 : `${nav.session.label} | 垫 ${cStr}${trailText ? " | " + trailText : ""}`;
             const line3 = isBlocked
                 ? `原:${nav.shortStateLabel}(已锁) | ${rg.actionTip}${trailText ? " | " + trailText : ""}`
-                : (nav.trapAlert ? nav.trapAlert.text : `垫 ${cStr}${trailText ? " | " + trailText : ""}`);
+                : (nav.trapAlert
+                    ? nav.trapAlert.text
+                    : (trailText ? `垫 ${cStr} | ${trailText}` : (cPct !== null ? `垫 ${cStr} | 空仓观望` : "空仓观望 · 等4门全绿")));
 
             ctx.font = "700 10.5px -apple-system, BlinkMacSystemFont, monospace";
             const w1 = ctx.measureText(line1).width;

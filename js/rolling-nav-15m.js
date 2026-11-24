@@ -240,6 +240,7 @@
         let lastAddBias = "NEUTRAL";
         let lastSidewaysBarIdx = -99;
         let lastExitBarIdx = -99;
+        let pausedInCurrentLeg = false;
 
         // 流动性猎杀 / 孤立巨柱反转追踪器
         let bearTrapIdx = -99;
@@ -445,6 +446,7 @@
                 bias = "LONG";
                 state = "TREND_START";
                 trendAnchorPrice = c.close;
+                pausedInCurrentLeg = false;
                 const canMarkStart = (lastStartBias !== "LONG" && (i - lastStartBarIdx >= 6)) || (i - lastStartBarIdx >= 12);
                 if (canMarkStart) {
                     lastStartBarIdx = i;
@@ -463,6 +465,7 @@
                 bias = "SHORT";
                 state = "TREND_START";
                 trendAnchorPrice = c.close;
+                pausedInCurrentLeg = false;
                 const canMarkStart = (lastStartBias !== "SHORT" && (i - lastStartBarIdx >= 6)) || (i - lastStartBarIdx >= 12);
                 if (canMarkStart) {
                     lastStartBarIdx = i;
@@ -486,6 +489,7 @@
                 const holdConfirm = c.close > c.open && c.close > prev.low;
                 if (pullbackTouch && holdConfirm && isVolShrunk) {
                     state = "ROLLING";
+                    pausedInCurrentLeg = false;
                     lastAddBarIdx = i;
                     lastAddBias = "LONG";
                     pushUniqueBarMarker(i, {
@@ -503,6 +507,7 @@
                 const holdConfirm = c.close < c.open && c.close < prev.high;
                 if (pullbackTouch && holdConfirm && isVolShrunk) {
                     state = "ROLLING";
+                    pausedInCurrentLeg = false;
                     lastAddBarIdx = i;
                     lastAddBias = "SHORT";
                     pushUniqueBarMarker(i, {
@@ -517,7 +522,7 @@
                 }
             }
 
-            // 阶段三：走横休眠 / 放量破 15 EMA 止盈
+            // 阶段三：走横休眠（单波仅提示 1 次，待新加仓或新趋势重置） / 放量破 15 EMA 止盈
             const breakLongExit = bias === "LONG" && c.close < ema15 && isVolExpanded;
             const breakShortExit = bias === "SHORT" && c.close > ema15 && isVolExpanded;
             if ((bias === "LONG" || bias === "SHORT") && (breakLongExit || breakShortExit)) {
@@ -534,10 +539,12 @@
                     });
                 }
                 bias = "NEUTRAL";
+                pausedInCurrentLeg = false;
             } else if ((bias === "LONG" || bias === "SHORT") && isSideways) {
                 state = "TRIM_EXIT";
-                if (i - lastSidewaysBarIdx >= 8) {
+                if (!pausedInCurrentLeg && (i - lastSidewaysBarIdx >= 12)) {
                     lastSidewaysBarIdx = i;
+                    pausedInCurrentLeg = true;
                     pushUniqueBarMarker(i, {
                         time: c.time,
                         position: bias === "LONG" ? "aboveBar" : "belowBar",
@@ -649,7 +656,7 @@
             bias,
             markers: finalMarkers.slice(-30),
             trailingPoints,
-            latestTrailing: latestTrailObj ? latestTrailObj.value : null,
+            latestTrailing: (bias !== "NEUTRAL" && latestTrailObj && latestTrailObj.time === lastBar.time) ? latestTrailObj.value : null,
             hypotheticalBep,
             cushionPct,
             riskGuard,
