@@ -2691,9 +2691,12 @@ export default {
         // 双擎看盘状态管理：【破阵3.3 + SMC 视觉引擎】 vs 【TV原版画线】
         let chartEngineMode = "STRAT";
         const DEFAULT_WATCHLIST = [
-            { id: "BN:BTCUSDC", ticker: "BTCUSDC", label: "BTCUSDC", icon: "🟡", market: "BN",  bnSymbol: "BTCUSDC",        tvSymbol: "BINANCE:BTCUSDC.P", pinned: true, desc: "币安 BTCUSDC 永续 (挂单0费率)" },
-            { id: "OKX:KORU",   ticker: "KORU",    label: "KORU",    icon: "🪙", market: "OKX", okxInstId: "KORU-USDT-SWAP", tvSymbol: "OKX:KORUUSDT.P",    pinned: true, desc: "OKX 3倍做多韩国永续" },
-            { id: "OKX:BTC",    ticker: "BTC",     label: "BTC",     icon: "🪙", market: "OKX", okxInstId: "BTC-USDT-SWAP",  tvSymbol: "OKX:BTCUSDT.P",     pinned: true, desc: "OKX 比特币永续" },
+            { id: "BN:BTCUSDC", ticker: "BTCUSDC", label: "BTCUSDC", icon: "🟡", market: "BN",  bnSymbol: "BTCUSDC",        tvSymbol: "BINANCE:BTCUSDC.P", pinned: true,  desc: "币安 BTCUSDC 永续 (挂单0费率)" },
+            { id: "BN:ETHUSDC", ticker: "ETHUSDC", label: "ETHUSDC", icon: "🟡", market: "BN",  bnSymbol: "ETHUSDC",        tvSymbol: "BINANCE:ETHUSDC.P", pinned: true,  desc: "币安 ETHUSDC 永续 (挂单0费率)" },
+            { id: "OKX:KORU",   ticker: "KORU",    label: "KORU",    icon: "🪙", market: "OKX", okxInstId: "KORU-USDT-SWAP", tvSymbol: "OKX:KORUUSDT.P",    pinned: true,  desc: "OKX 3倍做多韩国永续" },
+            { id: "US:QQQ",     ticker: "QQQ",     label: "QQQ",     icon: "🇺🇸", market: "US",  emSecId: "105.QQQ",          tvSymbol: "NASDAQ:QQQ",        pinned: false, desc: "美股 纳指100ETF" },
+            { id: "US:NVDA",    ticker: "NVDA",    label: "NVDA",    icon: "🇺🇸", market: "US",  emSecId: "105.NVDA",         tvSymbol: "NASDAQ:NVDA",       pinned: false, desc: "美股 英伟达" },
+            { id: "OKX:BTC",    ticker: "BTC",     label: "BTC",     icon: "🪙", market: "OKX", okxInstId: "BTC-USDT-SWAP",  tvSymbol: "OKX:BTCUSDT.P",     pinned: true,  desc: "OKX 比特币永续" },
             { id: "US:KORU",    ticker: "KORU",    label: "KORU",    icon: "🇺🇸", market: "US",  emSecId: "107.KORU",         tvSymbol: "AMEX:KORU",         pinned: false, desc: "美股 Direxion 3x韩国ETF" }
         ];
         const TICKER_DESC_MAP = {
@@ -2786,7 +2789,7 @@ export default {
                     market: "BN",
                     bnSymbol: raw.bnSymbol || ticker,
                     tvSymbol: `BINANCE:${ticker}.P`,
-                    pinned: Boolean(raw.pinned || id === "BN:BTCUSDC"),
+                    pinned: Boolean(raw.pinned || id === "BN:BTCUSDC" || id === "BN:ETHUSDC"),
                     desc: raw.desc || `币安 ${descBase}永续 (挂单0费率)`
                 };
             }
@@ -2829,18 +2832,20 @@ export default {
                         migrated.push(norm);
                     }
                 });
-                // 确保核心默认置顶标的始终存在，并将币安 BTCUSDC 置于首位
-                DEFAULT_WATCHLIST.slice(0, 3).slice().reverse().forEach(defItem => {
+                // 确保核心默认标的（BTCUSDC、ETHUSDC、KORU、QQQ、NVDA）存在，且前三固定为 BTCUSDC -> ETHUSDC -> KORU
+                DEFAULT_WATCHLIST.slice(0, 5).forEach(defItem => {
                     if (!seenIds.has(defItem.id)) {
-                        migrated.unshift(defItem);
+                        migrated.push(defItem);
                         seenIds.add(defItem.id);
                     }
                 });
-                const bnIdx = migrated.findIndex(x => x.id === "BN:BTCUSDC");
-                if (bnIdx > 0) {
-                    const [bnItem] = migrated.splice(bnIdx, 1);
-                    migrated.unshift(bnItem);
-                }
+                ["OKX:KORU", "BN:ETHUSDC", "BN:BTCUSDC"].forEach(pinId => {
+                    const idx = migrated.findIndex(x => x.id === pinId);
+                    if (idx > 0) {
+                        const [item] = migrated.splice(idx, 1);
+                        migrated.unshift(item);
+                    }
+                });
                 if (migrated.length >= 2) userWatchlist = migrated;
             }
         } catch (e) {}
@@ -2915,7 +2920,7 @@ export default {
                 longPct: typeof latestBtcLongPct !== "undefined" ? latestBtcLongPct : 0,
                 activePosAvg,
                 activePosSide,
-                makerZeroFee: symKey === "BTCUSDC",
+                makerZeroFee: symKey === "BTCUSDC" || symKey === "ETHUSDC",
                 supplyBlocks: lwLastSmcSnapshot?.supplyBlocks || [],
                 demandBlocks: lwLastSmcSnapshot?.demandBlocks || []
             });
@@ -3382,8 +3387,9 @@ export default {
 
         function getCurrentSymKey() {
             const symObj = getActiveSymbolObj();
-            // 兼容旧版 KORU / BTC 存档 key，并为币安 BTCUSDC 提供独立且与作战台联动的 key
+            // 兼容旧版 KORU / BTC 存档 key，并为币安 BTCUSDC / ETHUSDC 提供独立且与作战台联动的 key
             if (symObj.id === "BN:BTCUSDC") return "BTCUSDC";
+            if (symObj.id === "BN:ETHUSDC") return "ETHUSDC";
             if (symObj.id === "OKX:KORU") return "KORU";
             if (symObj.id === "OKX:BTC") return "BTC";
             if (symObj.market === "US" && customHorizontalLines[symObj.ticker] && !customHorizontalLines[symObj.id]) {
@@ -4615,8 +4621,9 @@ export default {
             }
             if (omCenterAv) omCenterAv.textContent = (symObj.ticker || "B").slice(0, 1);
             if (omCenterPair) {
+                const bnBase = String(symObj.ticker || "BTCUSDC").replace(/USDC$/, "");
                 omCenterPair.innerHTML = symObj.market === "BN"
-                    ? `BTC<span style="opacity:0.65; font-weight:600;">/USDC</span>`
+                    ? `${bnBase}<span style="opacity:0.65; font-weight:600;">/USDC</span>`
                     : (symObj.market === "OKX"
                         ? `${symObj.ticker}<span style="opacity:0.65; font-weight:600;">/USDT</span>`
                         : `${symObj.ticker}<span style="opacity:0.65; font-weight:600;"> · US</span>`);
@@ -4761,7 +4768,7 @@ export default {
                     } else {
                         candles = fresh;
                     }
-                    if (candles.length && candles[candles.length - 1].close > 0) {
+                    if (symObj.id === "BN:BTCUSDC" && candles.length && candles[candles.length - 1].close > 0) {
                         currentBtcLivePrice = candles[candles.length - 1].close;
                         localStorage.setItem("quant_btc", String(currentBtcLivePrice));
                     }
