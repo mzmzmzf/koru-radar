@@ -668,7 +668,8 @@
         if (baseAvg > 0 && (effectiveBias === "LONG" || effectiveBias === "SHORT")) {
             const blended = (baseAvg * 1.0 + lastBar.close * 0.2) / 1.2;
             const isLong = effectiveBias === "LONG";
-            hypotheticalBep = blended * (isLong ? 1.002 : 0.998);
+            const feeMult = opts.makerZeroFee ? 0 : 0.002;
+            hypotheticalBep = blended * (isLong ? (1 + feeMult) : (1 - feeMult));
             cushionPct = lastBar.close > 0
                 ? ((isLong ? (lastBar.close - hypotheticalBep) : (hypotheticalBep - lastBar.close)) / lastBar.close) * 100
                 : 0;

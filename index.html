@@ -2124,7 +2124,7 @@
             showPyramidPositionLines = true;
             localStorage.setItem("quant_show_pyr_lines", "true");
             if (typeof syncChartControlButtons === "function") syncChartControlButtons();
-            if (typeof selectWatchlistSymbol === "function") selectWatchlistSymbol("OKX:BTC");
+            if (typeof selectWatchlistSymbol === "function") selectWatchlistSymbol("BN:BTCUSDC");
             if (typeof switchMainTab === "function") switchMainTab("chart");
             setTimeout(() => {
                 if (typeof renderAllLwPriceLines === "function") renderAllLwPriceLines();
@@ -2175,7 +2175,8 @@
             const sym = getQuickDockSymbol();
             const isBtc = sym === "BTC";
             const badge = document.getElementById("qdTargetBadge");
-            if (badge) badge.textContent = isBtc ? "BTC 5:3:2" : "KORU 5:3:2";
+            const curSymKey = typeof getCurrentSymKey === "function" ? getCurrentSymKey() : "BTCUSDC";
+            if (badge) badge.textContent = isBtc ? (curSymKey === "BTCUSDC" ? "🟡 BTCUSDC 5:3:2" : "BTC 5:3:2") : "KORU 5:3:2";
             const levGrp = document.getElementById("qdLevGroup");
             const liqRow = document.getElementById("qdLiqRow");
             if (levGrp) levGrp.style.display = isBtc ? "" : "none";
@@ -2690,9 +2691,10 @@ export default {
         // 双擎看盘状态管理：【破阵3.3 + SMC 视觉引擎】 vs 【TV原版画线】
         let chartEngineMode = "STRAT";
         const DEFAULT_WATCHLIST = [
-            { id: "OKX:KORU", ticker: "KORU", label: "KORU", icon: "🪙", market: "OKX", okxInstId: "KORU-USDT-SWAP", tvSymbol: "OKX:KORUUSDT.P", pinned: true, desc: "OKX 3倍做多韩国永续" },
-            { id: "OKX:BTC",  ticker: "BTC",  label: "BTC",  icon: "🪙", market: "OKX", okxInstId: "BTC-USDT-SWAP",  tvSymbol: "OKX:BTCUSDT.P",  pinned: true, desc: "OKX 比特币永续" },
-            { id: "US:KORU",  ticker: "KORU", label: "KORU", icon: "🇺🇸", market: "US",  emSecId: "107.KORU",         tvSymbol: "AMEX:KORU",      pinned: false, desc: "美股 Direxion 3x韩国ETF" }
+            { id: "BN:BTCUSDC", ticker: "BTCUSDC", label: "BTCUSDC", icon: "🟡", market: "BN",  bnSymbol: "BTCUSDC",        tvSymbol: "BINANCE:BTCUSDC.P", pinned: true, desc: "币安 BTCUSDC 永续 (挂单0费率)" },
+            { id: "OKX:KORU",   ticker: "KORU",    label: "KORU",    icon: "🪙", market: "OKX", okxInstId: "KORU-USDT-SWAP", tvSymbol: "OKX:KORUUSDT.P",    pinned: true, desc: "OKX 3倍做多韩国永续" },
+            { id: "OKX:BTC",    ticker: "BTC",     label: "BTC",     icon: "🪙", market: "OKX", okxInstId: "BTC-USDT-SWAP",  tvSymbol: "OKX:BTCUSDT.P",     pinned: true, desc: "OKX 比特币永续" },
+            { id: "US:KORU",    ticker: "KORU",    label: "KORU",    icon: "🇺🇸", market: "US",  emSecId: "107.KORU",         tvSymbol: "AMEX:KORU",         pinned: false, desc: "美股 Direxion 3x韩国ETF" }
         ];
         const TICKER_DESC_MAP = {
             "KORU": "3倍做多韩国ETF",
@@ -2767,14 +2769,27 @@ export default {
 
         function normalizeWatchlistItem(raw) {
             if (!raw || typeof raw !== "object") return null;
-            let market = raw.market === "US" ? "US" : "OKX";
+            let market = raw.market === "US" ? "US" : (raw.market === "BN" ? "BN" : "OKX");
             let ticker = String(raw.ticker || raw.id || "").toUpperCase()
-                .replace(/^OKX:/, "").replace(/^US:/, "")
+                .replace(/^OKX:/, "").replace(/^US:/, "").replace(/^BN:/, "")
                 .replace(/USDT\.P$/, "").replace(/-USDT-SWAP$/, "").replace(/-USDT$/, "")
                 .replace(/[^A-Z0-9.\-^]/g, "");
             if (!ticker) return null;
             const id = `${market}:${ticker}`;
             const descBase = TICKER_DESC_MAP[ticker] || ticker;
+            if (market === "BN") {
+                return {
+                    id,
+                    ticker,
+                    label: ticker,
+                    icon: "🟡",
+                    market: "BN",
+                    bnSymbol: raw.bnSymbol || ticker,
+                    tvSymbol: `BINANCE:${ticker}.P`,
+                    pinned: Boolean(raw.pinned || id === "BN:BTCUSDC"),
+                    desc: raw.desc || `币安 ${descBase}永续 (挂单0费率)`
+                };
+            }
             if (market === "OKX") {
                 return {
                     id,
@@ -2814,17 +2829,30 @@ export default {
                         migrated.push(norm);
                     }
                 });
-                // 确保两个核心默认置顶标的始终存在
-                DEFAULT_WATCHLIST.slice(0, 2).forEach(defItem => {
+                // 确保核心默认置顶标的始终存在，并将币安 BTCUSDC 置于首位
+                DEFAULT_WATCHLIST.slice(0, 3).slice().reverse().forEach(defItem => {
                     if (!seenIds.has(defItem.id)) {
                         migrated.unshift(defItem);
+                        seenIds.add(defItem.id);
                     }
                 });
+                const bnIdx = migrated.findIndex(x => x.id === "BN:BTCUSDC");
+                if (bnIdx > 0) {
+                    const [bnItem] = migrated.splice(bnIdx, 1);
+                    migrated.unshift(bnItem);
+                }
                 if (migrated.length >= 2) userWatchlist = migrated;
             }
         } catch (e) {}
 
-        let activeWatchlistId = localStorage.getItem("quant_active_symbol_id") || "OKX:KORU";
+        let activeWatchlistId = localStorage.getItem("quant_active_symbol_id") || "BN:BTCUSDC";
+        if (!localStorage.getItem("quant_default_bn_btcusdc_v1")) {
+            activeWatchlistId = "BN:BTCUSDC";
+            try {
+                localStorage.setItem("quant_default_bn_btcusdc_v1", "1");
+                localStorage.setItem("quant_active_symbol_id", "BN:BTCUSDC");
+            } catch (e) {}
+        }
         if (activeWatchlistId && !activeWatchlistId.includes(":")) {
             const foundByTicker = userWatchlist.find(x => x.ticker === activeWatchlistId);
             activeWatchlistId = foundByTicker ? foundByTicker.id : `OKX:${activeWatchlistId}`;
@@ -2887,6 +2915,7 @@ export default {
                 longPct: typeof latestBtcLongPct !== "undefined" ? latestBtcLongPct : 0,
                 activePosAvg,
                 activePosSide,
+                makerZeroFee: symKey === "BTCUSDC",
                 supplyBlocks: lwLastSmcSnapshot?.supplyBlocks || [],
                 demandBlocks: lwLastSmcSnapshot?.demandBlocks || []
             });
@@ -3353,7 +3382,8 @@ export default {
 
         function getCurrentSymKey() {
             const symObj = getActiveSymbolObj();
-            // 兼容旧版 KORU / BTC 存档 key，同时隔离 OKX 与 US 同名品种画线
+            // 兼容旧版 KORU / BTC 存档 key，并为币安 BTCUSDC 提供独立且与作战台联动的 key
+            if (symObj.id === "BN:BTCUSDC") return "BTCUSDC";
             if (symObj.id === "OKX:KORU") return "KORU";
             if (symObj.id === "OKX:BTC") return "BTC";
             if (symObj.market === "US" && customHorizontalLines[symObj.ticker] && !customHorizontalLines[symObj.id]) {
@@ -3372,7 +3402,7 @@ export default {
                 }
             }
             if (p === null || !isFinite(p) || p <= 0) {
-                return symObj.ticker === "BTC" ? 1 : 2;
+                return (symObj.ticker === "BTC" || symObj.ticker === "BTCUSDC") ? 1 : 2;
             }
             if (p >= 1000) return 1;
             if (p >= 1) return 2;
@@ -4579,16 +4609,20 @@ export default {
                 omVolEl.textContent = `Vol ${formatCompactUnsigned(volSum)}`;
             }
             if (omSrcChip) {
-                omSrcChip.textContent = symObj.market === "OKX" ? "OKX 永续直连" : "美股/ETF 现货";
+                omSrcChip.textContent = symObj.market === "BN"
+                    ? "🟡 币安永续 · 0挂单费"
+                    : (symObj.market === "OKX" ? "OKX 永续直连" : "美股/ETF 现货");
             }
-            if (omCenterAv) omCenterAv.textContent = (symObj.ticker || "K").slice(0, 1);
+            if (omCenterAv) omCenterAv.textContent = (symObj.ticker || "B").slice(0, 1);
             if (omCenterPair) {
-                omCenterPair.innerHTML = symObj.market === "OKX"
-                    ? `${symObj.ticker}<span style="opacity:0.65; font-weight:600;">/USDT</span>`
-                    : `${symObj.ticker}<span style="opacity:0.65; font-weight:600;"> · US</span>`;
+                omCenterPair.innerHTML = symObj.market === "BN"
+                    ? `BTC<span style="opacity:0.65; font-weight:600;">/USDC</span>`
+                    : (symObj.market === "OKX"
+                        ? `${symObj.ticker}<span style="opacity:0.65; font-weight:600;">/USDT</span>`
+                        : `${symObj.ticker}<span style="opacity:0.65; font-weight:600;"> · US</span>`);
             }
             if (omCenterSub) {
-                omCenterSub.textContent = `${tfLabel} · ${symObj.market === "OKX" ? "OKX Futures" : (symObj.desc || "US Equity")}`;
+                omCenterSub.textContent = `${tfLabel} · ${symObj.market === "BN" ? "Binance Perp · 0 Maker Fee" : (symObj.market === "OKX" ? "OKX Futures" : (symObj.desc || "US Equity"))}`;
             }
 
             if (ohlcEl) {
@@ -4624,7 +4658,9 @@ export default {
             if (isLoadingOlderHistory || chartEngineMode !== "STRAT" || !lwChart || !lwCandleSeries) return;
             if (Date.now() - lastOlderHistoryLoadTs < 450) return;
             const symObj = getActiveSymbolObj();
-            if (!symObj || symObj.market !== "OKX" || typeof fetchOlderOkxCandles !== "function") return;
+            const isBn = symObj && symObj.market === "BN" && typeof fetchOlderBinanceCandles === "function";
+            const isOkx = symObj && symObj.market === "OKX" && typeof fetchOlderOkxCandles === "function";
+            if (!isBn && !isOkx) return;
             if (!Array.isArray(lwLastDataCache) || lwLastDataCache.length < 30 || lwLastDataCache.length >= 20000) return;
 
             const reqSymId = symObj.id;
@@ -4635,7 +4671,9 @@ export default {
             isLoadingOlderHistory = true;
             lastOlderHistoryLoadTs = Date.now();
             try {
-                const older = await fetchOlderOkxCandles(symObj, reqInterval, oldestTime, 300, 2);
+                const older = isBn
+                    ? await fetchOlderBinanceCandles(symObj, reqInterval, oldestTime, 1000)
+                    : await fetchOlderOkxCandles(symObj, reqInterval, oldestTime, 300, 2);
                 if (!older || !older.length) {
                     olderHistoryExhaustedKey = cacheKey;
                     showToast(`📜 已加载至 ${symObj.ticker} 最早历史 K 线（共 ${lwLastDataCache.length} 根）`);
@@ -4711,6 +4749,22 @@ export default {
                 if (symObj.market === "US") {
                     lastUsEquityFetchTs = Date.now();
                     candles = await fetchUsEquityCandlesForSymbol(symObj, reqInterval);
+                } else if (symObj.market === "BN" && typeof fetchBinanceCandlesForSymbol === "function") {
+                    const hasDeepCache = preserveViewport && Array.isArray(lwLastDataCache) && lwLastDataCache.length >= 400;
+                    const fresh = await fetchBinanceCandlesForSymbol(symObj, reqInterval, { pages: hasDeepCache ? 1 : 2 });
+                    if (hasDeepCache && Array.isArray(fresh) && fresh.length >= 5) {
+                        const freshStart = fresh[0].time;
+                        const olderPart = lwLastDataCache
+                            .filter(x => x.time < freshStart)
+                            .map(x => ({ time: x.time, open: x.open, high: x.high, low: x.low, close: x.close, vol: x.vol }));
+                        candles = olderPart.concat(fresh);
+                    } else {
+                        candles = fresh;
+                    }
+                    if (candles.length && candles[candles.length - 1].close > 0) {
+                        currentBtcLivePrice = candles[candles.length - 1].close;
+                        localStorage.setItem("quant_btc", String(currentBtcLivePrice));
+                    }
                 } else {
                     const hasDeepCache = preserveViewport && Array.isArray(lwLastDataCache) && lwLastDataCache.length >= 260;
                     const fresh = await fetchOkxCandlesForSymbol(symObj, reqInterval, { pages: hasDeepCache ? 1 : 3 });
@@ -4903,8 +4957,9 @@ export default {
                 pushLwPriceLineSpec(activeSl, p.slColor, 1, LightweightCharts.LineStyle.Dotted, "防线SL");
             }
 
-            if (showPyramidPositionLines && (symKey === "BTC" || symKey === "KORU")) {
-                renderPyramidPositionLinesOnChart(symKey, p);
+            const isBtcFamily = symKey === "BTC" || symKey === "BTCUSDC";
+            if (showPyramidPositionLines && (isBtcFamily || symKey === "KORU")) {
+                renderPyramidPositionLinesOnChart(isBtcFamily ? "BTC" : "KORU", p);
             }
             if (showPyramidPositionLines && typeof getPyramidHubChartLines === "function") {
                 getPyramidHubChartLines(symKey).forEach(pl => {
@@ -4926,7 +4981,7 @@ export default {
                     true
                 );
             }
-            if (symKey === "BTC" && typeof getActiveWhaleMagnetLines === "function") {
+            if (isBtcFamily && typeof getActiveWhaleMagnetLines === "function") {
                 getActiveWhaleMagnetLines().forEach(ml => {
                     pushLwPriceLineSpec(ml.price, ml.color, 1, LightweightCharts.LineStyle.Dashed, ml.title, true);
                 });

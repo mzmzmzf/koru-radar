@@ -1,11 +1,12 @@
-// 独立大页面：全品种动态滚仓沙盒 & 仓位安全垫校验台 (BTC / ETH / ZEC / SOL + 自定义品种)
+// 独立大页面：全品种动态滚仓沙盒 & 仓位安全垫校验台 (币安 BTCUSDC 0费率首选 + BTC / ETH / ZEC / SOL + 自定义)
 
 (function () {
     const STORAGE_KEY = "quant_pyramid_hub_v1";
-    const PRESET_SYMBOLS = ["BTC", "ETH", "ZEC", "SOL"];
+    const PRESET_SYMBOLS = ["BTCUSDC", "BTC", "ETH", "ZEC", "SOL"];
+    const isZeroFeeSym = (sym) => String(sym || "").toUpperCase() === "BTCUSDC";
 
     const DEFAULT_HUB = {
-        activeSymbol: "ETH",
+        activeSymbol: "BTCUSDC",
         customSymbols: [],
         positions: {},   // sym -> { side, leverage, minCushionPct, currentSl, initialRiskUsd, fills: [] }
         closedTrades: [] // [{ id, symbol, side, openTime, closeTime, fillsCount, maxQty, avgEntry, closePrice, netPnl, rMultiple, hadViolation }]
@@ -15,8 +16,14 @@
         try {
             const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
             if (raw && typeof raw === "object") {
+                let actSym = raw.activeSymbol || "BTCUSDC";
+                if (!localStorage.getItem("quant_pyrhub_btcusdc_v1")) {
+                    const hasOpenAct = raw.positions?.[actSym]?.fills?.length > 0;
+                    if (!hasOpenAct) actSym = "BTCUSDC";
+                    try { localStorage.setItem("quant_pyrhub_btcusdc_v1", "1"); } catch (e) {}
+                }
                 return {
-                    activeSymbol: raw.activeSymbol || "ETH",
+                    activeSymbol: actSym,
                     customSymbols: Array.isArray(raw.customSymbols) ? raw.customSymbols : [],
                     positions: raw.positions && typeof raw.positions === "object" ? raw.positions : {},
                     closedTrades: Array.isArray(raw.closedTrades) ? raw.closedTrades : []
@@ -35,14 +42,15 @@
 
     function defaultMinCushionFor(sym) {
         const s = String(sym || "").toUpperCase();
-        if (s === "BTC") return 2.0;
+        if (s === "BTCUSDC" || s === "BTC") return 2.0;
         if (s === "KORU" || s === "SOXL" || s === "TQQQ") return 3.5;
         return 2.5;
     }
 
     function priceDecFor(sym, px) {
         const p = Number(px) || 0;
-        if (String(sym).toUpperCase() === "BTC") return 1;
+        const s = String(sym).toUpperCase();
+        if (s === "BTCUSDC" || s === "BTC") return 1;
         if (p >= 100) return 2;
         if (p >= 1) return 3;
         return 4;
@@ -72,8 +80,11 @@
         return `${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
     }
 
-    function computePositionMetrics(pos, liveP) {
+    function computePositionMetrics(pos, liveP, sym = hubState.activeSymbol) {
         const isLong = pos.side !== "SHORT";
+        const zeroFee = isZeroFeeSym(sym);
+        const oneWayFee = zeroFee ? 0 : 0.001;
+        const roundTripFee = zeroFee ? 0 : 0.002;
         let qty = 0;
         let costSum = 0;
         let realizedPnl = 0;
@@ -94,7 +105,7 @@
                 const avgBefore = costSum / qty;
                 const cutQty = Math.min(qty, f.qty);
                 const gross = isLong ? (f.price - avgBefore) * cutQty : (avgBefore - f.price) * cutQty;
-                const fee = f.price * cutQty * 0.001;
+                const fee = f.price * cutQty * oneWayFee;
                 realizedPnl += (gross - fee);
                 qty -= cutQty;
                 costSum = avgBefore * qty;
@@ -102,14 +113,14 @@
         }
 
         const avg = qty > 0 ? (costSum / qty) : 0;
-        const bep = avg > 0 ? avg * (isLong ? 1.002 : 0.998) : 0;
+        const bep = avg > 0 ? avg * (isLong ? (1 + roundTripFee) : (1 - roundTripFee)) : 0;
         const lev = Math.max(1, Number(pos.leverage) || 10);
         const liq = avg > 0 ? Math.max(0, isLong ? avg * (1 - 1 / lev + 0.005) : avg * (1 + 1 / lev - 0.005)) : 0;
         const notional = avg * qty;
         const marginUsed = notional / lev;
         const curPx = liveP > 0 ? liveP : avg;
         const unrealizedPnl = qty > 0 && curPx > 0
-            ? ((isLong ? (curPx - avg) : (avg - curPx)) * qty - (curPx * qty * 0.001))
+            ? ((isLong ? (curPx - avg) : (avg - curPx)) * qty - (curPx * qty * oneWayFee))
             : 0;
         const totalPnl = realizedPnl + unrealizedPnl;
         const curR = pos.initialRiskUsd > 0 ? (totalPnl / pos.initialRiskUsd) : 0;
@@ -121,29 +132,38 @@
             ? ((isLong ? (curPx - sl) : (sl - curPx)) / curPx) * 100
             : 0;
         const worstNetAtSl = (qty > 0 && sl > 0)
-            ? (realizedPnl + (isLong ? (sl - avg) : (avg - sl)) * qty - (avg * qty * 0.002))
+            ? (realizedPnl + (isLong ? (sl - avg) : (avg - sl)) * qty - (avg * qty * roundTripFee))
             : 0;
 
         return {
             isLong, qty, avg, bep, liq, lev, notional, marginUsed,
             realizedPnl, unrealizedPnl, totalPnl, curR,
             sl, cushionToBepPct, cushionToSlPct, worstNetAtSl,
-            baseQty, lastAddQty, maxQty, hadViolation
+            baseQty, lastAddQty, maxQty, hadViolation, zeroFee
         };
     }
 
     window.getPyramidHubChartLines = function (symKey) {
-        const key = String(symKey || "").toUpperCase();
-        const pos = hubState.positions[key];
+        const rawKey = String(symKey || "").toUpperCase();
+        let key = rawKey;
+        let pos = hubState.positions[key];
+        // BTCUSDC 与 BTC 互通投影，确保主图无缝显示当前 BTC 滚仓持仓线
+        if ((!pos || !pos.fills || !pos.fills.length) && rawKey === "BTCUSDC" && hubState.positions["BTC"]?.fills?.length) {
+            key = "BTC";
+            pos = hubState.positions["BTC"];
+        } else if ((!pos || !pos.fills || !pos.fills.length) && rawKey === "BTC" && hubState.positions["BTCUSDC"]?.fills?.length) {
+            key = "BTCUSDC";
+            pos = hubState.positions["BTCUSDC"];
+        }
         if (!pos || !pos.fills || !pos.fills.length) return [];
-        const liveP = livePriceMap[key] || (key === "BTC" && typeof currentBtcLivePrice !== "undefined" ? currentBtcLivePrice : 0);
-        const m = computePositionMetrics(pos, liveP);
+        const liveP = livePriceMap[key] || ((key === "BTC" || key === "BTCUSDC") && typeof currentBtcLivePrice !== "undefined" ? currentBtcLivePrice : 0);
+        const m = computePositionMetrics(pos, liveP, key);
         if (m.qty <= 0 || m.avg <= 0) return [];
         const dir = m.isLong ? "多" : "空";
         const rTag = `${m.curR >= 0 ? "+" : ""}${m.curR.toFixed(2)}R`;
         const lines = [
             { price: m.avg, color: "#a855f7", title: `⚖️ 滚仓均价(${dir} ${rTag})` },
-            { price: m.bep, color: "#f59e0b", title: `🛡️ 滚仓BEP` }
+            { price: m.bep, color: "#f59e0b", title: m.zeroFee ? `🛡️ 滚仓BEP(0费)` : `🛡️ 滚仓BEP` }
         ];
         if (m.sl > 0) lines.push({ price: m.sl, color: "#ef4444", title: `🛑 滚仓移动SL` });
         if (m.liq > 0) lines.push({ price: m.liq, color: "#fb7185", title: `💥 滚仓强平` });
@@ -152,6 +172,19 @@
 
     async function fetchSymbolLivePrice(sym) {
         const key = String(sym || "").toUpperCase();
+        if (key === "BTCUSDC") {
+            if (typeof window.fetchBinanceLivePrice === "function") {
+                const bnPx = await window.fetchBinanceLivePrice("BTCUSDC");
+                if (bnPx > 0) {
+                    livePriceMap[key] = bnPx;
+                    return bnPx;
+                }
+            }
+            if (typeof currentBtcLivePrice !== "undefined" && currentBtcLivePrice > 0) {
+                livePriceMap[key] = currentBtcLivePrice;
+                return currentBtcLivePrice;
+            }
+        }
         if (key === "BTC" && typeof currentBtcLivePrice !== "undefined" && currentBtcLivePrice > 0) {
             livePriceMap[key] = currentBtcLivePrice;
             return currentBtcLivePrice;
@@ -269,7 +302,7 @@
     window.pyrHubJumpToChart = function () {
         const sym = hubState.activeSymbol;
         if (typeof selectWatchlistSymbol === "function") {
-            selectWatchlistSymbol(`OKX:${sym}`);
+            selectWatchlistSymbol(sym === "BTCUSDC" ? "BN:BTCUSDC" : `OKX:${sym}`);
         }
         if (typeof switchMainTab === "function") switchMainTab("chart");
         setTimeout(() => {
@@ -565,7 +598,8 @@
 
         // 2. 顶部现价与多空按钮
         const liveEl = document.getElementById("phLivePriceText");
-        if (liveEl) liveEl.textContent = liveP > 0 ? `${sym} 现价: ${liveP.toFixed(dec)} USDT` : `${sym} 现价: 待同步`;
+        const unit = isZeroFeeSym(sym) ? "USDC · 🟡币安0挂单费" : "USDT";
+        if (liveEl) liveEl.textContent = liveP > 0 ? `${sym} 现价: ${liveP.toFixed(dec)} ${unit}` : `${sym} 现价: 待同步`;
         const bLong = document.getElementById("btnPhSideLong");
         const bShort = document.getElementById("btnPhSideShort");
         if (bLong) bLong.className = `btn-side ${pos.side !== "SHORT" ? "active-long" : ""}`;

@@ -240,6 +240,89 @@ window.fetchOlderOkxCandles = async function (symObj, interval, beforeSec, limit
     return collected;
 };
 
+// =========================================================================
+// 币安永续合约（如 BTCUSDC · Maker 挂单 0 费率）K 线与全历史懒加载
+// =========================================================================
+function parseBinanceKlineRows(rows) {
+    if (!Array.isArray(rows) || !rows.length) return [];
+    const seen = new Set();
+    const out = [];
+    for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const t = Math.floor(Number(r[0]) / 1000);
+        if (!isFinite(t) || seen.has(t)) continue;
+        seen.add(t);
+        out.push({
+            time: t,
+            open: parseFloat(r[1]),
+            high: parseFloat(r[2]),
+            low: parseFloat(r[3]),
+            close: parseFloat(r[4]),
+            vol: parseFloat(r[5]) || 0
+        });
+    }
+    return out;
+}
+
+window.fetchBinanceCandlesForSymbol = async function (symObj, interval, opts = {}) {
+    const intMap = { "1": "1m", "5": "5m", "15": "15m", "60": "1h", "240": "4h", "D": "1d", "3D": "3d", "W": "1w", "M": "1M" };
+    const bnInt = intMap[interval] || "15m";
+    const symbol = String(symObj?.bnSymbol || symObj?.ticker || "BTCUSDC").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const pages = Math.max(1, Math.min(3, Number(opts.pages) || 2));
+
+    try {
+        const url1 = `https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=${bnInt}&limit=1000`;
+        const { data: rows1 } = await smartFetchJson(url1, { timeoutMs: 3200 });
+        let merged = parseBinanceKlineRows(rows1);
+        if (merged.length >= 5) {
+            for (let p = 1; p < pages; p++) {
+                const endMs = merged[0].time * 1000 - 1;
+                const urlOlder = `https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=${bnInt}&endTime=${endMs}&limit=1000`;
+                try {
+                    const { data: rowsOlder } = await smartFetchJson(urlOlder, { timeoutMs: 3000 });
+                    const older = parseBinanceKlineRows(rowsOlder).filter(x => x.time < merged[0].time);
+                    if (!older.length) break;
+                    merged = older.concat(merged);
+                } catch (e) {
+                    break;
+                }
+            }
+            return merged;
+        }
+    } catch (e) {}
+
+    // 兜底：若币安接口暂不可达，回退到 OKX BTC-USDT-SWAP 以保证不断图
+    if (symbol.startsWith("BTC")) {
+        return await fetchOkxCandlesForSymbol({ ticker: "BTC", okxInstId: "BTC-USDT-SWAP", market: "OKX" }, interval, { pages: 2 });
+    }
+    return [];
+};
+
+window.fetchOlderBinanceCandles = async function (symObj, interval, beforeSec, limit = 1000) {
+    if (!symObj || symObj.market !== "BN" || !isFinite(beforeSec) || beforeSec <= 0) return [];
+    const intMap = { "1": "1m", "5": "5m", "15": "15m", "60": "1h", "240": "4h", "D": "1d", "3D": "3d", "W": "1w", "M": "1M" };
+    const bnInt = intMap[interval] || "15m";
+    const symbol = String(symObj.bnSymbol || symObj.ticker || "BTCUSDC").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const endMs = Math.floor(beforeSec * 1000) - 1;
+    try {
+        const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=${bnInt}&endTime=${endMs}&limit=${limit}`;
+        const { data: rows } = await smartFetchJson(url, { timeoutMs: 3200 });
+        return parseBinanceKlineRows(rows).filter(x => x.time < beforeSec);
+    } catch (e) {}
+    return [];
+};
+
+window.fetchBinanceLivePrice = async function (symbol = "BTCUSDC") {
+    const sym = String(symbol || "BTCUSDC").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const url = `https://fapi.binance.com/fapi/v1/ticker/price?symbol=${encodeURIComponent(sym)}`;
+    try {
+        const { data } = await smartFetchJson(url, { timeoutMs: 3000 });
+        const px = parseFloat(data?.price) || 0;
+        if (px > 0) return px;
+    } catch (e) {}
+    return 0;
+};
+
 function parseYahooChartPayload(json, aggStep = 1) {
     const result = json?.chart?.result?.[0];
     if (!result || !Array.isArray(result.timestamp) || !result.indicators?.quote?.[0]) return [];
