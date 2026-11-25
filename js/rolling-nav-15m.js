@@ -659,10 +659,12 @@
         const latestSess = getBeijingSessionInfo(lastBar.time);
         const latestTrailObj = trailingPoints.length ? trailingPoints[trailingPoints.length - 1] : null;
 
+        const hasRealActivePos = Number(opts.activePosAvg) > 0 && (opts.activePosSide === "LONG" || opts.activePosSide === "SHORT");
         let baseAvg = Number(opts.activePosAvg) || trendAnchorPrice || 0;
         let effectiveBias = opts.activePosSide || bias;
         let hypotheticalBep = null;
         let cushionPct = null;
+        let rawPnlPct = null;
         if (baseAvg > 0 && (effectiveBias === "LONG" || effectiveBias === "SHORT")) {
             const blended = (baseAvg * 1.0 + lastBar.close * 0.2) / 1.2;
             const isLong = effectiveBias === "LONG";
@@ -670,32 +672,50 @@
             cushionPct = lastBar.close > 0
                 ? ((isLong ? (lastBar.close - hypotheticalBep) : (hypotheticalBep - lastBar.close)) / lastBar.close) * 100
                 : 0;
+            rawPnlPct = ((isLong ? (lastBar.close - baseAvg) : (baseAvg - lastBar.close)) / baseAvg) * 100;
+        }
+
+        const nearDefense = latestTrailObj && lastBar.close > 0
+            ? (Math.abs(lastBar.close - latestTrailObj.value) / lastBar.close < 0.0045)
+            : false;
+
+        // 静态文字纪律提醒（仅实盘持仓触及无利回撤临界时静默亮出，不弹窗不闪烁）
+        let disciplineNote = "";
+        if (hasRealActivePos && rawPnlPct !== null) {
+            if (rawPnlPct <= 0.15) {
+                disciplineNote = "⚠️ 回撤无利·建议全平防上头";
+            } else if (rawPnlPct < 0.8 && nearDefense) {
+                disciplineNote = "🛡️ 浮盈较薄·贴近防线留意锁利";
+            }
         }
 
         // 安全垫红线与状态机联动风控评估
         const cStr = cushionPct !== null ? `${cushionPct >= 0 ? "+" : ""}${cushionPct.toFixed(2)}%` : "--";
-        let riskGuard = { level: "OK", isBlocked: false, headline: "", actionTip: "" };
+        let riskGuard = { level: "OK", isBlocked: false, headline: "", actionTip: "", disciplineNote };
         if (cushionPct !== null) {
             if (cushionPct < 0) {
                 riskGuard = {
                     level: "LOCKED_NEG",
                     isBlocked: true,
                     headline: `⛔ 垫穿 ${cStr} · 严禁加仓`,
-                    actionTip: "仅守防线或减仓"
+                    actionTip: disciplineNote || "仅守防线或减仓",
+                    disciplineNote
                 };
             } else if (cushionPct < 1.5) {
                 riskGuard = {
                     level: "LOCKED_THIN",
                     isBlocked: true,
                     headline: `🚨 垫薄 ${cStr} · 暂停加仓`,
-                    actionTip: "低于1.5%红线"
+                    actionTip: disciplineNote || "低于1.5%红线",
+                    disciplineNote
                 };
             } else if (cushionPct < 2.5) {
                 riskGuard = {
                     level: "CAUTION",
                     isBlocked: false,
                     headline: "",
-                    actionTip: `缓冲偏窄 ${cStr}`
+                    actionTip: `缓冲偏窄 ${cStr}`,
+                    disciplineNote
                 };
             }
         }

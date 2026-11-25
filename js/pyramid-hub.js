@@ -581,11 +581,22 @@
         if (statusEl) {
             const pnlCol = m.totalPnl >= 0 ? "var(--neon-emerald)" : "var(--neon-red)";
             const bufCol = m.qty > 0 && m.cushionToBepPct < pos.minCushionPct ? "var(--neon-red)" : "var(--neon-emerald)";
+            let disciplineStripHtml = "";
+            if (m.qty > 0) {
+                if (m.totalPnl <= 0 || m.cushionToBepPct <= 0.15) {
+                    disciplineStripHtml = `<div style="grid-column:1/-1; padding:6px 9px; border-radius:6px; font-size:11px; font-weight:700; background:rgba(239,68,68,0.09); border:1px solid rgba(239,68,68,0.32); color:#f87171;">⚠️ 回撤无利 · 建议全平防上头（利润已回吐至成本附近，按纪律退场重来）</div>`;
+                } else if (m.cushionToBepPct < pos.minCushionPct) {
+                    disciplineStripHtml = `<div style="grid-column:1/-1; padding:6px 9px; border-radius:6px; font-size:11px; font-weight:700; background:rgba(245,158,11,0.09); border:1px solid rgba(245,158,11,0.32); color:#fbbf24;">🛡️ 浮盈较薄 · 暂停加仓守防线（当前安全垫 ${m.cushionToBepPct.toFixed(2)}% 低于 ${pos.minCushionPct}% 红线）</div>`;
+                } else {
+                    disciplineStripHtml = `<div style="grid-column:1/-1; padding:6px 9px; border-radius:6px; font-size:11px; font-weight:700; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.28); color:#34d399;">🟢 有浮盈垫底 · 按防守线持有（当前安全垫 ${m.cushionToBepPct.toFixed(2)}%）</div>`;
+                }
+            }
             statusEl.innerHTML = `
                 <div class="kpi-mini-box"><div class="kpi-mini-label">当前持仓 (${m.isLong ? '多' : '空'} · ${pos.fills.length}笔)</div><div class="kpi-mini-val" style="font-size:14px;">${m.qty > 0 ? m.qty.toFixed(4).replace(/\.?0+$/, '') + ' ' + sym : '空仓'}</div><div class="kpi-mini-sub">名义 $${Math.round(m.notional).toLocaleString()} · 占保证金 $${Math.round(m.marginUsed).toLocaleString()}</div></div>
                 <div class="kpi-mini-box"><div class="kpi-mini-label">真实均价 / 新 BEP</div><div class="kpi-mini-val" style="font-size:14px; color:var(--neon-cyan);">${m.avg > 0 ? m.avg.toFixed(dec) : '--'}</div><div class="kpi-mini-sub">BEP ${m.bep > 0 ? m.bep.toFixed(dec) : '--'} · 强平 ${m.liq > 0 ? m.liq.toFixed(dec) : '--'}</div></div>
                 <div class="kpi-mini-box"><div class="kpi-mini-label">距 BEP 安全垫 (红线 ${pos.minCushionPct}%)</div><div class="kpi-mini-val" style="font-size:14px; color:${bufCol};">${m.qty > 0 ? m.cushionToBepPct.toFixed(2) + '%' : '--'}</div><div class="kpi-mini-sub">移动SL: ${m.sl > 0 ? m.sl.toFixed(dec) : '未设'} · 锁盈 ${m.sl > 0 && m.qty > 0 ? (m.worstNetAtSl >= 0 ? '+$' : '-$') + Math.abs(m.worstNetAtSl).toFixed(1) : '--'}</div></div>
                 <div class="kpi-mini-box"><div class="kpi-mini-label">综合浮盈 / 实时 R</div><div class="kpi-mini-val" style="font-size:14px; color:${pnlCol};">${m.qty > 0 ? (m.totalPnl >= 0 ? '+$' : '-$') + Math.abs(m.totalPnl).toFixed(1) : '--'}</div><div class="kpi-mini-sub">${m.qty > 0 ? (m.curR >= 0 ? '+' : '') + m.curR.toFixed(2) + 'R (基准1R=$' + pos.initialRiskUsd + ')' : '开底仓后实时跟踪'}</div></div>
+                ${disciplineStripHtml}
             `;
         }
 
