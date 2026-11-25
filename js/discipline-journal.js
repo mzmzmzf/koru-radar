@@ -135,6 +135,8 @@
             }
         }
 
+        const drawerHost = document.fullscreenElement || document.webkitFullscreenElement || document.getElementById("tvChartCard") || document.body;
+
         if (!document.getElementById("djEdgeTab")) {
             const tab = document.createElement("button");
             tab.type = "button";
@@ -143,7 +145,7 @@
             tab.title = "展开/收起战备纪律与复盘抽屉 (快捷键: Alt+R)";
             tab.innerHTML = `<span class="dj-edge-tab-icon">📋</span><span class="dj-edge-tab-txt">纪律/复盘</span>`;
             tab.onclick = () => window.toggleDisciplineDrawer();
-            document.body.appendChild(tab);
+            drawerHost.appendChild(tab);
         }
 
         if (!document.getElementById("djDrawer")) {
@@ -206,9 +208,19 @@
                     </div>
                 </div>
             `;
-            document.body.appendChild(drawer);
+            drawerHost.appendChild(drawer);
         }
     }
+
+    function reparentForFullscreen() {
+        const host = document.fullscreenElement || document.webkitFullscreenElement || document.getElementById("tvChartCard") || document.body;
+        const tab = document.getElementById("djEdgeTab");
+        const drawer = document.getElementById("djDrawer");
+        if (tab && tab.parentElement !== host) host.appendChild(tab);
+        if (drawer && drawer.parentElement !== host) host.appendChild(drawer);
+    }
+    document.addEventListener("fullscreenchange", reparentForFullscreen);
+    document.addEventListener("webkitfullscreenchange", reparentForFullscreen);
 
     function syncBeaconPosition() {
         const beacon = document.getElementById("djTopBeacon");
