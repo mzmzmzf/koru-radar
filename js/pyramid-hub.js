@@ -1,9 +1,9 @@
-// 独立大页面：全品种动态滚仓沙盒 & 仓位安全垫校验台 (币安 BTCUSDC 0费率首选 + BTC / ETH / ZEC / SOL + 自定义)
+// 独立大页面：全品种动态滚仓沙盒 & 仓位安全垫校验台 (币安 BTCUSDC / ETHUSDC 0费率首选 + BTC / ETH / ZEC / SOL + 自定义)
 
 (function () {
     const STORAGE_KEY = "quant_pyramid_hub_v1";
-    const PRESET_SYMBOLS = ["BTCUSDC", "BTC", "ETH", "ZEC", "SOL"];
-    const isZeroFeeSym = (sym) => String(sym || "").toUpperCase() === "BTCUSDC";
+    const PRESET_SYMBOLS = ["BTCUSDC", "ETHUSDC", "BTC", "ETH", "ZEC", "SOL"];
+    const isZeroFeeSym = (sym) => ["BTCUSDC", "ETHUSDC"].includes(String(sym || "").toUpperCase());
 
     const DEFAULT_HUB = {
         activeSymbol: "BTCUSDC",
@@ -147,13 +147,19 @@
         const rawKey = String(symKey || "").toUpperCase();
         let key = rawKey;
         let pos = hubState.positions[key];
-        // BTCUSDC 与 BTC 互通投影，确保主图无缝显示当前 BTC 滚仓持仓线
+        // BTCUSDC<->BTC、ETHUSDC<->ETH 互通投影，确保主图无缝显示当前滚仓持仓线
         if ((!pos || !pos.fills || !pos.fills.length) && rawKey === "BTCUSDC" && hubState.positions["BTC"]?.fills?.length) {
             key = "BTC";
             pos = hubState.positions["BTC"];
         } else if ((!pos || !pos.fills || !pos.fills.length) && rawKey === "BTC" && hubState.positions["BTCUSDC"]?.fills?.length) {
             key = "BTCUSDC";
             pos = hubState.positions["BTCUSDC"];
+        } else if ((!pos || !pos.fills || !pos.fills.length) && rawKey === "ETHUSDC" && hubState.positions["ETH"]?.fills?.length) {
+            key = "ETH";
+            pos = hubState.positions["ETH"];
+        } else if ((!pos || !pos.fills || !pos.fills.length) && rawKey === "ETH" && hubState.positions["ETHUSDC"]?.fills?.length) {
+            key = "ETHUSDC";
+            pos = hubState.positions["ETHUSDC"];
         }
         if (!pos || !pos.fills || !pos.fills.length) return [];
         const liveP = livePriceMap[key] || ((key === "BTC" || key === "BTCUSDC") && typeof currentBtcLivePrice !== "undefined" ? currentBtcLivePrice : 0);
@@ -172,15 +178,15 @@
 
     async function fetchSymbolLivePrice(sym) {
         const key = String(sym || "").toUpperCase();
-        if (key === "BTCUSDC") {
+        if (key === "BTCUSDC" || key === "ETHUSDC") {
             if (typeof window.fetchBinanceLivePrice === "function") {
-                const bnPx = await window.fetchBinanceLivePrice("BTCUSDC");
+                const bnPx = await window.fetchBinanceLivePrice(key);
                 if (bnPx > 0) {
                     livePriceMap[key] = bnPx;
                     return bnPx;
                 }
             }
-            if (typeof currentBtcLivePrice !== "undefined" && currentBtcLivePrice > 0) {
+            if (key === "BTCUSDC" && typeof currentBtcLivePrice !== "undefined" && currentBtcLivePrice > 0) {
                 livePriceMap[key] = currentBtcLivePrice;
                 return currentBtcLivePrice;
             }
@@ -302,7 +308,8 @@
     window.pyrHubJumpToChart = function () {
         const sym = hubState.activeSymbol;
         if (typeof selectWatchlistSymbol === "function") {
-            selectWatchlistSymbol(sym === "BTCUSDC" ? "BN:BTCUSDC" : `OKX:${sym}`);
+            const targetId = (sym === "BTCUSDC" || sym === "ETHUSDC") ? `BN:${sym}` : `OKX:${sym}`;
+            selectWatchlistSymbol(targetId);
         }
         if (typeof switchMainTab === "function") switchMainTab("chart");
         setTimeout(() => {

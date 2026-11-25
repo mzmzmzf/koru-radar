@@ -291,9 +291,12 @@ window.fetchBinanceCandlesForSymbol = async function (symObj, interval, opts = {
         }
     } catch (e) {}
 
-    // 兜底：若币安接口暂不可达，回退到 OKX BTC-USDT-SWAP 以保证不断图
+    // 兜底：若币安接口暂不可达，回退到 OKX 对应永续合约以保证不断图
     if (symbol.startsWith("BTC")) {
         return await fetchOkxCandlesForSymbol({ ticker: "BTC", okxInstId: "BTC-USDT-SWAP", market: "OKX" }, interval, { pages: 2 });
+    }
+    if (symbol.startsWith("ETH")) {
+        return await fetchOkxCandlesForSymbol({ ticker: "ETH", okxInstId: "ETH-USDT-SWAP", market: "OKX" }, interval, { pages: 2 });
     }
     return [];
 };
