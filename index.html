@@ -1961,6 +1961,7 @@
     <script src="./js/key-levels.js"></script>
     <script src="./js/pyramid-hub.js"></script>
     <script src="./js/rolling-nav-15m.js"></script>
+    <script src="./js/discipline-journal.js"></script>
     <script src="./js/whale-radar.js"></script>
     <script>
         const LEGACY_WORKERS_DEV_URL = "https://quant-relay.zhefeng0513.workers.dev";
@@ -2854,6 +2855,7 @@ export default {
             showRollingNav15m = !showRollingNav15m;
             localStorage.setItem("quant_rolling_nav_15m", showRollingNav15m ? "true" : "false");
             syncChartControlButtons();
+            if (typeof syncDisciplineBeaconPosition === "function") syncDisciplineBeaconPosition();
             if (chartEngineMode === "STRAT" && Array.isArray(lwLastDataCache) && lwLastDataCache.length >= 25) {
                 const res = computeBreakout33AndSmc(lwLastDataCache);
                 if (lwCandleSeries) lwCandleSeries.setMarkers(buildMergedChartMarkers(res.markers, lwLastDataCache));
