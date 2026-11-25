@@ -4612,22 +4612,29 @@ export default {
 
         let isLoadingOlderHistory = false;
         let lastOlderHistoryLoadTs = 0;
+        let olderHistoryExhaustedKey = "";
 
         async function maybeLoadOlderOkxHistory() {
             if (isLoadingOlderHistory || chartEngineMode !== "STRAT" || !lwChart || !lwCandleSeries) return;
-            if (Date.now() - lastOlderHistoryLoadTs < 1200) return;
+            if (Date.now() - lastOlderHistoryLoadTs < 450) return;
             const symObj = getActiveSymbolObj();
             if (!symObj || symObj.market !== "OKX" || typeof fetchOlderOkxCandles !== "function") return;
-            if (!Array.isArray(lwLastDataCache) || lwLastDataCache.length < 30 || lwLastDataCache.length >= 3000) return;
+            if (!Array.isArray(lwLastDataCache) || lwLastDataCache.length < 30 || lwLastDataCache.length >= 20000) return;
 
             const reqSymId = symObj.id;
             const reqInterval = tvInterval;
+            const cacheKey = `${reqSymId}|${reqInterval}`;
+            if (olderHistoryExhaustedKey === cacheKey) return;
             const oldestTime = lwLastDataCache[0].time;
             isLoadingOlderHistory = true;
             lastOlderHistoryLoadTs = Date.now();
             try {
-                const older = await fetchOlderOkxCandles(symObj, reqInterval, oldestTime, 300);
-                if (!older || !older.length) return;
+                const older = await fetchOlderOkxCandles(symObj, reqInterval, oldestTime, 300, 2);
+                if (!older || !older.length) {
+                    olderHistoryExhaustedKey = cacheKey;
+                    showToast(`📜 已加载至 ${symObj.ticker} 最早历史 K 线（共 ${lwLastDataCache.length} 根）`);
+                    return;
+                }
                 if (getActiveSymbolObj().id !== reqSymId || tvInterval !== reqInterval) return;
 
                 let savedRange = null;
@@ -4683,6 +4690,7 @@ export default {
             const reqInterval = tvInterval;
 
             if (!preserveViewport) {
+                olderHistoryExhaustedKey = "";
                 const ohlcEl = document.getElementById("lwOhlcLine");
                 const sigBadge = document.getElementById("stratLatestSignalBadge");
                 if (ohlcEl) ohlcEl.textContent = `${symObj.icon} ${symObj.desc || symObj.label} · 正在拉取K线数据...`;

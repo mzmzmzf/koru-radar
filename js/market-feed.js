@@ -206,27 +206,38 @@ async function fetchOkxCandlesForSymbol(symObj, interval, opts = {}) {
     return [];
 }
 
-// 供主图向左拖动至边界时懒加载更早历史 K 线
-window.fetchOlderOkxCandles = async function (symObj, interval, beforeSec, limit = 300) {
+// 供主图向左拖动至边界时懒加载更早历史 K 线（支持单次续拉 2 页 ≈ 600 根，一路翻到上市起点）
+window.fetchOlderOkxCandles = async function (symObj, interval, beforeSec, limit = 300, pages = 2) {
     if (!symObj || symObj.market !== "OKX" || !isFinite(beforeSec) || beforeSec <= 0) return [];
     const barMap = { "1": "1m", "5": "5m", "15": "15m", "60": "1H", "240": "4H", "D": "1Dutc", "3D": "3Dutc", "W": "1Wutc", "M": "1Mutc" };
     const tk = String(symObj.ticker || symObj.id || "").toUpperCase().replace(/^OKX:/, "");
     const instId = symObj._resolvedOkxInstId || symObj.okxInstId || `${tk}-USDT-SWAP`;
     const bar = symObj._resolvedOkxBar || barMap[interval] || "1H";
-    const afterMs = Math.floor(beforeSec * 1000);
-    try {
-        const histUrl = `https://www.okx.com/api/v5/market/history-candles?instId=${instId}&bar=${bar}&after=${afterMs}&limit=${limit}`;
-        let { data: json } = await smartFetchJson(histUrl, { timeoutMs: 2800 });
-        if (json?.code !== "0" || !Array.isArray(json.data) || json.data.length === 0) {
-            const altUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&after=${afterMs}&limit=${limit}`;
-            const altOut = await smartFetchJson(altUrl, { timeoutMs: 2800 });
-            json = altOut.data;
+    let cursorSec = beforeSec;
+    let collected = [];
+    for (let p = 0; p < pages; p++) {
+        const afterMs = Math.floor(cursorSec * 1000);
+        try {
+            const histUrl = `https://www.okx.com/api/v5/market/history-candles?instId=${instId}&bar=${bar}&after=${afterMs}&limit=${limit}`;
+            let { data: json } = await smartFetchJson(histUrl, { timeoutMs: 3000 });
+            if (json?.code !== "0" || !Array.isArray(json.data) || json.data.length === 0) {
+                const altUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&after=${afterMs}&limit=${limit}`;
+                const altOut = await smartFetchJson(altUrl, { timeoutMs: 3000 });
+                json = altOut.data;
+            }
+            if (json?.code === "0" && Array.isArray(json.data) && json.data.length > 0) {
+                const batch = parseOkxCandleRows(json.data).filter(x => x.time < cursorSec);
+                if (!batch.length) break;
+                collected = batch.concat(collected);
+                cursorSec = batch[0].time;
+            } else {
+                break;
+            }
+        } catch (e) {
+            break;
         }
-        if (json?.code === "0" && Array.isArray(json.data) && json.data.length > 0) {
-            return parseOkxCandleRows(json.data).filter(x => x.time < beforeSec);
-        }
-    } catch (e) {}
-    return [];
+    }
+    return collected;
 };
 
 function parseYahooChartPayload(json, aggStep = 1) {
@@ -254,7 +265,7 @@ function parseYahooChartPayload(json, aggStep = 1) {
         }
     }
     if (rawCandles.length < 5) return [];
-    return aggregateCandlesByStep(rawCandles, aggStep).slice(-900);
+    return aggregateCandlesByStep(rawCandles, aggStep).slice(-5000);
 }
 
 function parseEastmoneyUsKlineRows(klines, aggStep = 1) {
@@ -291,7 +302,7 @@ function parseEastmoneyUsKlineRows(klines, aggStep = 1) {
 
     parsed.sort((a, b) => a.time - b.time);
     if (parsed.length < 5) return [];
-    return aggregateCandlesByStep(parsed, aggStep).slice(-900);
+    return aggregateCandlesByStep(parsed, aggStep).slice(-5000);
 }
 
 async function resolveEastmoneyUsSecId(ticker) {
@@ -333,7 +344,8 @@ async function fetchEastmoneyUsCandles(symObj, interval) {
     const aggMap = { "1": 1,   "5": 1,   "15": 1,    "60": 1,    "240": 4,    "D": 1,     "3D": 3,     "W": 1,     "M": 1 };
     const klt = kltMap[interval] || "60";
     const aggStep = aggMap[interval] || 1;
-    const lmt = Math.min(1200, 600 * aggStep);
+    const isMacroTf = ["D", "3D", "W", "M"].includes(interval);
+    const lmt = isMacroTf ? 5000 : Math.min(2400, 1000 * aggStep);
 
     const knownSecId = symObj.emSecId || await resolveEastmoneyUsSecId(tk);
     const secIdCandidates = [...new Set([
@@ -366,10 +378,10 @@ async function fetchUsEquityCandlesForSymbol(symObj, interval) {
         "15":  { yfInt: "15m", yfRange: "1mo", agg: 1 },
         "60":  { yfInt: "60m", yfRange: "3mo", agg: 1 },
         "240": { yfInt: "60m", yfRange: "6mo", agg: 4 },
-        "D":   { yfInt: "1d",  yfRange: "1y",  agg: 1 },
-        "3D":  { yfInt: "1d",  yfRange: "2y",  agg: 3 },
-        "W":   { yfInt: "1wk", yfRange: "5y",  agg: 1 },
-        "M":   { yfInt: "1mo", yfRange: "10y", agg: 1 }
+        "D":   { yfInt: "1d",  yfRange: "max", agg: 1 },
+        "3D":  { yfInt: "1d",  yfRange: "max", agg: 3 },
+        "W":   { yfInt: "1wk", yfRange: "max", agg: 1 },
+        "M":   { yfInt: "1mo", yfRange: "max", agg: 1 }
     };
     const cfg = cfgMap[interval] || cfgMap["60"];
     const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${cfg.yfInt}&range=${cfg.yfRange}&includePrePost=false`;
