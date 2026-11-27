@@ -4438,6 +4438,80 @@ export default {
             isSyncingTimeScale = false;
         }
 
+        let isSyncingCrosshair = false;
+
+        function restoreAllChartHudsAndCrosshairs(sourceChart = null) {
+            if (lwLastDataCache.length) updateLwHudText(lwLastDataCache[lwLastDataCache.length - 1]);
+            if (lwCvdCache.length) updateCvdHudValues(lwCvdCache[lwCvdCache.length - 1]);
+            if (lwNetposCache.length) updateNetposHudValues(lwNetposCache[lwNetposCache.length - 1]);
+            if (lwMacdCache.length) updateMacdHudValues(lwMacdCache[lwMacdCache.length - 1]);
+            if (lwObvCvdCache.length) updateObvCvdHudValues(lwObvCvdCache[lwObvCvdCache.length - 1]);
+            if (isSyncingCrosshair) return;
+            isSyncingCrosshair = true;
+            try {
+                [lwChart, lwCvdChart, lwNetposChart, lwMacdChart, lwObvCvdChart].forEach(ch => {
+                    if (ch && ch !== sourceChart && typeof ch.clearCrosshairPosition === "function") {
+                        try { ch.clearCrosshairPosition(); } catch (e) {}
+                    }
+                });
+            } finally {
+                isSyncingCrosshair = false;
+            }
+        }
+
+        function syncCrosshairAcrossCharts(sourceChart, time) {
+            if (isSyncingCrosshair) return;
+            if (!time) {
+                restoreAllChartHudsAndCrosshairs(sourceChart);
+                return;
+            }
+            isSyncingCrosshair = true;
+            try {
+                const mainFound = lwLastDataCache.length ? lwLastDataCache.find(x => x.time === time) : null;
+                if (mainFound) {
+                    updateLwHudText(mainFound);
+                    if (lwChart && sourceChart !== lwChart && lwCandleSeries && typeof lwChart.setCrosshairPosition === "function") {
+                        try { lwChart.setCrosshairPosition(mainFound.close, time, lwCandleSeries); } catch (e) {}
+                    }
+                }
+                const cvdFound = lwCvdCache.length ? lwCvdCache.find(x => x.time === time) : null;
+                if (cvdFound) {
+                    updateCvdHudValues(cvdFound);
+                    if (lwCvdChart && sourceChart !== lwCvdChart && lwCvdLineSeries && typeof lwCvdChart.setCrosshairPosition === "function") {
+                        try { lwCvdChart.setCrosshairPosition(cvdFound.cvd, time, lwCvdLineSeries); } catch (e) {}
+                    }
+                }
+                const npFound = lwNetposCache.length ? lwNetposCache.find(x => x.time === time) : null;
+                if (npFound) {
+                    updateNetposHudValues(npFound);
+                    if (lwNetposChart && sourceChart !== lwNetposChart && lwNetposSeries1 && typeof lwNetposChart.setCrosshairPosition === "function") {
+                        const npVal = netposDisplayMode === "rsi"
+                            ? (npFound.rsiLongs ?? 50)
+                            : (netposDisplayMode === "delta" ? npFound.netDelta : npFound.netLongs);
+                        if (isFinite(npVal)) {
+                            try { lwNetposChart.setCrosshairPosition(npVal, time, lwNetposSeries1); } catch (e) {}
+                        }
+                    }
+                }
+                const macdFound = lwMacdCache.length ? lwMacdCache.find(x => x.time === time) : null;
+                if (macdFound) {
+                    updateMacdHudValues(macdFound);
+                    if (lwMacdChart && sourceChart !== lwMacdChart && lwMacdHistSeries && typeof lwMacdChart.setCrosshairPosition === "function") {
+                        try { lwMacdChart.setCrosshairPosition(macdFound.hist, time, lwMacdHistSeries); } catch (e) {}
+                    }
+                }
+                const ocFound = lwObvCvdCache.length ? lwObvCvdCache.find(x => x.time === time) : null;
+                if (ocFound) {
+                    updateObvCvdHudValues(ocFound);
+                    if (lwObvCvdChart && sourceChart !== lwObvCvdChart && lwObvCvdHistSeries && typeof lwObvCvdChart.setCrosshairPosition === "function") {
+                        try { lwObvCvdChart.setCrosshairPosition(ocFound.normOsc, time, lwObvCvdHistSeries); } catch (e) {}
+                    }
+                }
+            } finally {
+                isSyncingCrosshair = false;
+            }
+        }
+
         function initLightweightChart() {
             const container = document.getElementById("lwChartContainer");
             if (!container || typeof LightweightCharts === "undefined") return;
@@ -4528,12 +4602,7 @@ export default {
                 scaleMargins: { top: 0.83, bottom: 0 }
             });
 
-            const restoreLatestHud = () => {
-                if (lwLastDataCache.length) updateLwHudText(lwLastDataCache[lwLastDataCache.length - 1]);
-                if (lwCvdCache.length) updateCvdHudValues(lwCvdCache[lwCvdCache.length - 1]);
-                if (lwNetposCache.length) updateNetposHudValues(lwNetposCache[lwNetposCache.length - 1]);
-                if (lwMacdCache.length) updateMacdHudValues(lwMacdCache[lwMacdCache.length - 1]);
-            };
+            const restoreLatestHud = () => restoreAllChartHudsAndCrosshairs(null);
             if (container && container.dataset.hudLeaveBound !== "1") {
                 container.dataset.hudLeaveBound = "1";
                 container.addEventListener("mouseleave", restoreLatestHud);
@@ -4541,24 +4610,10 @@ export default {
 
             lwChart.subscribeCrosshairMove((param) => {
                 if (!param || !param.time || !param.point) {
-                    restoreLatestHud();
+                    restoreAllChartHudsAndCrosshairs(lwChart);
                     return;
                 }
-                if (!lwLastDataCache.length) return;
-                const found = lwLastDataCache.find(x => x.time === param.time);
-                if (found) updateLwHudText(found);
-                if (lwCvdCache.length) {
-                    const cvdFound = lwCvdCache.find(x => x.time === param.time);
-                    if (cvdFound) updateCvdHudValues(cvdFound);
-                }
-                if (lwNetposCache.length) {
-                    const npFound = lwNetposCache.find(x => x.time === param.time);
-                    if (npFound) updateNetposHudValues(npFound);
-                }
-                if (lwMacdCache.length) {
-                    const macdFound = lwMacdCache.find(x => x.time === param.time);
-                    if (macdFound) updateMacdHudValues(macdFound);
-                }
+                syncCrosshairAcrossCharts(lwChart, param.time);
             });
 
             lwChart.subscribeClick((param) => {
@@ -6747,15 +6802,11 @@ export default {
             });
 
             lwMacdChart.subscribeCrosshairMove((param) => {
-                if (!param || !param.time) return;
-                if (lwMacdCache.length) {
-                    const macdFound = lwMacdCache.find(x => x.time === param.time);
-                    if (macdFound) updateMacdHudValues(macdFound);
+                if (!param || !param.time || !param.point) {
+                    restoreAllChartHudsAndCrosshairs(lwMacdChart);
+                    return;
                 }
-                if (lwLastDataCache.length) {
-                    const mainFound = lwLastDataCache.find(x => x.time === param.time);
-                    if (mainFound) updateLwHudText(mainFound);
-                }
+                syncCrosshairAcrossCharts(lwMacdChart, param.time);
             });
 
             if (typeof ResizeObserver !== "undefined") {
@@ -6837,15 +6888,11 @@ export default {
             });
 
             lwObvCvdChart.subscribeCrosshairMove((param) => {
-                if (!param || !param.time) return;
-                if (lwObvCvdCache.length) {
-                    const ocFound = lwObvCvdCache.find(x => x.time === param.time);
-                    if (ocFound) updateObvCvdHudValues(ocFound);
+                if (!param || !param.time || !param.point) {
+                    restoreAllChartHudsAndCrosshairs(lwObvCvdChart);
+                    return;
                 }
-                if (lwLastDataCache.length) {
-                    const mainFound = lwLastDataCache.find(x => x.time === param.time);
-                    if (mainFound) updateLwHudText(mainFound);
-                }
+                syncCrosshairAcrossCharts(lwObvCvdChart, param.time);
             });
 
             if (typeof ResizeObserver !== "undefined") {
@@ -6926,19 +6973,11 @@ export default {
             });
 
             lwCvdChart.subscribeCrosshairMove((param) => {
-                if (!param || !param.time) return;
-                if (lwCvdCache.length) {
-                    const cvdFound = lwCvdCache.find(x => x.time === param.time);
-                    if (cvdFound) updateCvdHudValues(cvdFound);
+                if (!param || !param.time || !param.point) {
+                    restoreAllChartHudsAndCrosshairs(lwCvdChart);
+                    return;
                 }
-                if (lwNetposCache.length) {
-                    const npFound = lwNetposCache.find(x => x.time === param.time);
-                    if (npFound) updateNetposHudValues(npFound);
-                }
-                if (lwLastDataCache.length) {
-                    const mainFound = lwLastDataCache.find(x => x.time === param.time);
-                    if (mainFound) updateLwHudText(mainFound);
-                }
+                syncCrosshairAcrossCharts(lwCvdChart, param.time);
             });
 
             if (typeof ResizeObserver !== "undefined") {
@@ -7031,19 +7070,11 @@ export default {
             });
 
             lwNetposChart.subscribeCrosshairMove((param) => {
-                if (!param || !param.time) return;
-                if (lwNetposCache.length) {
-                    const npFound = lwNetposCache.find(x => x.time === param.time);
-                    if (npFound) updateNetposHudValues(npFound);
+                if (!param || !param.time || !param.point) {
+                    restoreAllChartHudsAndCrosshairs(lwNetposChart);
+                    return;
                 }
-                if (lwCvdCache.length) {
-                    const cvdFound = lwCvdCache.find(x => x.time === param.time);
-                    if (cvdFound) updateCvdHudValues(cvdFound);
-                }
-                if (lwLastDataCache.length) {
-                    const mainFound = lwLastDataCache.find(x => x.time === param.time);
-                    if (mainFound) updateLwHudText(mainFound);
-                }
+                syncCrosshairAcrossCharts(lwNetposChart, param.time);
             });
 
             if (typeof ResizeObserver !== "undefined") {
