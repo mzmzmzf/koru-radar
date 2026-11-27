@@ -217,6 +217,9 @@ function computeBreakout33AndSmc(candles) {
     const cvdSeries = useResonanceFilter
         ? computeGimelfarbCvdSeries(enriched, typeof cvdDailyReset !== "undefined" ? cvdDailyReset : false)
         : null;
+    const obvCvdSeries = useResonanceFilter && typeof computeObvCvdResonance === "function"
+        ? computeObvCvdResonance(enriched, 10)
+        : null;
     let filteredOutCount = 0;
 
     for (let i = 50; i < n; i++) {
@@ -265,10 +268,14 @@ function computeBreakout33AndSmc(candles) {
                 bearCvdDiv = bearPriceNewLowDiv || bearFlowStrong;
             }
 
-            if (greenSignal && (barBias === -1 || bullCvdDiv)) { greenSignal = false; filteredOutCount++; }
-            if (finalBlueSignal && (barBias === -1 || bullCvdDiv)) { finalBlueSignal = false; filteredOutCount++; }
-            if (redSignal && (barBias === 1 || bearCvdDiv)) { redSignal = false; filteredOutCount++; }
-            if (finalPurpleSignal && (barBias === 1 || bearCvdDiv)) { finalPurpleSignal = false; filteredOutCount++; }
+            const ocRow = obvCvdSeries && obvCvdSeries[i] ? obvCvdSeries[i] : null;
+            const obvCvdBlockBull = ocRow ? !ocRow.bothBull : false;
+            const obvCvdBlockBear = ocRow ? !ocRow.bothBear : false;
+
+            if (greenSignal && (barBias === -1 || bullCvdDiv || obvCvdBlockBull)) { greenSignal = false; filteredOutCount++; }
+            if (finalBlueSignal && (barBias === -1 || bullCvdDiv || obvCvdBlockBull)) { finalBlueSignal = false; filteredOutCount++; }
+            if (redSignal && (barBias === 1 || bearCvdDiv || obvCvdBlockBear)) { redSignal = false; filteredOutCount++; }
+            if (finalPurpleSignal && (barBias === 1 || bearCvdDiv || obvCvdBlockBear)) { finalPurpleSignal = false; filteredOutCount++; }
         }
 
         if (greenSignal) {
@@ -545,6 +552,94 @@ function computeAdaptiveTrailSeries(candles, atrLen = 14, mult = 2.6) {
             dir,
             trail,
             edge
+        });
+    }
+    return out;
+}
+
+
+// 量能双核共振（OBV + CVD）计算模块：对齐 Pine Script v5 无未来函数逻辑
+function computeObvCvdResonance(candles, len = 10) {
+    if (!Array.isArray(candles) || !candles.length) return [];
+    const n = candles.length;
+    const kLen = 2 / (len + 1);
+    const kOsc = 2 / (5 + 1);
+    const out = [];
+
+    let obvVal = 0;
+    let obvEma = 0;
+    let cvdVal = 0;
+    let cvdEma = 0;
+    let normOsc = 0;
+
+    for (let i = 0; i < n; i++) {
+        const c = candles[i];
+        const vol = Number(c.vol) || 0;
+        if (i > 0) {
+            const prevClose = candles[i - 1].close;
+            if (c.close > prevClose) obvVal += vol;
+            else if (c.close < prevClose) obvVal -= vol;
+        }
+        obvEma = i === 0 ? obvVal : (obvVal * kLen + obvEma * (1 - kLen));
+        const obvBull = obvVal > obvEma;
+        const obvBear = obvVal < obvEma;
+
+        const range = c.high - c.low;
+        const buyVol = vol * (range === 0 ? 0.5 : (c.close - c.low) / range);
+        const sellVol = vol * (range === 0 ? 0.5 : (c.high - c.close) / range);
+        const delta = buyVol - sellVol;
+        cvdVal += delta;
+        cvdEma = i === 0 ? cvdVal : (cvdVal * kLen + cvdEma * (1 - kLen));
+        const cvdBull = cvdVal > cvdEma;
+        const cvdBear = cvdVal < cvdEma;
+
+        const bothBull = obvBull && cvdBull;
+        const bothBear = obvBear && cvdBear;
+        const state = bothBull ? "BULL" : (bothBear ? "BEAR" : "CONFLICT");
+        normOsc = i === 0 ? delta : (delta * kOsc + normOsc * (1 - kOsc));
+        const barColor = bothBull
+            ? "rgba(16, 185, 129, 0.85)"
+            : bothBear
+                ? "rgba(239, 68, 68, 0.85)"
+                : "rgba(156, 163, 175, 0.45)";
+
+        let tailDiv = "";
+        if (i >= 12) {
+            let winHigh = -Infinity, winLow = Infinity;
+            let winObvMax = -Infinity, winObvMin = Infinity;
+            let winCvdMax = -Infinity, winCvdMin = Infinity;
+            for (let k = i - 12; k < i; k++) {
+                if (candles[k].high > winHigh) winHigh = candles[k].high;
+                if (candles[k].low < winLow) winLow = candles[k].low;
+                if (out[k].obv > winObvMax) winObvMax = out[k].obv;
+                if (out[k].obv < winObvMin) winObvMin = out[k].obv;
+                if (out[k].cvd > winCvdMax) winCvdMax = out[k].cvd;
+                if (out[k].cvd < winCvdMin) winCvdMin = out[k].cvd;
+            }
+            if (c.low <= winLow && (bothBull || (obvVal > winObvMin && cvdVal > winCvdMin))) {
+                tailDiv = "BULL_DIV";
+            } else if (c.high >= winHigh && (bothBear || (obvVal < winObvMax && cvdVal < winCvdMax))) {
+                tailDiv = "BEAR_DIV";
+            }
+        }
+
+        out.push({
+            time: c.time,
+            obv: obvVal,
+            obvEma,
+            obvBull,
+            obvBear,
+            delta,
+            cvd: cvdVal,
+            cvdEma,
+            cvdBull,
+            cvdBear,
+            bothBull,
+            bothBear,
+            state,
+            normOsc,
+            barColor,
+            tailDiv
         });
     }
     return out;

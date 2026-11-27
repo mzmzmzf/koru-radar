@@ -1372,6 +1372,7 @@ body.light-theme #appToast {
 }
 .dj-top-beacon.below-nav-hud {
     top: 66px;
+    max-width: min(560px, calc(100% - 92px));
 }
 .dj-top-beacon:hover {
     border-color: rgba(148, 163, 184, 0.55);
@@ -1820,9 +1821,16 @@ body.light-theme .dj-export-btn {
 
 @media (max-width: 720px) {
     .dj-top-beacon {
-        right: 8px;
-        max-width: calc(100% - 16px);
+        top: 52px;
+        right: 74px;
+        max-width: calc(100% - 84px);
         font-size: 10px;
+        padding: 4px 8px;
+    }
+    .dj-top-beacon.below-nav-hud {
+        top: 66px;
+        right: 74px;
+        max-width: calc(100% - 84px);
     }
     .dj-edge-tab.drawer-open {
         right: 90vw;

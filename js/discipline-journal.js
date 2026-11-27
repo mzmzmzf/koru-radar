@@ -222,12 +222,26 @@
     document.addEventListener("fullscreenchange", reparentForFullscreen);
     document.addEventListener("webkitfullscreenchange", reparentForFullscreen);
 
+    function isRollingNav15mActive() {
+        try {
+            if (typeof showRollingNav15m !== "undefined") return Boolean(showRollingNav15m);
+        } catch (e) {}
+        try {
+            if (typeof lwLastRollingNavSnapshot !== "undefined" && lwLastRollingNavSnapshot) return true;
+        } catch (e) {}
+        try {
+            return localStorage.getItem("quant_rolling_nav_15m") === "true";
+        } catch (e) {}
+        return false;
+    }
+
     function syncBeaconPosition() {
         const beacon = document.getElementById("djTopBeacon");
         if (!beacon) return;
-        const navActive = typeof window.showRollingNav15m !== "undefined" && Boolean(window.showRollingNav15m);
-        beacon.classList.toggle("below-nav-hud", navActive);
+        beacon.classList.toggle("below-nav-hud", isRollingNav15mActive());
     }
+
+    window.addEventListener("resize", syncBeaconPosition);
 
     function renderAll() {
         mountDomIfNeeded();
@@ -238,7 +252,7 @@
         // 1. 渲染右上角单行纪律红线灯
         const beacon = document.getElementById("djTopBeacon");
         if (beacon) {
-            beacon.className = `dj-top-beacon ${st.cls}` + (typeof window.showRollingNav15m !== "undefined" && window.showRollingNav15m ? " below-nav-hud" : "");
+            beacon.className = `dj-top-beacon ${st.cls}` + (isRollingNav15mActive() ? " below-nav-hud" : "");
             beacon.innerHTML = `<span class="dj-beacon-badge">${st.badge}</span><span class="dj-beacon-sep">·</span><span class="dj-beacon-text">${st.text}</span>`;
         }
 

@@ -225,6 +225,7 @@
         const erArr = calcEfficiencyRatio(candles, 10);
         const adxArr = calcAdx14(candles, 14);
         const htfBiasArr = buildSynthesizedHtfBias(candles);
+        const obvCvdArr = typeof computeObvCvdResonance === "function" ? computeObvCvdResonance(candles, 10) : null;
         const longPct = Number(opts.longPct) || 0;
         const supplyBlocks = Array.isArray(opts.supplyBlocks) ? opts.supplyBlocks : [];
         const demandBlocks = Array.isArray(opts.demandBlocks) ? opts.demandBlocks : [];
@@ -344,10 +345,15 @@
             const sessionOk = !sess.isDeadZone;
             const gate4Ok = smcRoomOk && crowdOk && sessionOk;
 
-            const all4Bull = maBullOk && htfBullOk && gate3Ok && gate4Ok;
-            const all4Bear = maBearOk && htfBearOk && gate3Ok && gate4Ok;
+            // Gate 5：OBV + CVD 双核量能共振过滤器（绿=双多一致，红=双空一致，灰=打架静默）
+            const ocBar = obvCvdArr ? obvCvdArr[i] : null;
+            const gate5BullOk = !ocBar || ocBar.bothBull;
+            const gate5BearOk = !ocBar || ocBar.bothBear;
 
-            // 记录最新一根 K 线的四门体检状态，供 HUD 实时渲染
+            const all4Bull = maBullOk && htfBullOk && gate3Ok && gate4Ok && gate5BullOk;
+            const all4Bear = maBearOk && htfBearOk && gate3Ok && gate4Ok && gate5BearOk;
+
+            // 记录最新一根 K 线的五门体检状态，供 HUD 实时渲染
             if (i === n - 1) {
                 const roomReason = !sessionOk ? "枯竭段" : (!smcRoomOk ? "撞墙" : (!crowdOk ? "拥挤" : ""));
                 const adxTxt = adxValid ? `A${Math.round(adx)}` : "A--";
@@ -356,6 +362,7 @@
                 const g2 = (maBullOk || maBearOk) ? "🟢均线" : "⚪均线";
                 const g3 = gate3Ok ? `🟢${adxTxt}/${erTxt}` : `🔴震(${adxTxt}/${erTxt})`;
                 const g4 = gate4Ok ? "🟢空间" : `🔴${roomReason || "受限"}`;
+                const g5 = ocBar ? (ocBar.bothBull ? "🟢量多" : (ocBar.bothBear ? "🔴量空" : "⚪量歧")) : "⚪量--";
                 latestGates = {
                     htfOk: gate1Ok,
                     htfBias,
@@ -365,8 +372,10 @@
                     er: erValid ? er : null,
                     roomOk: gate4Ok,
                     roomReason,
+                    obvCvdState: ocBar ? ocBar.state : "CONFLICT",
+                    obvCvdTailDiv: ocBar ? ocBar.tailDiv : "",
                     allPass: all4Bull || all4Bear,
-                    stripText: `${g1} ${g2} ${g3} ${g4}`
+                    stripText: `${g1} ${g2} ${g3} ${g4} ${g5}`
                 };
             }
 
@@ -576,7 +585,7 @@
             // --- D1. 反抽压制确认空（🎯压空 · 严格 MA50 下方领地隔离 + 6根冷却） ---
             const strictBearTerritory = c.close < ma50 && ema15 < ma50;
             const ma50DownOrFlat = isFinite(ma50Prev4) ? (ma50 <= ma50Prev4 * 1.0005) : true;
-            const bearBackdropOk = strictBearTerritory && !isDeepChop && sessionOk && ema10 < ema15 && ma50DownOrFlat && htfBias !== "LONG";
+            const bearBackdropOk = strictBearTerritory && !isDeepChop && sessionOk && ema10 < ema15 && ma50DownOrFlat && htfBias !== "LONG" && gate5BearOk;
             const recent3High = Math.max(c.high, prev.high, candles[i - 2].high);
             const hitSupplyBlock = supplyBlocks.some(b =>
                 (b.createdIdx === undefined || b.createdIdx <= i) &&
@@ -614,7 +623,7 @@
             // --- D2. 对称回踩支撑确认多（🎯撑多 · 严格 MA50 上方多头领地 + 6根冷却） ---
             const strictBullTerritory = c.close > ma50 && ema15 > ma50;
             const ma50UpOrFlat = isFinite(ma50Prev4) ? (ma50 >= ma50Prev4 * 0.9995) : true;
-            const bullBackdropOk = strictBullTerritory && !isDeepChop && sessionOk && htfBias === "LONG" && ema10 > ema15 && ma50UpOrFlat;
+            const bullBackdropOk = strictBullTerritory && !isDeepChop && sessionOk && htfBias === "LONG" && ema10 > ema15 && ma50UpOrFlat && gate5BullOk;
             const recent3Low = Math.min(c.low, prev.low, candles[i - 2].low);
             const hitDemandBlock = demandBlocks.some(b =>
                 (b.createdIdx === undefined || b.createdIdx <= i) &&
@@ -689,6 +698,11 @@
                 disciplineNote = "🛡️ 浮盈较薄·贴近防线留意锁利";
             }
         }
+        if (!disciplineNote && latestGates.obvCvdTailDiv) {
+            disciplineNote = latestGates.obvCvdTailDiv === "BULL_DIV"
+                ? "⚠️ OBV+CVD底背离·空单先止盈70~80%"
+                : "⚠️ OBV+CVD顶背离·多单先止盈70~80%";
+        }
 
         // 安全垫红线与状态机联动风控评估
         const cStr = cushionPct !== null ? `${cushionPct >= 0 ? "+" : ""}${cushionPct.toFixed(2)}%` : "--";
@@ -741,8 +755,8 @@
         });
 
         const stateNameMap = {
-            TREND_START: bias === "LONG" ? "多头启动 · 4门全绿" : "空头启动 · 4门全绿",
-            ROLLING: bias === "LONG" ? "顺势滚多 · 4门全绿" : "顺势滚空 · 4门全绿",
+            TREND_START: bias === "LONG" ? "多头启动 · 5门全绿" : "空头启动 · 5门全绿",
+            ROLLING: bias === "LONG" ? "顺势滚多 · 5门全绿" : "顺势滚空 · 5门全绿",
             TRIM_EXIT: "走横停火 / 锁利",
             CHOP_SLEEP: "💤 震荡休眠 · 过滤无效行情"
         };

@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#131314">
     <link rel="manifest" href="./manifest.json">
     <title>跨市场量化作战终端 · 双轨沙盒旗舰版</title>
-    <link rel="stylesheet" href="./styles/main.css?v=20261126">
+    <link rel="stylesheet" href="./styles/main.css?v=20261127">
 </head>
 <body>
 
@@ -275,6 +275,7 @@
                         <button type="button" class="btn-sm" id="btnSubchartCvd" onclick="toggleCvdSubchart()">📊 CVD资金流</button>
                         <button type="button" class="btn-sm" id="btnSubchartNetPos" onclick="toggleNetposSubchart()">⚖️ 净多空持仓</button>
                         <button type="button" class="btn-sm" id="btnSubchartMacd" onclick="toggleMacdSubchart()">📉 MACD</button>
+                        <button type="button" class="btn-sm" id="btnSubchartObvCvd" onclick="toggleObvCvdSubchart()" title="独立开关：OBV + CVD 量能双核资金共振能量柱（绿=双多一致，红=双空一致，灰=打架静默，第5门确认过滤器）">⚡ OBV+CVD共振</button>
                     </div>
                     <button type="button" class="btn-sm" onclick="closeAllOmDrawers()" style="color:var(--text-muted);">✕</button>
                 </div>
@@ -313,6 +314,12 @@
                             <button type="button" class="btn-sm" onclick="adjustSubchartHeight('macd', -25)" style="padding:1px 7px;">－</button>
                             <b id="lblMacdChartHeight" style="font-family:monospace; color:#38bdf8;">140px</b>
                             <button type="button" class="btn-sm" onclick="adjustSubchartHeight('macd', 25)" style="padding:1px 7px;">＋</button>
+                        </span>
+                        <span id="ctrlGroupObvCvdHeight" style="display:none; align-items:center; gap:4px;">
+                            <span style="color:var(--text-muted);">双核:</span>
+                            <button type="button" class="btn-sm" onclick="adjustSubchartHeight('obvcvd', -25)" style="padding:1px 7px;">－</button>
+                            <b id="lblObvCvdChartHeight" style="font-family:monospace; color:#10b981;">130px</b>
+                            <button type="button" class="btn-sm" onclick="adjustSubchartHeight('obvcvd', 25)" style="padding:1px 7px;">＋</button>
                         </span>
                     </div>
                     <button type="button" class="btn-sm" onclick="resetChartHeightsToDefault()" style="color:var(--neon-amber);">恢复默认</button>
@@ -521,6 +528,21 @@
                             <span id="lwMacdControls" style="display:inline-flex; align-items:center; gap:4px;"></span>
                         </div>
                         <div id="lwMacdChartContainer" style="width:100%; height:100%;"></div>
+                    </div>
+
+                    <div id="resizerBeforeObvCvd" class="lw-pane-resizer" style="display:none;" title="上下拖动调节 OBV+CVD 双核共振副图高度">
+                        <span class="resizer-pill"></span>
+                        <span class="resizer-label">↕ 拖动调副图高度</span>
+                        <span class="resizer-pill"></span>
+                    </div>
+
+                    <div id="lwObvCvdPane" class="lw-subchart-pane">
+                        <div class="lw-subchart-hud" id="lwObvCvdHud">
+                            <span id="lwObvCvdTitle" style="font-weight:800; color:#10b981;">⚡ OBV+CVD 双核资金共振</span>
+                            <span id="lwObvCvdValues">--</span>
+                            <span id="lwObvCvdControls" style="display:inline-flex; align-items:center; gap:4px;"></span>
+                        </div>
+                        <div id="lwObvCvdChartContainer" style="width:100%; height:100%;"></div>
                     </div>
                 </div>
 
@@ -3087,7 +3109,7 @@ export default {
                     ? `${rg.disciplineNote}${trailText ? " | " + trailText : ""}`
                     : (nav.trapAlert
                         ? nav.trapAlert.text
-                        : (trailText ? `垫 ${cStr} | ${trailText}` : (cPct !== null ? `垫 ${cStr} | 空仓观望` : "空仓观望 · 等4门全绿"))));
+                        : (trailText ? `垫 ${cStr} | ${trailText}` : (cPct !== null ? `垫 ${cStr} | 空仓观望` : "空仓观望 · 等5门全绿"))));
 
             ctx.font = "700 10.5px -apple-system, BlinkMacSystemFont, monospace";
             const w1 = ctx.measureText(line1).width;
@@ -3246,6 +3268,7 @@ export default {
             ? localStorage.getItem("quant_show_netpos_subchart") === "true"
             : legacySubMode === "netpos";
         let showMacdSubchart = localStorage.getItem("quant_show_macd_subchart") === "true";
+        let showObvCvdSubchart = localStorage.getItem("quant_show_obvcvd_subchart") === "true";
         let cvdDailyReset = localStorage.getItem("quant_cvd_daily_reset") === "true";
         let netposDisplayMode = localStorage.getItem("quant_netpos_mode") || "lines"; // 'lines' | 'delta' | 'rsi'
 
@@ -3278,6 +3301,10 @@ export default {
         let lwMacdDifSeries = null;
         let lwMacdDeaSeries = null;
         let lwMacdCache = [];
+
+        let lwObvCvdChart = null;
+        let lwObvCvdHistSeries = null;
+        let lwObvCvdCache = [];
 
         let isSyncingTimeScale = false;
 
@@ -4327,20 +4354,25 @@ export default {
             const netposPane = document.getElementById("lwNetposPane");
             const macdPane = document.getElementById("lwMacdPane");
             const btnMacd = document.getElementById("btnSubchartMacd");
+            const obvCvdPane = document.getElementById("lwObvCvdPane");
+            const btnObvCvd = document.getElementById("btnSubchartObvCvd");
             const cvdHud = document.getElementById("lwCvdHud");
             const netposHud = document.getElementById("lwNetposHud");
             const macdHud = document.getElementById("lwMacdHud");
+            const obvCvdHud = document.getElementById("lwObvCvdHud");
 
             const isStrat = chartEngineMode === "STRAT";
             const activeCvd = showCvdSubchart && isStrat;
             const activeNetpos = showNetposSubchart && isStrat;
             const activeMacd = showMacdSubchart && isStrat;
-            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0) + (activeMacd ? 1 : 0);
+            const activeObvCvd = showObvCvdSubchart && isStrat;
+            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0) + (activeMacd ? 1 : 0) + (activeObvCvd ? 1 : 0);
 
             if (btnCvd) btnCvd.classList.toggle("active", showCvdSubchart);
             if (btnNetPos) btnNetPos.classList.toggle("active", showNetposSubchart);
             if (btnMacd) btnMacd.classList.toggle("active", showMacdSubchart);
-            [ [cvdPane, activeCvd, cvdHud], [netposPane, activeNetpos, netposHud], [macdPane, activeMacd, macdHud] ].forEach(([pane, vis, hudEl]) => {
+            if (btnObvCvd) btnObvCvd.classList.toggle("active", showObvCvdSubchart);
+            [ [cvdPane, activeCvd, cvdHud], [netposPane, activeNetpos, netposHud], [macdPane, activeMacd, macdHud], [obvCvdPane, activeObvCvd, obvCvdHud] ].forEach(([pane, vis, hudEl]) => {
                 if (pane) {
                     pane.style.display = vis ? "block" : "none";
                     pane.style.background = p.bg;
@@ -4351,6 +4383,7 @@ export default {
                     else hudEl.classList.add("light-hud");
                 }
             });
+            if (typeof syncDisciplineBeaconPosition === "function") syncDisciplineBeaconPosition();
             applyCustomChartHeights();
             renderDrawingToolbarState();
             syncFloatingDrawDockUI();
@@ -4397,6 +4430,9 @@ export default {
                 }
                 if (lwMacdChart && sourceChart !== lwMacdChart) {
                     lwMacdChart.timeScale().setVisibleLogicalRange(range);
+                }
+                if (lwObvCvdChart && sourceChart !== lwObvCvdChart) {
+                    lwObvCvdChart.timeScale().setVisibleLogicalRange(range);
                 }
             } catch (e) {}
             isSyncingTimeScale = false;
@@ -4713,7 +4749,7 @@ export default {
                 if (savedRange) {
                     const shiftedRange = { from: savedRange.from + addedCount, to: savedRange.to + addedCount };
                     lwChart.timeScale().setVisibleLogicalRange(shiftedRange);
-                    if (showCvdSubchart || showNetposSubchart || showMacdSubchart) {
+                    if (showCvdSubchart || showNetposSubchart || showMacdSubchart || showObvCvdSubchart) {
                         await renderActiveSubcharts(enriched, symObj, reqInterval, shiftedRange);
                     }
                 }
@@ -4902,7 +4938,7 @@ export default {
                     }
                 }
                 renderDrawOverlay();
-                if ((showCvdSubchart || showNetposSubchart || showMacdSubchart) && !canIncrementalUpdate) {
+                if ((showCvdSubchart || showNetposSubchart || showMacdSubchart || showObvCvdSubchart) && !canIncrementalUpdate) {
                     await renderActiveSubcharts(enriched, symObj, reqInterval, targetViewportRange);
                 }
 
@@ -6624,6 +6660,11 @@ export default {
                 lwMacdDifSeries = null;
                 lwMacdDeaSeries = null;
             }
+            if (lwObvCvdChart) {
+                try { lwObvCvdChart.remove(); } catch (e) {}
+                lwObvCvdChart = null;
+                lwObvCvdHistSeries = null;
+            }
         }
 
         // [computeMacdSeries] 已拆分至 ./js/indicators.js
@@ -6721,6 +6762,96 @@ export default {
                 const ro = new ResizeObserver(() => {
                     if (lwMacdChart && container.clientWidth > 0 && container.clientHeight > 0) {
                         lwMacdChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+                    }
+                });
+                ro.observe(container);
+            }
+        }
+
+        function updateObvCvdHudValues(row) {
+            const valEl = document.getElementById("lwObvCvdValues");
+            if (!valEl || !row) return;
+            const badge = row.bothBull
+                ? `<span style="color:#10b981; font-weight:800; background:rgba(16,185,129,0.14); padding:0 6px; border-radius:4px;">🟢 双核多头共振</span>`
+                : row.bothBear
+                    ? `<span style="color:#ef4444; font-weight:800; background:rgba(239,68,68,0.14); padding:0 6px; border-radius:4px;">🔴 双核空头共振</span>`
+                    : `<span style="color:#9ca3af; font-weight:800; background:rgba(156,163,175,0.14); padding:0 6px; border-radius:4px;">⚪ 分歧打架·静默</span>`;
+            const obvTag = row.obvBull ? `<b style="color:#10b981;">OBV↑</b>` : `<b style="color:#ef4444;">OBV↓</b>`;
+            const cvdTag = row.cvdBull ? `<b style="color:#10b981;">CVD↑</b>` : `<b style="color:#ef4444;">CVD↓</b>`;
+            const divTag = row.tailDiv === "BULL_DIV"
+                ? ` · <span style="color:#10b981; font-weight:800;">⚠️底背离·空单止盈70~80%</span>`
+                : row.tailDiv === "BEAR_DIV"
+                    ? ` · <span style="color:#f59e0b; font-weight:800;">⚠️顶背离·多单止盈70~80%</span>`
+                    : "";
+            valEl.innerHTML = `${badge} · ${obvTag} / ${cvdTag}${divTag}`;
+        }
+
+        function initObvCvdSubChartInstance() {
+            const container = document.getElementById("lwObvCvdChartContainer");
+            if (!container || typeof LightweightCharts === "undefined") return;
+            container.innerHTML = "";
+
+            const p = getChartPalette();
+            lwObvCvdChart = LightweightCharts.createChart(container, {
+                width: container.clientWidth || 600,
+                height: container.clientHeight || 130,
+                layout: {
+                    background: { type: "solid", color: p.bg },
+                    textColor: p.text,
+                    fontSize: 10
+                },
+                grid: getGridOptions(),
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                    vertLine: { color: p.crosshairColor },
+                    horzLine: { color: p.crosshairColor }
+                },
+                rightPriceScale: {
+                    borderColor: p.border,
+                    minimumWidth: 68,
+                    scaleMargins: { top: 0.24, bottom: 0.1 }
+                },
+                timeScale: {
+                    borderColor: p.border,
+                    rightOffset: 28,
+                    minBarSpacing: 2,
+                    visible: false
+                }
+            });
+
+            lwObvCvdHistSeries = lwObvCvdChart.addHistogramSeries({
+                priceLineVisible: false,
+                lastValueVisible: false
+            });
+            lwObvCvdHistSeries.createPriceLine({
+                price: 0,
+                color: p.isDark ? "rgba(148, 163, 184, 0.45)" : "rgba(71, 85, 105, 0.42)",
+                lineWidth: 1,
+                lineStyle: LightweightCharts.LineStyle.Dashed,
+                axisLabelVisible: false,
+                title: ""
+            });
+
+            lwObvCvdChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+                syncAllTimeScalesFrom(lwObvCvdChart, range);
+            });
+
+            lwObvCvdChart.subscribeCrosshairMove((param) => {
+                if (!param || !param.time) return;
+                if (lwObvCvdCache.length) {
+                    const ocFound = lwObvCvdCache.find(x => x.time === param.time);
+                    if (ocFound) updateObvCvdHudValues(ocFound);
+                }
+                if (lwLastDataCache.length) {
+                    const mainFound = lwLastDataCache.find(x => x.time === param.time);
+                    if (mainFound) updateLwHudText(mainFound);
+                }
+            });
+
+            if (typeof ResizeObserver !== "undefined") {
+                const ro = new ResizeObserver(() => {
+                    if (lwObvCvdChart && container.clientWidth > 0 && container.clientHeight > 0) {
+                        lwObvCvdChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
                     }
                 });
                 ro.observe(container);
@@ -7030,6 +7161,7 @@ export default {
                 if (lwCvdChart) lwCvdChart.timeScale().setVisibleLogicalRange(targetRange);
                 if (lwNetposChart) lwNetposChart.timeScale().setVisibleLogicalRange(targetRange);
                 if (lwMacdChart) lwMacdChart.timeScale().setVisibleLogicalRange(targetRange);
+                if (lwObvCvdChart) lwObvCvdChart.timeScale().setVisibleLogicalRange(targetRange);
             } catch (e) {}
             isSyncingTimeScale = false;
         }
@@ -7130,6 +7262,26 @@ export default {
                             ctrlEl.innerHTML = `<button type="button" class="btn-sm" onclick="toggleMacdSubchart()" style="padding:1px 7px; font-size:10px;">收起 ✕</button>`;
                         }
                         if (macdRows.length > 0) updateMacdHudValues(macdRows[macdRows.length - 1]);
+                    }
+                }
+                // 4. 渲染 OBV + CVD 双核资金共振副图
+                if (showObvCvdSubchart && typeof computeObvCvdResonance === "function") {
+                    if (!lwObvCvdChart) initObvCvdSubChartInstance();
+                    if (lwObvCvdChart) {
+                        const ocRows = computeObvCvdResonance(enrichedCandles, 10);
+                        lwObvCvdCache = ocRows;
+                        if (lwObvCvdHistSeries) {
+                            lwObvCvdHistSeries.setData(ocRows.map(r => ({
+                                time: r.time,
+                                value: r.normOsc,
+                                color: r.barColor
+                            })));
+                        }
+                        const ctrlEl = document.getElementById("lwObvCvdControls");
+                        if (ctrlEl && !ctrlEl.innerHTML) {
+                            ctrlEl.innerHTML = `<button type="button" class="btn-sm" onclick="toggleObvCvdSubchart()" style="padding:1px 7px; font-size:10px;">收起 ✕</button>`;
+                        }
+                        if (ocRows.length > 0) updateObvCvdHudValues(ocRows[ocRows.length - 1]);
                     }
                 }
             } finally {
@@ -7242,6 +7394,38 @@ export default {
             } else {
                 if (lockedRange) requestAnimationFrame(() => lockMainAndSubchartRanges(lockedRange));
                 showToast("已收起【MACD】副图");
+            }
+        }
+
+        async function toggleObvCvdSubchart() {
+            if (chartEngineMode !== "STRAT") {
+                switchChartEngine("STRAT", document.getElementById("btnEngineStrat"));
+            }
+            const lockedRange = lwChart ? lwChart.timeScale().getVisibleLogicalRange() : null;
+
+            showObvCvdSubchart = !showObvCvdSubchart;
+            localStorage.setItem("quant_show_obvcvd_subchart", showObvCvdSubchart ? "true" : "false");
+
+            if (!showObvCvdSubchart && lwObvCvdChart) {
+                try { lwObvCvdChart.remove(); } catch (e) {}
+                lwObvCvdChart = null;
+                lwObvCvdHistSeries = null;
+            }
+
+            syncChartControlButtons();
+            resizeAndRenderDrawOverlay();
+            if (lockedRange) lockMainAndSubchartRanges(lockedRange);
+
+            if (showObvCvdSubchart) {
+                if (lwLastDataCache.length > 0) {
+                    await renderActiveSubcharts(lwLastDataCache, getActiveSymbolObj(), tvInterval, lockedRange);
+                } else {
+                    await fetchAndRenderStrategyChart(true);
+                }
+                showToast("已开启【⚡ OBV+CVD 双核资金共振】副图（绿=双多、红=双空、灰=分歧静默）");
+            } else {
+                if (lockedRange) requestAnimationFrame(() => lockMainAndSubchartRanges(lockedRange));
+                showToast("已收起【OBV+CVD 双核共振】副图");
             }
         }
 
@@ -7453,6 +7637,7 @@ export default {
                 if (lwCvdChart) lwCvdChart.applyOptions({ grid: getGridOptions() });
                 if (lwNetposChart) lwNetposChart.applyOptions({ grid: getGridOptions() });
                 if (lwMacdChart) lwMacdChart.applyOptions({ grid: getGridOptions() });
+                if (lwObvCvdChart) lwObvCvdChart.applyOptions({ grid: getGridOptions() });
             } else {
                 renderTradingViewChart();
             }
@@ -7895,6 +8080,7 @@ export default {
         let customCvdChartHeight = Math.max(70, Math.min(340, parseInt(localStorage.getItem("quant_cvd_chart_h") || "140", 10) || 140));
         let customNetposChartHeight = Math.max(70, Math.min(340, parseInt(localStorage.getItem("quant_netpos_chart_h") || "140", 10) || 140));
         let customMacdChartHeight = Math.max(70, Math.min(340, parseInt(localStorage.getItem("quant_macd_chart_h") || "140", 10) || 140));
+        let customObvCvdChartHeight = Math.max(70, Math.min(340, parseInt(localStorage.getItem("quant_obvcvd_chart_h") || "130", 10) || 130));
         let isHeightControlBarOpen = false;
         let isCompactFsHeader = localStorage.getItem("quant_compact_fs_header") !== "false";
 
@@ -7927,6 +8113,9 @@ export default {
             } else if (which === "macd") {
                 customMacdChartHeight = Math.max(70, Math.min(340, customMacdChartHeight + delta));
                 localStorage.setItem("quant_macd_chart_h", String(customMacdChartHeight));
+            } else if (which === "obvcvd") {
+                customObvCvdChartHeight = Math.max(70, Math.min(340, customObvCvdChartHeight + delta));
+                localStorage.setItem("quant_obvcvd_chart_h", String(customObvCvdChartHeight));
             } else {
                 customNetposChartHeight = Math.max(70, Math.min(340, customNetposChartHeight + delta));
                 localStorage.setItem("quant_netpos_chart_h", String(customNetposChartHeight));
@@ -7939,10 +8128,12 @@ export default {
             customCvdChartHeight = 140;
             customNetposChartHeight = 140;
             customMacdChartHeight = 140;
+            customObvCvdChartHeight = 130;
             localStorage.setItem("quant_main_chart_h", "440");
             localStorage.setItem("quant_cvd_chart_h", "140");
             localStorage.setItem("quant_netpos_chart_h", "140");
             localStorage.setItem("quant_macd_chart_h", "140");
+            localStorage.setItem("quant_obvcvd_chart_h", "130");
             applyCustomChartHeights();
             showToast("已恢复主图与副图默认高度");
         }
@@ -7953,9 +8144,11 @@ export default {
             const cvdPane = document.getElementById("lwCvdPane");
             const netposPane = document.getElementById("lwNetposPane");
             const macdPane = document.getElementById("lwMacdPane");
+            const obvCvdPane = document.getElementById("lwObvCvdPane");
             const resMainSub = document.getElementById("resizerMainToFirstSub");
             const resCvdNet = document.getElementById("resizerCvdToNetpos");
             const resBeforeMacd = document.getElementById("resizerBeforeMacd");
+            const resBeforeObvCvd = document.getElementById("resizerBeforeObvCvd");
             const resBottom = document.getElementById("resizerChartBottom");
             const hBar = document.getElementById("chartHeightControlBar");
             const btnHBar = document.getElementById("btnToggleHeightBar");
@@ -7964,15 +8157,18 @@ export default {
             const activeCvd = showCvdSubchart && isStrat;
             const activeNetpos = showNetposSubchart && isStrat;
             const activeMacd = showMacdSubchart && isStrat;
-            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0) + (activeMacd ? 1 : 0);
+            const activeObvCvd = showObvCvdSubchart && isStrat;
+            const activeCount = (activeCvd ? 1 : 0) + (activeNetpos ? 1 : 0) + (activeMacd ? 1 : 0) + (activeObvCvd ? 1 : 0);
 
             if (cvdPane) cvdPane.style.height = `${customCvdChartHeight}px`;
             if (netposPane) netposPane.style.height = `${customNetposChartHeight}px`;
             if (macdPane) macdPane.style.height = `${customMacdChartHeight}px`;
+            if (obvCvdPane) obvCvdPane.style.height = `${customObvCvdChartHeight}px`;
 
             if (resMainSub) resMainSub.style.display = activeCount >= 1 ? "flex" : "none";
             if (resCvdNet) resCvdNet.style.display = (activeCvd && activeNetpos) ? "flex" : "none";
             if (resBeforeMacd) resBeforeMacd.style.display = (activeMacd && (activeCvd || activeNetpos)) ? "flex" : "none";
+            if (resBeforeObvCvd) resBeforeObvCvd.style.display = (activeObvCvd && (activeCvd || activeNetpos || activeMacd)) ? "flex" : "none";
             if (resBottom) resBottom.style.display = (!isTvCollapsed && !isTvFullscreen) ? "flex" : "none";
 
             if (shell && !isTvCollapsed) {
@@ -7983,6 +8179,7 @@ export default {
                         + (activeCvd ? customCvdChartHeight : 0)
                         + (activeNetpos ? customNetposChartHeight : 0)
                         + (activeMacd ? customMacdChartHeight : 0)
+                        + (activeObvCvd ? customObvCvdChartHeight : 0)
                         + splitterExtra;
                     shell.style.height = `${totalH}px`;
                 } else {
@@ -8001,20 +8198,24 @@ export default {
                 const gCvd = document.getElementById("ctrlGroupCvdHeight");
                 const gNet = document.getElementById("ctrlGroupNetposHeight");
                 const gMacd = document.getElementById("ctrlGroupMacdHeight");
+                const gObvCvd = document.getElementById("ctrlGroupObvCvdHeight");
                 const lblMain = document.getElementById("lblMainChartHeight");
                 const lblCvd = document.getElementById("lblCvdChartHeight");
                 const lblNet = document.getElementById("lblNetposChartHeight");
                 const lblMacd = document.getElementById("lblMacdChartHeight");
+                const lblObvCvd = document.getElementById("lblObvCvdChartHeight");
                 const btnCompact = document.getElementById("btnToggleCompactFsHeader");
 
                 if (gMain) gMain.style.display = isTvFullscreen ? "none" : "inline-flex";
                 if (gCvd) gCvd.style.display = activeCvd ? "inline-flex" : "none";
                 if (gNet) gNet.style.display = activeNetpos ? "inline-flex" : "none";
                 if (gMacd) gMacd.style.display = activeMacd ? "inline-flex" : "none";
+                if (gObvCvd) gObvCvd.style.display = activeObvCvd ? "inline-flex" : "none";
                 if (lblMain) lblMain.textContent = `${customMainChartHeight}px`;
                 if (lblCvd) lblCvd.textContent = `${customCvdChartHeight}px`;
                 if (lblNet) lblNet.textContent = `${customNetposChartHeight}px`;
                 if (lblMacd) lblMacd.textContent = `${customMacdChartHeight}px`;
+                if (lblObvCvd) lblObvCvd.textContent = `${customObvCvdChartHeight}px`;
                 if (btnCompact) btnCompact.classList.toggle("active", isCompactFsHeader);
             }
 
@@ -8027,6 +8228,7 @@ export default {
             const resMainSub = document.getElementById("resizerMainToFirstSub");
             const resCvdNet = document.getElementById("resizerCvdToNetpos");
             const resBeforeMacd = document.getElementById("resizerBeforeMacd");
+            const resBeforeObvCvd = document.getElementById("resizerBeforeObvCvd");
             const resBottom = document.getElementById("resizerChartBottom");
 
             const attachDrag = (el, onDragStart, onDragMove) => {
@@ -8061,6 +8263,7 @@ export default {
                     localStorage.setItem("quant_cvd_chart_h", String(customCvdChartHeight));
                     localStorage.setItem("quant_netpos_chart_h", String(customNetposChartHeight));
                     localStorage.setItem("quant_macd_chart_h", String(customMacdChartHeight));
+                    localStorage.setItem("quant_obvcvd_chart_h", String(customObvCvdChartHeight));
                 };
                 el.addEventListener("pointerup", endDrag);
                 el.addEventListener("pointercancel", endDrag);
@@ -8073,10 +8276,12 @@ export default {
                     cvdH: customCvdChartHeight,
                     netH: customNetposChartHeight,
                     macdH: customMacdChartHeight,
+                    obvCvdH: customObvCvdChartHeight,
                     mainH: customMainChartHeight,
                     cvdOn: showCvdSubchart,
                     netOn: showNetposSubchart,
-                    macdOn: showMacdSubchart
+                    macdOn: showMacdSubchart,
+                    obvCvdOn: showObvCvdSubchart
                 }),
                 (dy, st) => {
                     if (st.cvdOn) {
@@ -8085,10 +8290,23 @@ export default {
                         customNetposChartHeight = Math.max(70, Math.min(340, Math.round(st.netH - dy)));
                     } else if (st.macdOn) {
                         customMacdChartHeight = Math.max(70, Math.min(340, Math.round(st.macdH - dy)));
+                    } else if (st.obvCvdOn) {
+                        customObvCvdChartHeight = Math.max(70, Math.min(340, Math.round(st.obvCvdH - dy)));
                     }
                     if (!isTvFullscreen) {
                         customMainChartHeight = Math.max(240, Math.min(860, Math.round(st.mainH + dy)));
                     }
+                }
+            );
+
+            // 2c. 拖动上方副图与 OBV+CVD 双核共振副图之间的分隔条
+            attachDrag(
+                resBeforeObvCvd,
+                () => ({
+                    obvCvdH: customObvCvdChartHeight
+                }),
+                (dy, st) => {
+                    customObvCvdChartHeight = Math.max(70, Math.min(340, Math.round(st.obvCvdH - dy)));
                 }
             );
 
@@ -12861,6 +13079,16 @@ export default {
                         chart: lwMacdChart,
                         pane: macdPane,
                         title: (document.getElementById("lwMacdTitle")?.textContent || "MACD (12, 26, 9)") + "  " + (document.getElementById("lwMacdValues")?.textContent || "")
+                    });
+                }
+            }
+            if (showObvCvdSubchart && lwObvCvdChart) {
+                const ocPane = document.getElementById("lwObvCvdPane");
+                if (ocPane && ocPane.clientHeight > 0) {
+                    activeSubPanes.push({
+                        chart: lwObvCvdChart,
+                        pane: ocPane,
+                        title: (document.getElementById("lwObvCvdTitle")?.textContent || "OBV+CVD 双核资金共振") + "  " + (document.getElementById("lwObvCvdValues")?.textContent || "")
                     });
                 }
             }
