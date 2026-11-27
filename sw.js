@@ -1,4 +1,4 @@
-const CACHE_NAME = "quant-terminal-v40";
+const CACHE_NAME = "quant-terminal-v41";
 const ASSETS = [
     "./",
     "./index.html",

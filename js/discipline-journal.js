@@ -138,6 +138,14 @@
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         const drawerHost = (fsEl && fsEl !== document.documentElement) ? fsEl : document.body;
 
+        if (!document.getElementById("djBackdrop")) {
+            const bd = document.createElement("div");
+            bd.id = "djBackdrop";
+            bd.className = "dj-backdrop";
+            bd.onclick = () => window.toggleDisciplineDrawer(false);
+            drawerHost.appendChild(bd);
+        }
+
         if (!document.getElementById("djEdgeTab")) {
             const tab = document.createElement("button");
             tab.type = "button";
@@ -216,8 +224,10 @@
     function reparentForFullscreen() {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         const host = (fsEl && fsEl !== document.documentElement) ? fsEl : document.body;
+        const bd = document.getElementById("djBackdrop");
         const tab = document.getElementById("djEdgeTab");
         const drawer = document.getElementById("djDrawer");
+        if (bd && bd.parentElement !== host) host.appendChild(bd);
         if (tab && tab.parentElement !== host) host.appendChild(tab);
         if (drawer && drawer.parentElement !== host) host.appendChild(drawer);
     }
@@ -324,9 +334,11 @@
             }
         }
 
-        // 6. 同步抽屉展开态
+        // 6. 同步抽屉展开态与点击空白处关闭遮罩
+        const bd = document.getElementById("djBackdrop");
         const drawer = document.getElementById("djDrawer");
         const tab = document.getElementById("djEdgeTab");
+        if (bd) bd.classList.toggle("open", isDrawerOpen);
         if (drawer) drawer.classList.toggle("open", isDrawerOpen);
         if (tab) tab.classList.toggle("drawer-open", isDrawerOpen);
     }

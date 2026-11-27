@@ -1489,28 +1489,48 @@ body.light-theme .dj-edge-tab:hover {
     border-color: rgba(2, 132, 199, 0.45);
 }
 
-/* 右侧滑出抽屉（宽 320px） */
+/* 右侧抽屉半透明遮罩（点击空白处即关闭，手机端友好） */
+.dj-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10022 !important;
+    background: rgba(15, 23, 42, 0.24);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+}
+.dj-backdrop.open {
+    display: block;
+}
+
+/* 右侧滑出抽屉（宽 320px；收起时 display:none 彻底杜绝手机端横向撑宽） */
 .dj-drawer {
     position: fixed;
     top: 0;
     right: 0;
     width: 320px;
-    max-width: 90vw;
+    max-width: 88vw;
     height: 100vh;
+    height: 100dvh;
     z-index: 10025 !important;
-    display: flex;
+    display: none;
     flex-direction: column;
-    background: rgba(15, 20, 30, 0.92);
+    background: rgba(15, 20, 30, 0.94);
     backdrop-filter: blur(20px) saturate(150%);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
     border-left: 1px solid rgba(148, 163, 184, 0.22);
     box-shadow: -8px 0 28px rgba(0, 0, 0, 0.28);
     color: #e2e8f0;
-    transform: translateX(100%);
-    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
 }
 .dj-drawer.open {
-    transform: translateX(0);
+    display: flex;
+    pointer-events: auto;
+    animation: djSlideIn 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes djSlideIn {
+    from { opacity: 0.4; transform: translateX(32px); }
+    to { opacity: 1; transform: translateX(0); }
 }
 body.light-theme .dj-drawer {
     background: rgba(252, 250, 244, 0.94);
