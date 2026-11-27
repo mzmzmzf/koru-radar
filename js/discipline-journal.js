@@ -135,7 +135,8 @@
             }
         }
 
-        const drawerHost = document.fullscreenElement || document.webkitFullscreenElement || document.getElementById("tvChartCard") || document.body;
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        const drawerHost = (fsEl && fsEl !== document.documentElement) ? fsEl : document.body;
 
         if (!document.getElementById("djEdgeTab")) {
             const tab = document.createElement("button");
@@ -213,7 +214,8 @@
     }
 
     function reparentForFullscreen() {
-        const host = document.fullscreenElement || document.webkitFullscreenElement || document.getElementById("tvChartCard") || document.body;
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        const host = (fsEl && fsEl !== document.documentElement) ? fsEl : document.body;
         const tab = document.getElementById("djEdgeTab");
         const drawer = document.getElementById("djDrawer");
         if (tab && tab.parentElement !== host) host.appendChild(tab);

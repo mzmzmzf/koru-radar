@@ -1443,7 +1443,7 @@ body.light-theme .dj-top-beacon.dj-stage-d {
     right: 0;
     top: 50%;
     transform: translateY(-50%);
-    z-index: 42;
+    z-index: 10020 !important;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1497,7 +1497,7 @@ body.light-theme .dj-edge-tab:hover {
     width: 320px;
     max-width: 90vw;
     height: 100vh;
-    z-index: 43;
+    z-index: 10025 !important;
     display: flex;
     flex-direction: column;
     background: rgba(15, 20, 30, 0.92);
